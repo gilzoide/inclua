@@ -1,0 +1,11 @@
+# text backups
+*~
+*.swp
+
+# objects
+*.o
+*.so
+
+# python cache
+__pycache__
+*.pyc
