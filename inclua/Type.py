@@ -1,6 +1,7 @@
 """Type information needed for bindings to do their jobs, based on
 Clang.cindex.Type"""
 
+import re
 from .Decl import Decl
 
 def from_type (ty):
@@ -22,6 +23,10 @@ def from_type (ty):
         return PointerType.from_type (ty)
     elif kind == 'RECORD':
         return StructType.from_type (ty)
+    elif kind == 'ENUM':
+        return Enum.from_type (ty)
+    elif kind == 'TYPEDEF':
+        return from_type (ty.get_canonical ())
     else:
         print ('Não conheço esse tipo:', kind)
 
@@ -85,6 +90,7 @@ class StructType (Type):
         super (StructType, self).__init__ (symbol)
         self.fields = fields
         self.alias = alias
+        self.num_fields = len (fields)
 
     def __str__ (self):
         return self.alias or self.symbol
@@ -98,3 +104,30 @@ class StructType (Type):
         for cur in ty.get_fields ():
             fields.append ((cur.spelling, from_type (cur.type)))
         return Type.remember_type (StructType (ty.spelling, fields))
+
+class Enum (Type):
+    anonymous_patt = re.compile (r".+\((.+)\)")
+
+    def __init__ (self, symbol, values = {}, alias = None):
+        # anonymous enum
+        if symbol.endswith (')'):
+            symbol = Enum.anonymous_patt.match (symbol).group (1)
+            symbol = symbol.replace ('.', '_')
+            symbol = symbol.replace (':', '_')
+            symbol = symbol.replace (' ', '_')
+        super (Enum, self).__init__ (symbol)
+        self.values = values
+        self.alias = alias
+
+    def add_value (self, cursor):
+        self.values[cursor.spelling] = cursor.enum_value
+
+    def __str__ (self):
+        return self.symbol or 'enum'
+
+    def __repr__ (self):
+        return 'Enum ({0!r}, {1!r}, {2!r})'.format (self.symbol, self.values, self.alias)
+
+    @staticmethod
+    def from_type (ty):
+        return Type.remember_type (Enum (ty.spelling))

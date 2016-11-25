@@ -39,6 +39,14 @@ template<> void inclua_push (lua_State *L, const char *str) {
 	lua_pushstring (L, str);
 }
 
+template<typename T> void inclua_push_array (lua_State *L, T *arr, size_t size) {
+	lua_newtable (L);
+	for (int i = 0; i < size; i++) {
+		inclua_push (L, arr[i]);
+		lua_seti (L, -2, i + 1);
+	}
+}
+
 
 template<typename T> T inclua_check (lua_State *, int);
 
@@ -72,25 +80,6 @@ template<> const char *inclua_check (lua_State *L, int arg) {
 ////////////////////////////////////////////////////////////////////////////////
 //  Structs
 ////////////////////////////////////////////////////////////////////////////////
-template<typename T, typename = std::enable_if<std::is_class<T>::type>>
-int inclua_push_new (lua_State *L);
-
-template<typename T, typename = std::enable_if<std::is_class<T>::type>>
-int inclua_index (lua_State *L);
-
-template<typename T, typename = std::enable_if<std::is_class<T>::type>>
-int inclua_newindex (lua_State *L);
-
-template<typename T>
-int inclua_register (lua_State *L);
-
-#define INCLUA_PUSH_NEW(struct_name) \
-	template<typename = struct_name> int inclua_push_new (lua_State *L) { \
-		lua_newuserdata (L, sizeof (struct_name)); \
-		luaL_setmetatable (L, #struct_name); \
-		return 1; \
-	}
-
 #define INCLUA_PUSH(struct_name) \
 	template<> void inclua_push (lua_State *L, struct_name *ptr) { \
 		if (ptr) { \
@@ -113,5 +102,4 @@ int inclua_register (lua_State *L);
 	template<> struct_name inclua_check (lua_State *L, int arg) { \
 		return *((struct_name *) luaL_checkudata (L, arg, #struct_name)); \
 	}
-
 

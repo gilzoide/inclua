@@ -22,9 +22,9 @@ setup (
         'Programming Language :: Python :: 3',
     ],
     keywords = 'language bindings development',
-    install_requires = ['PyYAML'],
+    install_requires = ['libclang-py3'],
 
-    packages = find_packages ('src'),
+    packages = find_packages (),
     entry_points = {
         'console_scripts' : [
             'inclua = inclua:main',

@@ -1,13 +1,20 @@
 #include <stdio.h>
 
-typedef struct _Oi {
+typedef struct Oi Oi;
+
+struct Oi {
 	int a;
 	int b;
-} Oi;
+};
 
 struct Outra {
 	int o;
 };
+
+typedef enum {
+	COMO_VAI,
+	VOCES,
+} Nice;
 
 Oi *getOi (Oi *o) {
 	return o;

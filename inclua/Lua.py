@@ -1,153 +1,203 @@
 from . import Type, Visitor
 
-def generate_struct (struct):
-    """Generate Struct binding functions"""
-    content = ["""
+# Struct bindings templates and generator
+struct_bindings = r"""
 ////////////////////////////////////////////////////////////////////////////////
-//  {0}
+//  Struct {alias}
 ////////////////////////////////////////////////////////////////////////////////
-INCLUA_PUSH ({0});
-INCLUA_CHECK ({0});"""]
-    # struct is not opaque
-    if len (struct.fields):
-        # __call metamethod
-        content.append ("""
-int inclua_push_new_{1} (lua_State *L) {{
-    lua_newuserdata (L, sizeof ({0}));
-    luaL_setmetatable (L, "{0}");
-    return 1;
-}}""")
+INCLUA_PUSH ({struct});
+INCLUA_CHECK ({struct});
+{non_opaque}
 
-        # __index metamethod
-        content.append ("""
-int inclua_index_{1} (lua_State *L) {{
-    {0} *obj = inclua_check<{0} *> (L, 1);
-    const char *key = inclua_check<const char *> (L, 2);
-""")
-        for i, field in enumerate (struct.fields):
-            content.append ("""    {0} (!strcmp (key, "{1}")) inclua_push (L, obj->{1});"""
-                    .format (i == 0 and 'if' or 'else if', field[0]))
-        content.append ("""    else return luaL_error (L, "struct {1} doesn't have a \\"%s\\" field", key);
-    
+void inclua_register_{alias} (lua_State *L) {{
+    luaL_newmetatable (L, "{alias}");
+    {metamethods}
+    lua_pushliteral (L, "{alias}");
+    lua_setfield (L, -2, "__metatable");
+    luaL_setmetatable (L, "{alias}");
+}}
+"""
+struct_non_opaque_bindings = r"""
+int inclua_push_new_{alias} (lua_State *L) {{
+    lua_newuserdata (L, sizeof ({struct}));
+    luaL_setmetatable (L, "{alias}");
     return 1;
-}}""")
-        # __newindex metamethod
-        content.append ("""
-int inclua_newindex_{1} (lua_State *L) {{
-    {0} *obj = inclua_check<{0} *> (L, 1);
+}}
+
+int inclua_index_{alias} (lua_State *L) {{
+    {struct} *obj = inclua_check<{struct} *> (L, 1);
     const char *key = inclua_check<const char *> (L, 2);
-""")
-        for i, field in enumerate (struct.fields):
-            content.append ("""    {0} (!strcmp (key, "{1[0]}")) obj->{1[0]} = inclua_check<{1[1]}> (L, 3);"""
-                    .format (i == 0 and 'if' or 'else if', field))
-        content.append ("""    else return luaL_error (L, "struct {1} doesn't have a \\"%s\\" field", key);
-    
+
+    {index_lines}
+    else return luaL_error (L, "struct {alias} doesn't have a \"%s\" field", key);
+
+    return 1;
+}}
+
+int inclua_new_index_{alias} (lua_State *L) {{
+    {struct} *obj = inclua_check<{struct} *> (L, 1);
+    const char *key = inclua_check<const char *> (L, 2);
+
+    {new_index_lines}
+    else return luaL_error (L, "struct {alias} doesn't have a \"%s\" field", key);
+
     return 0;
-}}""")
-
-    # struct register_struct
-    content.append ("""
-void inclua_register_{1} (lua_State *L) {{
-    luaL_newmetatable (L, "{1}");""")
-    if len (struct.fields):
-        content.append (
-"""    const luaL_Reg metamethods[] = {{
-        {{ "__call", inclua_push_new_{1} }},
-        {{ "__index", inclua_index_{1} }},
-        {{ "__newindex", inclua_newindex_{1} }},
+}}
+"""
+struct_metamethods_bindings = r"""
+    const luaL_Reg metamethods[] = {{
+        {{ "__index", inclua_index_{alias} }},
+        {{ "__new_index", inclua_new_index_{alias} }},
+        {{ "__call", inclua_push_new_{alias} }},
         {{ NULL, NULL }},
     }};
     luaL_setfuncs (L, metamethods, 0);
-""")
-    content.append (
-"""    lua_pushliteral (L, "{1}");
-    lua_setfield (L, -2, "__metatable");
-    luaL_setmetatable (L, "{1}");
-}}""")
+"""
+struct_index_bindings = '{0} (!strcmp (key, "{field}")) inclua_push (L, obj->{field});'
+struct_new_index_bindings = '{0} (!strcmp (key, "{field}")) obj->{field} = inclua_check<{type}> (L, 3);'
 
-    meta = str (struct).replace ('struct ', '')
-    return '\n'.join (content).format (struct, meta)
+def _generate_struct_index (struct):
+    return '\n    '.join ([struct_index_bindings.format (i == 0 and 'if' or 'else if', field = f[0], type = f[1])
+            for i, f in enumerate (struct.fields)])
 
-def generate_function (func):
-    def call (func):
-        args = ['arg{}'.format (i + 1) for i in range (func.num_args)]
-        return """{0.symbol} ({1}) """.format (func, ', '.join (args))
+def _generate_struct_new_index (struct):
+    return '\n    '.join ([struct_new_index_bindings.format (i == 0 and 'if' or 'else if', field = f[0], type = f[1])
+            for i, f in enumerate (struct.fields)])
 
-    content = ["""int wrap_{0.symbol} (lua_State *L) {{"""]
-    for i, arg in enumerate (func.arg_types):
-        content.append ("""    {ty} arg{i} = inclua_check<{ty}> (L, {i});""".format (i = i + 1, ty = arg))
-
-    if str (func.ret_type) != 'void':
-        content.append ("""    {0.ret_type} ret = {1};""")
-        content.append ("""    inclua_push (L, ret);""")
-        content.append ("""    return 1;""")
+def _generate_struct (struct):
+    """Generate Struct binding functions"""
+    meta = struct.alias or struct.symbol.replace ('struct ', '')
+    if struct.num_fields > 0:
+        non_opaque = struct_non_opaque_bindings.format (
+                struct = struct,
+                alias = meta,
+                index_lines = _generate_struct_index (struct),
+                new_index_lines = _generate_struct_new_index (struct))
+        metamethods = struct_metamethods_bindings.format (struct = struct, alias = meta)
     else:
-        content.append ("""    {1};""")
-        content.append ("""    return 0;""")
-    content.append ('}}\n')
+        non_opaque, metamethods = '', '// No metamethods'
+    return struct_bindings.format (
+            struct = struct,
+            alias = meta,
+            non_opaque = non_opaque,
+            metamethods = metamethods)
 
-    return '\n'.join (content).format (func, call (func))
+# Enum bindings templates and generator
+enum_wrapper_bindings = r"""
+////////////////////////////////////////////////////////////////////////////////
+//  Enum {alias}
+////////////////////////////////////////////////////////////////////////////////
+void inclua_register_{alias} (lua_State *L) {{
+    {enum_constant_lines}
+}}
+"""
+enum_constant_bindings = r"""inclua_push<int> (L, {const}); lua_setfield (L, -2, "{const}");"""
+def _generate_enum (enum):
+    lines = [enum_constant_bindings.format (const = const)
+            for const in enum.values.keys ()]
+    return enum_wrapper_bindings.format (
+            alias = enum.alias or enum.symbol.replace ('enum ', ''),
+            enum_constant_lines = '\n    '.join (lines))
+
+# Function bindings templates and generator
+function_wrapper_bindings = r"""
+int wrap_{name} (lua_State *L) {{
+    {arguments}
+    {call};
+    return {ret_num};
+}}"""
+function_argument_bindings = '{type} arg{i} = inclua_check<{type}> (L, {i});'
+function_with_ret_bindings = """{type} ret = {call};\n    inclua_push (L, ret)"""
+def _call (func):
+    args = ['arg{}'.format (i + 1) for i in range (func.num_args)]
+    return """{0} ({1})""".format (func, ', '.join (args))
+
+def _generate_function (func):
+    arguments = [function_argument_bindings.format (type = ty, i = i + 1)
+            for i, ty in enumerate (func.arg_types)] or ['// No args']
+    if str (func.ret_type) != 'void':
+        ret_num = 1
+        call = function_with_ret_bindings.format (
+                call = _call (func),
+                type = func.ret_type)
+    else:
+        ret_num = 0
+        call = _call (func)
+    return function_wrapper_bindings.format (
+            name = func,
+            arguments = '\n    '.join (arguments),
+            call = call,
+            ret_num = ret_num)
     
-
-
-class Generator:
-    """Class that generates bindings for Lua 5.2+"""
-    def __init__ (self):
-        self.structs = []
-
-    def module (self, mod_name):
-        self.module = mod_name
-
-    def generate (self):
-        # Content list, for concatenating lines together with `join` later
-        content = [
-"""/* Inclua generated wrapper
- * LICENSA blablabla
+# Module initialization templates and generator
+module_bindings = """/* Inclua wrapper automático e pá
+ * Licensa?
  */
 
 #include "inclua_Lua.hpp"
-        """]
+{includes}
+
+{structs}
+{enums}
+////////////////////////////////////////////////////////////////////////////////
+//  Functions
+////////////////////////////////////////////////////////////////////////////////
+{functions}
+
+////////////////////////////////////////////////////////////////////////////////
+//  Module initialization
+////////////////////////////////////////////////////////////////////////////////
+extern "C" int luaopen_{module} (lua_State *L) {{
+    const luaL_Reg functions[] = {{
+        {func_reg}
+        {{ NULL, NULL }},
+    }};
+    luaL_newlib (L, functions);
+    {struct_register}
+    {enum_register}
+
+    return 1;
+}}
+"""
+module_include_bindings = '#include "{file}"'
+module_func_reg_bindings = '{{ "{func}", wrap_{func} }},'
+module_struct_register_bindings = """
+    // Struct {alias}
+    inclua_register_{alias} (L);
+    lua_setfield (L, -2, "{alias}");"""
+module_enum_register_bindings = """
+    // Enum {alias}
+    inclua_register_{alias} (L);"""
+class Generator:
+    """Class that generates bindings for Lua 5.2+"""
+    def __init__ (self, mod_name):
+        self.structs = []
+        self.mod_name = mod_name
+
+    def module (self, mod_name):
+        self.mod_name = mod_name
+
+    def generate (self):
         V = Visitor.Visitor ()
         for h in self.headers:
             V.parse_header (h)
-        content.extend (map (lambda h: '#include "{}"'.format (h), self.headers))
+        includes = [module_include_bindings.format (file = file) for file in self.headers]
+        structs = [_generate_struct (struct) for struct in V.structs]
+        enums = [_generate_enum (enum) for enum in V.enums.values ()]
+        functions = [_generate_function (func) for func in V.functions]
+        func_reg = [module_func_reg_bindings.format (func = func) for func in V.functions]
+        struct_register = [module_struct_register_bindings.format (
+                alias = struct.alias or struct.symbol.replace ('struct ', ''))
+                for struct in V.structs]
+        enum_register = [module_enum_register_bindings.format (alias = enum.alias or enum.symbol.replace ('enum ', ''))
+                for enum in V.enums.values ()]
 
-        # Structs: push, push_new, register_struct, check
-        for S in V.structs:
-            if isinstance (S, Type.StructType):
-                content.append (generate_struct (S))
-
-        # Module initialization
-        content.append ("""
-////////////////////////////////////////////////////////////////////////////////
-//  Functions
-////////////////////////////////////////////////////////////////////////////////""")
-        for F in V.functions:
-            content.append (generate_function (F))
-        content.append (
-"""////////////////////////////////////////////////////////////////////////////////
-//  Module init
-////////////////////////////////////////////////////////////////////////////////
-extern "C" int luaopen_{0} (lua_State *L) {{
-    const luaL_Reg functions[] {{""".format (self.module))
-        for F in V.functions:
-            content.append ("""        {{ "{0}", wrap_{0} }},""".format (F))
-        content.append (
-"""        { NULL, NULL },
-    };
-    luaL_newlib (L, functions);""")
-
-        for S in V.structs:
-            meta = str (S).replace ('struct ', '')
-            content.append ("""
-    // struct {1}
-    inclua_register_{1} (L);
-    lua_setfield (L, -2, "{1}");""".format (S, meta))
-
-        content.append ("""
-    return 1;
-}
-        """)
-                
-
-        return '\n'.join (content)
+        return module_bindings.format (
+                module = self.mod_name,
+                includes = '\n'.join (includes),
+                structs = '\n'.join (structs),
+                enums = '\n'.join (enums),
+                functions = '\n'.join (functions),
+                func_reg = '\n        '.join (func_reg) or '// No functions',
+                struct_register = '\n'.join (struct_register),
+                enum_register = '\n'.join (enum_register))
