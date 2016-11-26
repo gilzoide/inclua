@@ -22,7 +22,7 @@ def from_type (ty):
     elif kind == 'POINTER':
         return PointerType.from_type (ty)
     elif kind == 'RECORD':
-        return StructType.from_type (ty)
+        return RecordType.from_type (ty)
     elif kind == 'ENUM':
         return Enum.from_type (ty)
     elif kind == 'TYPEDEF':
@@ -85,9 +85,9 @@ class PointerType (Type):
     def from_type (ty):
         return Type.remember_type (PointerType (ty.spelling, from_type (ty.get_pointee ())))
 
-class StructType (Type):
+class RecordType (Type):
     def __init__ (self, symbol, fields = [], alias = None):
-        super (StructType, self).__init__ (symbol)
+        super (RecordType, self).__init__ (symbol)
         self.fields = fields
         self.alias = alias
         self.num_fields = len (fields)
@@ -96,14 +96,14 @@ class StructType (Type):
         return self.alias or self.symbol
 
     def __repr__ (self):
-        return 'StructType ("{}", {})'.format (str (self), str (self.fields))
+        return 'RecordType ("{0!s}", {0.fields!s})'.format (self)
 
     @staticmethod
     def from_type (ty):
         fields = []
         for cur in ty.get_fields ():
             fields.append ((cur.spelling, from_type (cur.type)))
-        return Type.remember_type (StructType (ty.spelling, fields))
+        return Type.remember_type (RecordType (ty.spelling, fields))
 
 class Enum (Type):
     anonymous_patt = re.compile (r".+\((.+)\)")

@@ -9,3 +9,8 @@
 # python cache
 __pycache__
 *.pyc
+
+# setuptools stuff
+build/
+dist/
+*egg-info

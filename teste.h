@@ -7,8 +7,10 @@ struct Oi {
 	int b;
 };
 
-struct Outra {
-	int o;
+union Outra {
+	int i;
+	char c;
+	Oi o;
 };
 
 typedef enum {

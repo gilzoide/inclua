@@ -7,12 +7,13 @@ from . import Type, Function
 class Visitor:
     def __init__ (self):
         self.structs = set ()
+        self.unions = set ()
         self.enums = {}
         self.functions = []
 
-    def parse_header (self, header_name):
-        index = clang.Index.create ()
-        tu = index.parse (header_name)
+    def parse_header (self, header_name, clang_args = []):
+        tu = clang.TranslationUnit.from_source (header_name, args = clang_args
+                , options = clang.TranslationUnit.PARSE_SKIP_FUNCTION_BODIES)
 
         for c in tu.cursor.get_children ():
             self.visit (c, header_name)
@@ -30,10 +31,12 @@ class Visitor:
             # Structs
             elif cursor.kind == clang.CursorKind.STRUCT_DECL:
                 self.structs.add (Type.from_cursor (cursor))
+            # Unions
+            elif cursor.kind == clang.CursorKind.UNION_DECL:
+                self.unions.add (Type.from_cursor (cursor))
             # Functions
             elif cursor.kind == clang.CursorKind.FUNCTION_DECL:
                 self.functions.append (Function.from_cursor (cursor))
-                return
             # Enums
             elif cursor.kind == clang.CursorKind.ENUM_DECL:
                 self.enums[cursor.hash] = Type.from_cursor (cursor)
