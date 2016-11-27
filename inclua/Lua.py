@@ -25,14 +25,6 @@ int inclua_push_new_{alias} (lua_State *L) {{
     return 1;
 }}
 
-/*
-template<> void inclua_push (lua_State *L, {record} obj) {{
-    void *new_obj = lua_newuserdata (L, sizeof ({record}));
-    luaL_setmetatable (L, "{record}");
-    memcpy (new_obj, &obj, sizeof ({record}));
-}}
-*/
-
 int inclua_index_{alias} (lua_State *L) {{
     {record} *obj = inclua_check<{record} *> (L, 1);
     const char *key = inclua_check<const char *> (L, 2);
@@ -176,7 +168,7 @@ module_bindings = """/* Inclua wrapper automático e pá
 ////////////////////////////////////////////////////////////////////////////////
 extern "C" int luaopen_{module} (lua_State *L) {{
     const luaL_Reg functions[] = {{
-        {func_reg}
+        {func_register}
         {{ NULL, NULL }},
     }};
     luaL_newlib (L, functions);
@@ -196,6 +188,11 @@ module_record_register_bindings = """
 module_enum_register_bindings = """
     // Enum {alias}
     inclua_register_{alias} (L);"""
+module_enum_register_scoped_bindings = """
+    // Enum {alias}
+    lua_newtable (L);
+    inclua_register_{alias} (L);
+    lua_setfield (L, -2, "{alias}");"""
 
 def generate_lua (G):
     """Function that generates bindings for Lua 5.2+"""
@@ -203,22 +200,28 @@ def generate_lua (G):
     for h in G.headers:
         V.parse_header (h, G.clang_args)
 
+    bind = V.apply_ignores (G)
+
+    #include ""
     includes = [module_include_bindings.format (file = file) for file in G.headers]
-    structs = [_generate_record (struct, 'struct') for struct in V.structs]
-    unions = [_generate_record (union, 'union') for union in V.unions]
-    enums = [_generate_enum (enum) for enum in V.enums.values ()]
-    functions = [_generate_function (func) for func in V.functions]
-    func_reg = [module_func_reg_bindings.format (func = func) for func in V.functions]
+    # definitions
+    structs = [_generate_record (struct, 'struct') for struct in bind['structs']]
+    unions = [_generate_record (union, 'union') for union in bind['unions']]
+    enums = [_generate_enum (enum) for enum in bind['enums']]
+    functions = [_generate_function (func) for func in bind['functions']]
+    # registration
+    func_register = [module_func_reg_bindings.format (func = func) for func in bind['functions']]
     struct_register = [module_record_register_bindings.format (
             alias = struct.alias or struct.symbol.replace ('struct ', ''),
             struct_or_union = 'struct')
-            for struct in V.structs]
+            for struct in bind['structs']]
     union_register = [module_record_register_bindings.format (
             alias = union.alias or union.symbol.replace ('union ', ''),
             struct_or_union = 'union')
-            for union in V.unions]
-    enum_register = [module_enum_register_bindings.format (alias = enum.alias or enum.symbol.replace ('enum ', ''))
-            for enum in V.enums.values ()]
+            for union in bind['unions']]
+    enum_register = [(G.is_scoped (enum) and module_enum_register_scoped_bindings or module_enum_register_bindings)
+            .format (alias = enum.alias or enum.symbol.replace ('enum ', ''))
+            for enum in bind['enums']]
 
     return module_bindings.format (
             module = G.mod_name,
@@ -227,7 +230,7 @@ def generate_lua (G):
             unions = '\n'.join (unions),
             enums = '\n'.join (enums),
             functions = '\n'.join (functions),
-            func_reg = '\n        '.join (func_reg) or '// No functions',
+            func_register = '\n        '.join (func_register) or '// No functions',
             struct_register = '\n'.join (struct_register),
             union_register = '\n'.join (union_register),
             enum_register = '\n'.join (enum_register))

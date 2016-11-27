@@ -18,9 +18,14 @@ class Visitor:
         for c in tu.cursor.get_children ():
             self.visit (c, header_name)
 
-    def add (self, ty):
-        if isinstance (ty, Type.StructType): self.structs.add (ty)
-        elif isinstance (ty, Type.EnumType): self.enums.append (ty)
+    def apply_ignores (self, G):
+        no_ignore = lambda x: not G.should_ignore (str (x))
+        return {
+            'structs'   :   list (filter (no_ignore, self.structs)),
+            'enums'     :   list (filter (no_ignore, self.enums.values ())),
+            'unions'    :   list (filter (no_ignore, self.unions)),
+            'functions' :   list (filter (no_ignore, self.functions)),
+        }
 
     def visit (self, cursor, header_name):
         if str (cursor.location.file) == header_name:

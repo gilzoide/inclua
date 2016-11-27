@@ -3,6 +3,7 @@ Clang.cindex.Type"""
 
 import re
 from .Decl import Decl
+from .Error import IncluaError
 
 def from_type (ty):
     memoized = Type.from_type (ty)
@@ -27,8 +28,10 @@ def from_type (ty):
         return Enum.from_type (ty)
     elif kind == 'TYPEDEF':
         return from_type (ty.get_canonical ())
+    # elif kind == 'ELABORATED':
+        # print ('//', ty.get_named_type ())
     else:
-        print ('Não conheço esse tipo:', kind)
+        raise IncluaError ('Clang TypeKind {} not supported'.format (kind))
 
 def from_cursor (cur):
     return from_type (cur.type)
@@ -37,6 +40,10 @@ def from_cursor (cur):
 known_types = {}
 
 class Type (Decl):
+
+    # Regex for giving anonymous enums/structs/unions a nice name based on it's location
+    anonymous_patt = re.compile (r".+\((.+)\)")
+
     def __init__ (self, symbol):
         super (Type, self).__init__ (symbol)
 
@@ -87,6 +94,12 @@ class PointerType (Type):
 
 class RecordType (Type):
     def __init__ (self, symbol, fields = [], alias = None):
+        # anonymous struct/union
+        if symbol.endswith (')'):
+            symbol = Type.anonymous_patt.match (symbol).group (1)
+            symbol = symbol.replace ('.', '_')
+            symbol = symbol.replace (':', '_')
+            symbol = symbol.replace (' ', '_')
         super (RecordType, self).__init__ (symbol)
         self.fields = fields
         self.alias = alias
@@ -106,12 +119,10 @@ class RecordType (Type):
         return Type.remember_type (RecordType (ty.spelling, fields))
 
 class Enum (Type):
-    anonymous_patt = re.compile (r".+\((.+)\)")
-
     def __init__ (self, symbol, values = {}, alias = None):
         # anonymous enum
         if symbol.endswith (')'):
-            symbol = Enum.anonymous_patt.match (symbol).group (1)
+            symbol = Type.anonymous_patt.match (symbol).group (1)
             symbol = symbol.replace ('.', '_')
             symbol = symbol.replace (':', '_')
             symbol = symbol.replace (' ', '_')

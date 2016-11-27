@@ -10,7 +10,10 @@ struct Oi {
 union Outra {
 	int i;
 	char c;
-	Oi o;
+	// struct S {
+		// int a;
+		// int b;
+	// } s;
 };
 
 typedef enum {
@@ -28,4 +31,8 @@ void oiMundo () {
 
 int getSoma (Oi *O) {
 	return O->a + O->b;
+}
+
+void printaI (union Outra *o) {
+	printf ("%d\n", o->i);
 }
