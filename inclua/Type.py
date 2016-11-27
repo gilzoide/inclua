@@ -16,7 +16,7 @@ def from_type (ty):
         return IntType.from_type (ty)
     elif kind in ['FLOAT', 'FLOAT128', 'DOUBLE', 'LONGDOUBLE']:
         return FloatType.from_type (ty)
-    elif kind in ['CONSTANTARRAY', 'VARIABLEARRAY']:
+    elif kind in ['INCOMPLETEARRAY', 'CONSTANTARRAY', 'VARIABLEARRAY']:
         return ArrayType.from_type (ty)
     elif kind == 'VOID':
         return VoidType ()
@@ -28,13 +28,23 @@ def from_type (ty):
         return Enum.from_type (ty)
     elif kind == 'TYPEDEF':
         return from_type (ty.get_canonical ())
+    # elif kind == 'UNEXPOSED':
+        # ret = RecordType.from_type (ty)
+        # print (repr (ret))
+        # return ret
+    # elif kind == 'FUNCTIONPROTO':
+        # pass
     # elif kind == 'ELABORATED':
         # print ('//', ty.get_named_type ())
     else:
         raise IncluaError ('Clang TypeKind {} not supported'.format (kind))
 
 def from_cursor (cur):
-    return from_type (cur.type)
+    try:
+        return from_type (cur.type)
+    except IncluaError as ex:
+        print (ex)
+        raise IncluaError ('{0!s} @ {1!s}'.format (ex, cur.location))
 
 
 known_types = {}

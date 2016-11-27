@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include <stdio.h>
 
 typedef struct Oi Oi;
@@ -34,6 +35,28 @@ float somaVet (float *vet, int tam) {
 		soma += vet[i];
 	}
 	return soma;
+}
+
+float somaVetAte0 (float *vet) {
+	float soma = 0;
+	while (*vet) {
+		soma += *vet;
+		vet++;
+	}
+	return soma;
+}
+
+void range (int *vet, int inicio, int ate) {
+	int i;
+	for (i = inicio; i < ate; i++) {
+		vet[i - inicio] = i;
+	}
+}
+
+int *rangeAlloc (int inicio, int ate) {
+	int *vet = (int *) malloc ((ate - inicio) * sizeof (int));
+	range (vet, inicio, ate);
+	return vet;
 }
 
 void oiMundo () {

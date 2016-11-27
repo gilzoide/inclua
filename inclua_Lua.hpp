@@ -1,4 +1,5 @@
 #include <lua.hpp>
+#include <cstdlib>
 #include <cstring>
 #include <cstdint>
 #include <type_traits>
@@ -96,6 +97,20 @@ T *inclua_check_array (lua_State *L, int arg, Size & size) {
 		ret[i] = inclua_check<T> (L, -1);
 	}
 	lua_pop (L, size);
+	return ret;
+}
+
+template<typename T>
+T *inclua_check_array_plus (lua_State *L, int arg, T trailing_value) {
+	int len = luaL_len (L, arg);
+	luaL_argcheck (L, len > 0, arg, "Array length should be a positive integer");
+	T *ret = new T [len + 1];
+	for (int i = 0; i < len; i++) {
+		lua_geti (L, arg, i + 1);
+		ret[i] = inclua_check<T> (L, -1);
+	}
+	ret[len] = trailing_value;
+	lua_pop (L, len);
 	return ret;
 }
 
