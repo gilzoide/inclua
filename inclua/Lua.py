@@ -1,6 +1,8 @@
+import re
 from . import Type
 from .Generator import Generator
 from .Visitor import Visitor
+from .Error import IncluaError
 
 # Struct/Union bindings templates and generator
 record_bindings = r"""
@@ -121,31 +123,69 @@ def _generate_enum (enum):
 function_wrapper_bindings = r"""
 int wrap_{name} (lua_State *L) {{
     {arguments}
-    {call};
+    {call}
+    {push_rets}
+    {free_arrays}
     return {ret_num};
 }}"""
-function_argument_bindings = '{type} arg{i} = inclua_check<{type}> (L, {i});'
-function_with_ret_bindings = """{type} ret = {call};\n    inclua_push (L, ret)"""
-def _call (func):
-    args = ['arg{}'.format (i + 1) for i in range (func.num_args)]
-    return """{0} ({1})""".format (func, ', '.join (args))
-
-def _generate_function (func):
-    arguments = [function_argument_bindings.format (type = ty, i = i + 1)
-            for i, ty in enumerate (func.arg_types)] or ['// No args']
+function_argument_in_bindings = '{type} arg{i} = inclua_check<{type}> (L, {i});'
+function_argument_out_bindings = '{type.pointee_type} arg{i};'
+function_argument_size_bindings = '{type} arg{i};'
+function_argument_arrayin_bindings = '{type} arg{i} = inclua_check_array<{type.pointee_type}> (L, {i}, {size});'
+function_argname_bindings = '{}arg{i}'
+function_with_ret_bindings = '{type} ret = {call}'
+function_push_ret_bindings = 'inclua_push (L, {});'
+function_call_bindings = '{sym} ({args});'
+function_free_array_bindings = 'delete[] {};'
+def _generate_function (func, notes):
+    notes = notes or ['in'] * func.num_args
+    arg_decl = []
+    array_decl = []
+    arrays = []
+    arg_call = []
+    ret_args = []
+    for i, ty, note in zip (range (func.num_args), func.arg_types, notes):
+        if note == 'in':
+            arg_decl.append (function_argument_in_bindings.format (type = ty, i = i + 1))
+            arg_call.append (function_argname_bindings.format ('', i = i + 1))
+        elif note == 'out':
+            arg_decl.append (function_argument_out_bindings.format (type = ty, i = i + 1))
+            arg_call.append (function_argname_bindings.format ('&', i = i + 1))
+            ret_args.append (function_argname_bindings.format ('', i = i + 1))
+        elif note.startswith ('arrayin'):
+            try:
+                size = re.match (r'arrayin\[([^()]+)\]', note).group (1)
+            except:
+                raise IncluaError ('invalid "{}" note: need a size argument: "arrayin[size]"'.format (note))
+            array_decl.append (function_argument_arrayin_bindings.format (
+                    type = ty,
+                    i = i + 1,
+                    size = size))
+            argname = function_argname_bindings.format ('', i = i + 1)
+            arg_call.append (argname)
+            arrays.append (argname)
+        elif note == 'size':
+            arg_decl.append (function_argument_size_bindings.format (type = ty, i = i + 1))
+            arg_call.append (function_argname_bindings.format ('', i = i + 1))
+        else:
+            raise IncluaError ("Invalid note for function argument: {}".format (note))
+    _call = function_call_bindings.format (sym = func, args = ', '.join (arg_call))
     if str (func.ret_type) != 'void':
-        ret_num = 1
+        ret_args.insert (0, 'ret')
         call = function_with_ret_bindings.format (
-                call = _call (func),
+                call = _call,
                 type = func.ret_type)
     else:
-        ret_num = 0
-        call = _call (func)
+        call = _call
+    push_rets = [function_push_ret_bindings.format (ret) for ret in ret_args]
+    free_arrays = [function_free_array_bindings.format (arr) for arr in arrays]
     return function_wrapper_bindings.format (
             name = func,
-            arguments = '\n    '.join (arguments),
+            arguments = '\n    '.join (arg_decl + array_decl) or '// No arguments',
             call = call,
-            ret_num = ret_num)
+            push_rets = '\n    '.join (push_rets) or '// No returns',
+            free_arrays = '\n    '.join (free_arrays) or '// No arrays to be freed',
+            ret_num = len (ret_args))
     
 # Module initialization templates and generator
 module_bindings = """/* Inclua wrapper automático e pá
@@ -208,7 +248,7 @@ def generate_lua (G):
     structs = [_generate_record (struct, 'struct') for struct in bind['structs']]
     unions = [_generate_record (union, 'union') for union in bind['unions']]
     enums = [_generate_enum (enum) for enum in bind['enums']]
-    functions = [_generate_function (func) for func in bind['functions']]
+    functions = [_generate_function (func, G.get_note (func)) for func in bind['functions']]
     # registration
     func_register = [module_func_reg_bindings.format (func = func) for func in bind['functions']]
     struct_register = [module_record_register_bindings.format (

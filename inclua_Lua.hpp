@@ -13,8 +13,9 @@ template<> void inclua_push (lua_State *L, bool b) {
 }
 
 template<> void inclua_push (lua_State *L, char c) {
-	lua_pushinteger (L, c);
+	lua_pushlstring (L, &c, sizeof (char));
 }
+
 template<> void inclua_push (lua_State *L, int8_t i) {
 	lua_pushinteger (L, i);
 }
@@ -54,8 +55,9 @@ template<typename T> void inclua_push_array (lua_State *L, T *arr, size_t size) 
 template<typename T> T inclua_check (lua_State *, int);
 
 template<> char inclua_check (lua_State *L, int arg) {
-	return luaL_checkinteger (L, arg);
+	return *luaL_checkstring (L, arg);
 }
+
 template<> int8_t inclua_check (lua_State *L, int arg) {
 	return luaL_checkinteger (L, arg);
 }
@@ -81,6 +83,20 @@ template<> long double inclua_check (lua_State *L, int arg) {
 
 template<> const char *inclua_check (lua_State *L, int arg) {
 	return luaL_checkstring (L, arg);
+}
+
+template<typename T, typename Size, typename = std::enable_if<std::is_integral<T>::value>>
+T *inclua_check_array (lua_State *L, int arg, Size & size) {
+	int len = luaL_len (L, arg);
+	luaL_argcheck (L, len > 0, arg, "Array length should be a positive integer");
+	size = len;
+	T *ret = new T [size];
+	for (int i = 0; i < size; i++) {
+		lua_geti (L, arg, i + 1);
+		ret[i] = inclua_check<T> (L, -1);
+	}
+	lua_pop (L, size);
+	return ret;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

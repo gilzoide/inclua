@@ -10,10 +10,7 @@ struct Oi {
 union Outra {
 	int i;
 	char c;
-	// struct S {
-		// int a;
-		// int b;
-	// } s;
+	Oi o;
 };
 
 typedef enum {
@@ -23,6 +20,20 @@ typedef enum {
 
 Oi *getOi (Oi *o) {
 	return o;
+}
+
+void getAB (Oi *o, int *a, int *b) {
+	*a = o->a;
+	*b = o->b;
+}
+
+float somaVet (float *vet, int tam) {
+	int i;
+	float soma = 0;
+	for (i = 0; i < tam; i++) {
+		soma += vet[i];
+	}
+	return soma;
 }
 
 void oiMundo () {

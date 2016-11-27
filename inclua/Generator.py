@@ -58,6 +58,13 @@ class Generator:
     def is_scoped (self, enum):
         return str (enum) in self.scope_enum
 
+    # Argument notes
+    def note (self, symbol, note):
+        self.arg_notes[symbol] = note
+
+    def get_note (self, func):
+        return self.arg_notes.get (str (func))
+
     # Generate, that's why we're here =]
     def generate (self, lang, output = sys.stdout):
         wrapper = Generator.languages[lang] (self)
