@@ -1,5 +1,6 @@
 from inclua import *
 import inclua.Lua
+import sys
 
 mod = Generator ('teste')
 mod.add_header ('teste.h')
@@ -17,4 +18,4 @@ mod.note ('rangeAlloc', [
     'arrayout[arg2 - arg1]' #return
 ])
 
-mod.generate ('lua')
+mod.generate ('lua', len (sys.argv) > 1)

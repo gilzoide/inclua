@@ -1,7 +1,20 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdint.h>
+#include <stddef.h>
+
+float somaVet (float *vet, size_t tam) {
+	int i;
+	float soma = 0;
+	for (i = 0; i < tam; i++) {
+		soma += vet[i];
+	}
+	return soma;
+}
 
 typedef struct Oi Oi;
+// typedef unsigned long size_t;
+typedef int inteiro;
 
 struct Oi {
 	int a;
@@ -26,15 +39,6 @@ Oi *getOi (Oi *o) {
 void getAB (Oi *o, int *a, int *b) {
 	*a = o->a;
 	*b = o->b;
-}
-
-float somaVet (float *vet, int tam) {
-	int i;
-	float soma = 0;
-	for (i = 0; i < tam; i++) {
-		soma += vet[i];
-	}
-	return soma;
 }
 
 float somaVetAte0 (float *vet) {

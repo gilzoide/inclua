@@ -6,38 +6,35 @@ from .Decl import Decl
 from .Error import IncluaError
 
 def from_type (ty):
+    # _ty = ty.get_canonical ()
     memoized = Type.from_type (ty)
     if memoized: return memoized
 
     kind = ty.kind.name
     if kind in ['INT', 'UINT', 'SHORT', 'USHORT', 'LONG', 'ULONG', 'LONGLONG'
-            , 'ULONGLONG', 'CHAR_S', 'CHAR_U', 'UCHAR', 'CHAR16', 'CHAR32'
-            , 'INT128', 'UINT128']:
-        return IntType.from_type (ty)
+            , 'ULONGLONG', 'SCHAR', 'CHAR_S', 'CHAR_U', 'UCHAR', 'CHAR16'
+            , 'CHAR32' , 'INT128', 'UINT128']:
+        return Type.from_type (ty, 'int')
     elif kind in ['FLOAT', 'FLOAT128', 'DOUBLE', 'LONGDOUBLE']:
-        return FloatType.from_type (ty)
+        return Type.from_type (ty, 'float')
     elif kind in ['INCOMPLETEARRAY', 'CONSTANTARRAY', 'VARIABLEARRAY']:
         return ArrayType.from_type (ty)
     elif kind == 'VOID':
         return VoidType ()
     elif kind == 'POINTER':
         return PointerType.from_type (ty)
+    elif kind == 'TYPEDEF':
+        return Typedef.from_type (ty)
     elif kind == 'RECORD':
         return RecordType.from_type (ty)
     elif kind == 'ENUM':
         return Enum.from_type (ty)
-    elif kind == 'TYPEDEF':
-        return from_type (ty.get_canonical ())
-    # elif kind == 'UNEXPOSED':
-        # ret = RecordType.from_type (ty)
-        # print (repr (ret))
-        # return ret
-    # elif kind == 'FUNCTIONPROTO':
-        # pass
-    # elif kind == 'ELABORATED':
-        # print ('//', ty.get_named_type ())
+    elif kind == 'FUNCTIONPROTO':
+        return FunctionType.from_type (ty)
+    elif kind in ['UNEXPOSED', 'ELABORATED']:
+        pass
     else:
-        raise IncluaError ('Clang TypeKind {} not supported'.format (kind))
+        raise IncluaError ('Clang TypeKind {} not supported: {}'.format (kind, ty.spelling))
 
 def from_cursor (cur):
     try:
@@ -46,77 +43,94 @@ def from_cursor (cur):
         print (ex)
         raise IncluaError ('{0!s} @ {1!s}'.format (ex, cur.location))
 
-
-known_types = {}
-
 class Type (Decl):
 
-    # Regex for giving anonymous enums/structs/unions a nice name based on it's location
-    anonymous_patt = re.compile (r".+\((.+)\)")
+    # Known types, for memoizing
+    known_types = {}
 
-    def __init__ (self, symbol):
+    # Regex for giving anonymous enums/structs/unions a nice name based on it's location
+    anonymous_patt = re.compile (r".+\((anonymous.+)\)")
+
+    def __init__ (self, symbol, kind, alias = None):
+        # anonymous struct/union/enum
+        is_anonymous = Type.anonymous_patt.match (symbol)
+        if is_anonymous:
+            symbol = re.sub (r'\W', '_', is_anonymous.group (1))
         super (Type, self).__init__ (symbol)
+        self.kind = kind
+        self.alias = alias
 
     def __str__ (self):
-        return self.symbol
+        return self.alias or self.symbol
 
     def __repr__ (self):
         return 'Type ("{}")'.format (self.symbol)
 
     @staticmethod
-    def from_type (ty):
-        return known_types.get (ty.get_canonical ().spelling)
+    def from_type (ty, kind = None):
+        return Type.known_types.get (ty.spelling) or kind and Type (ty.spelling, kind)
 
     @staticmethod
     def remember_type (ty):
-        known_types[ty.symbol] = ty
+        Type.known_types[ty.symbol] = ty
         return ty
 
-class IntType (Type):
+class Typedef (Type):
+    def __init__ (self, symbol, underlying_type):
+        super (Typedef, self).__init__ (symbol, underlying_type.kind)
+        self.underlying_type = underlying_type
+
+    def __getattr__ (self, attr):
+        print ('Typedef.__getattr__', attr)
+        try:
+            return getattr (self, attr)
+        except:
+            return getattr (self.underlying_type, attr)
+
+    def __repr__ (self):
+        return 'Typedef ({0!r}, {1!r}'.format (self.symbol, self.underlying_type)
+
     @staticmethod
     def from_type (ty):
-        return Type.remember_type (IntType (ty.spelling))
-
-
-class FloatType (Type):
-    @staticmethod
-    def from_type (ty):
-        return Type.remember_type (FloatType (ty.spelling))
-
-class ArrayType (Type):
-    pass
-
-class VoidType (Type):
-    def __init__ (self):
-        super (VoidType, self).__init__ ('void')
+        # print ('Typedef', ty.spelling, ty.get_canonical ().spelling)
+        return Typedef (ty.spelling, from_type (ty.get_canonical ()))
 
 class PointerType (Type):
     def __init__ (self, symbol, pointee_type):
-        super (PointerType, self).__init__ (symbol)
+        super (PointerType, self).__init__ (symbol, 'pointer')
         self.pointee_type = pointee_type
 
     def __repr__ (self):
-        return 'PointerType ("{}", {})'.format (self.symbol, self.pointee_type)
+        return 'PointerType ({0!r}, {1!r})'.format (self.symbol, self.pointee_type)
 
     @staticmethod
     def from_type (ty):
-        return Type.remember_type (PointerType (ty.spelling, from_type (ty.get_pointee ())))
+        return PointerType (ty.spelling, from_type (ty.get_pointee ()))
 
-class RecordType (Type):
-    def __init__ (self, symbol, fields = [], alias = None):
-        # anonymous struct/union
-        if symbol.endswith (')'):
-            symbol = Type.anonymous_patt.match (symbol).group (1)
-            symbol = symbol.replace ('.', '_')
-            symbol = symbol.replace (':', '_')
-            symbol = symbol.replace (' ', '_')
-        super (RecordType, self).__init__ (symbol)
-        self.fields = fields
-        self.alias = alias
-        self.num_fields = len (fields)
+class ArrayType (Type):
+    def __init__ (self, symbol, pointee_type):
+        super (ArrayType, self).__init__ (symbol, 'array')
+        self.pointee_type = pointee_type
 
     def __str__ (self):
-        return self.alias or self.symbol
+        return '{0!s} *'.format (self.pointee_type)
+
+    def __repr__ (self):
+        return 'ArrayType ({0!r}, {1!r})'.format (self.symbol, self.pointee_type)
+
+    @staticmethod
+    def from_type (ty):
+        return Type.remember_type (ArrayType (ty.spelling, from_type (ty.get_array_element_type ())))
+
+class VoidType (Type):
+    def __init__ (self):
+        super (VoidType, self).__init__ ('void', 'void')
+
+class RecordType (Type):
+    def __init__ (self, symbol, fields = []):
+        super (RecordType, self).__init__ (symbol, 'record')
+        self.fields = fields
+        self.num_fields = len (fields)
 
     def __repr__ (self):
         return 'RecordType ("{0!s}", {0.fields!s})'.format (self)
@@ -129,22 +143,15 @@ class RecordType (Type):
         return Type.remember_type (RecordType (ty.spelling, fields))
 
 class Enum (Type):
-    def __init__ (self, symbol, values = {}, alias = None):
-        # anonymous enum
-        if symbol.endswith (')'):
-            symbol = Type.anonymous_patt.match (symbol).group (1)
-            symbol = symbol.replace ('.', '_')
-            symbol = symbol.replace (':', '_')
-            symbol = symbol.replace (' ', '_')
-        super (Enum, self).__init__ (symbol)
+    def __init__ (self, symbol, values = {}):
+        super (Enum, self).__init__ (symbol, 'enum')
         self.values = values
-        self.alias = alias
 
     def add_value (self, cursor):
         self.values[cursor.spelling] = cursor.enum_value
 
     def __str__ (self):
-        return self.symbol or 'enum'
+        return self.alias or self.symbol
 
     def __repr__ (self):
         return 'Enum ({0!r}, {1!r}, {2!r})'.format (self.symbol, self.values, self.alias)
@@ -152,3 +159,17 @@ class Enum (Type):
     @staticmethod
     def from_type (ty):
         return Type.remember_type (Enum (ty.spelling))
+
+class FunctionType (Type):
+    """Function pointer type (without the pointer stuff)"""
+    def __init__ (self, symbol, ret_type, arg_types):
+        super (FunctionType, self).__init__ (symbol, 'function')
+        self.ret_type = ret_type
+        self.arg_types = arg_types
+        self.num_args = len (arg_types)
+
+    @staticmethod
+    def from_type (ty):
+        ret_type = Type.from_type (ty.get_result ())
+        arg_types = [Type.from_type (a) for a in ty.argument_types ()]
+        return Type.remember_type (FunctionType (ty.spelling, ret_type, arg_types))

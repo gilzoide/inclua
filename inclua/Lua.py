@@ -20,7 +20,9 @@ void inclua_register_{alias} (lua_State *L) {{
     lua_setfield (L, -2, "__metatable");
 }}
 """
-record_non_opaque_bindings = r"""
+record_non_opaque_bindings = r"""INCLUA_PUSH_NON_OPAQUE ({record});
+INCLUA_CHECK_NON_OPAQUE ({record});
+
 int inclua_push_new_{alias} (lua_State *L) {{
     lua_newuserdata (L, sizeof ({record}));
     luaL_setmetatable (L, "{record}");
@@ -71,7 +73,7 @@ record_new_index_bindings = '{0} (!strcmp (key, "{field}")) obj->{field} = inclu
 
 def _generate_record_index (record):
     return '\n    '.join ([record_index_bindings.format (i == 0 and 'if' or 'else if',
-            field = f[0], type = f[1], ref_if_record = isinstance (f[1], Type.RecordType) and '&' or '')
+            field = f[0], type = f[1], ref_if_record = f[1].kind == 'record' and '&' or '')
             for i, f in enumerate (record.fields)])
 
 def _generate_record_new_index (record):
@@ -103,21 +105,24 @@ enum_wrapper_bindings = r"""
 ////////////////////////////////////////////////////////////////////////////////
 //  Enum {alias}
 ////////////////////////////////////////////////////////////////////////////////
-INCLUA_PUSH_ENUM ({enum});
-INCLUA_CHECK_ENUM ({enum});
-
+{not_anonymous}
 void inclua_register_{alias} (lua_State *L) {{
     {enum_constant_lines}
 }}
 """
-enum_constant_bindings = r"""inclua_push (L, {const}); lua_setfield (L, -2, "{const}");"""
+enum_constant_bindings = r"""inclua_push<int> (L, {const}); lua_setfield (L, -2, "{const}");"""
+enum_not_anonymous_bindings = r"""INCLUA_PUSH_ENUM ({enum});
+INCLUA_CHECK_ENUM ({enum});
+"""
 def _generate_enum (enum):
     """Generate enum binding functions, pushing all of it's values to toplevel module,
     or a namespaced table"""
     lines = [enum_constant_bindings.format (const = const)
             for const in enum.values.keys ()]
+    not_anonymous = str (enum).startswith ('anonymous') and '// Anonymous' or enum_not_anonymous_bindings.format (enum = enum)
     return enum_wrapper_bindings.format (
             enum = enum,
+            not_anonymous = not_anonymous,
             alias = enum.alias or enum.symbol.replace ('enum ', ''),
             enum_constant_lines = '\n    '.join (lines))
 
@@ -131,11 +136,11 @@ int wrap_{name} (lua_State *L) {{
     return {ret_num};
 }}"""
 function_argument_in_bindings = '{type} arg{i} = inclua_check<{type}> (L, {i_stack});'
-function_argument_out_bindings = '{type.pointee_type} arg{i};'
+function_argument_out_bindings = '{type} arg{i};'
 function_argument_size_bindings = '{type} arg{i};'
-function_argument_arrayin_bindings = '{type} arg{i} = inclua_check_array<{type.pointee_type}> (L, {i_stack}, {size});'
-function_argument_arrayin_until_bindings = '{type} arg{i} = inclua_check_array_plus<{type.pointee_type}> (L, {i_stack}, {trailing});'
-function_argument_arrayout_bindings = '{type} arg{i} = new {type.pointee_type} [{size}];'
+function_argument_arrayin_bindings = '{type} arg{i} = inclua_check_array<{pointee_type}> (L, {i_stack}, {size});'
+function_argument_arrayin_until_bindings = '{type} arg{i} = inclua_check_array_plus<{pointee_type}> (L, {i_stack}, {trailing});'
+function_argument_arrayout_bindings = '{type} arg{i} = new {pointee_type} [{size}];'
 function_argname_bindings = '{}arg{i}'
 function_with_ret_bindings = '{type} ret = {call}'
 function_push_ret_bindings = 'inclua_push (L, {});'
@@ -160,7 +165,7 @@ def _generate_function (func, notes):
             arg_call.append (function_argname_bindings.format ('', i = i + 1))
             i_lua_stack += 1
         elif note == 'out':
-            arg_decl.append (function_argument_out_bindings.format (type = ty, i = i + 1))
+            arg_decl.append (function_argument_out_bindings.format (type = ty.pointee_type, i = i + 1))
             arg_call.append (function_argname_bindings.format ('&', i = i + 1))
             returns.append (function_push_ret_bindings.format (function_argname_bindings.format ('', i = i + 1)))
         elif note.startswith ('arrayin'):
@@ -168,6 +173,7 @@ def _generate_function (func, notes):
                 size = re.match (r'arrayin\[(.+)\]', note).group (1)
                 array_decl.append (function_argument_arrayin_bindings.format (
                         type = ty,
+                        pointee_type = ty.pointee_type,
                         i = i + 1, i_stack = i_lua_stack,
                         size = size))
             except:
@@ -175,6 +181,7 @@ def _generate_function (func, notes):
                     trailing = re.match (r'arrayin\|(.+)', note).group (1)
                     array_decl.append (function_argument_arrayin_until_bindings.format (
                             type = ty,
+                            pointee_type = ty.pointee_type,
                             i = i + 1, i_stack = i_lua_stack,
                             trailing = trailing))
                 except:
@@ -189,6 +196,7 @@ def _generate_function (func, notes):
                 size = re.match (r'arrayout\[(.+)\]', note).group (1)
                 array_decl.append (function_argument_arrayout_bindings.format (
                         type = ty,
+                        pointee_type = ty.pointee_type,
                         i = i + 1,
                         size = size))
                 returns.append (function_push_ret_array_bindings.format (argname, size))
@@ -199,6 +207,9 @@ def _generate_function (func, notes):
         elif note == 'size':
             arg_decl.append (function_argument_size_bindings.format (type = ty, i = i + 1))
             arg_call.append (function_argname_bindings.format ('', i = i + 1))
+        elif note == 'sizeout':
+            arg_decl.append (function_argument_out_bindings.format (type = ty.pointee_type, i = i + 1))
+            arg_call.append (function_argname_bindings.format ('&', i = i + 1))
         else:
             raise IncluaError ("Invalid note for function argument: {}".format (note))
 
