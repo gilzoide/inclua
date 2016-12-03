@@ -181,7 +181,7 @@ def _generate_function (func, notes):
             array_decl.append (function_argument_arrayin_bindings.format (
                     type = ty,
                     i = i + 1, i_stack = i_lua_stack,
-                    size = ', '.join (map (lambda s: s == '_' and '(size_t *) NULL' or _address_of (s), info.dims))))
+                    size = ', '.join (map (lambda s: s in ['_', 'NULL'] and '(size_t *) NULL' or _address_of (s), info.dims))))
             argname = function_argname_bindings.format (i = i + 1)
             arg_call.append (argname)
             frees.append (('inclua_delete_array', '{}, {}'.format (argname, ', '.join (map (lambda s: s == '_' and 'NULL' or s, info.dims)))))
@@ -263,18 +263,18 @@ extern "C" int luaopen_{module} (lua_State *L) {{
 }}
 """
 module_include_bindings = '#include "{file}"'
-module_func_reg_bindings = '{{ "{func}", wrap_{func} }},'
+module_func_reg_bindings = '{{ "{alias}", wrap_{func} }},'
 module_record_register_bindings = """
-    // {struct_or_union} {alias}
-    inclua_register_{alias} (L);
+    // {struct_or_union} {record}
+    inclua_register_{record} (L);
     lua_setfield (L, -2, "{alias}");"""
 module_enum_register_bindings = """
-    // Enum {alias}
-    inclua_register_{alias} (L);"""
+    // Enum {enum}
+    inclua_register_{enum} (L);"""
 module_enum_register_scoped_bindings = """
-    // Enum {alias}
+    // Enum {enum}
     lua_newtable (L);
-    inclua_register_{alias} (L);
+    inclua_register_{enum} (L);
     lua_setfield (L, -2, "{alias}");"""
 
 def generate_lua (G):
@@ -293,17 +293,24 @@ def generate_lua (G):
     enums = [_generate_enum (enum) for enum in bind['enums']]
     functions = [_generate_function (func, G.get_note (func)) for func in bind['functions']]
     # registration
-    func_register = [module_func_reg_bindings.format (func = func) for func in bind['functions']]
+    func_register = [module_func_reg_bindings.format (alias = G.final_name (func), func = func) for func in bind['functions']]
+
+    trim_struct = lambda s: s.replace ('struct ', '')
     struct_register = [module_record_register_bindings.format (
-            alias = struct.alias or struct.symbol.replace ('struct ', ''),
+            record = trim_struct (str (struct)),
+            alias = trim_struct (G.final_name (struct)),
             struct_or_union = 'struct')
             for struct in bind['structs']]
+    trim_union = lambda s: s.replace ('union ', '')
     union_register = [module_record_register_bindings.format (
-            alias = union.alias or union.symbol.replace ('union ', ''),
+            record = trim_union (str (union)),
+            alias = trim_union (G.final_name (union)),
             struct_or_union = 'union')
             for union in bind['unions']]
-    enum_register = [(G.is_scoped (enum) and module_enum_register_scoped_bindings or module_enum_register_bindings)
-            .format (alias = enum.alias or enum.symbol.replace ('enum ', ''))
+    trim_enum = lambda s: s.replace ('enum ', '')
+    enum_register = [(G.is_scoped (enum) and module_enum_register_scoped_bindings or module_enum_register_bindings).format (
+            enum = trim_enum (str (enum)),
+            alias = trim_enum (G.final_name (enum)))
             for enum in bind['enums']]
 
     return module_bindings.format (

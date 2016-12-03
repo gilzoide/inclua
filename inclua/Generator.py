@@ -32,21 +32,30 @@ class Generator:
 
     def should_ignore (self, symbol):
         if self.ignore_notes.get (symbol): return True
+        try:
+            if self.arg_notes[symbol].kind == 'ignore': return True
+        except:
+            pass
         return any (map (lambda patt: patt.fullmatch (symbol), self.ignore_notes['_regex']))
 
     # Rename
-    def rename (self, target, new_symbol):
-        self.rename_notes[symbol] = lambda s: new_symbol
+    def rename (self, target, new_symbol_or_func):
+        self.rename_notes[target] = new_symbol_or_func
 
     def rename_regex (self, regex, subst):
         self.rename_notes['_regex'].append ((re.compile (regex), subst))
 
     def final_name (self, symbol):
-        try:
-            return self.rename_notes[symbol]
-        except:
+        symbol = str (symbol)
+        new_symbol_or_func = self.rename_notes.get (symbol)
+        if new_symbol_or_func:
+            try:
+                return new_symbol_or_func (symbol)
+            except:
+                return new_symbol_or_func
+        else:
             for patt, subs in self.rename_notes['_regex']:
-                new_symbol, n = patt.sub (subs, symbol)
+                new_symbol, n = patt.subn (subs, symbol)
                 if n > 0:
                     return new_symbol
         return symbol

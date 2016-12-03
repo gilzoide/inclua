@@ -69,7 +69,7 @@ class Output (Note):
             return Output ()
         else:
             free = re.match (Output.free_patt, s)
-            return free and Output (free)
+            return free and Output (free.group (1))
 
 class Array:
     """Base class for Arrays, both input, output and inout. May have more than

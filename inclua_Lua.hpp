@@ -121,17 +121,17 @@ template<> void inclua_push_array (lua_State *L, char *arr, size_t size) {
 	lua_pushlstring (L, arr, size);
 }
 
+#define remove_cv_from_ptr(T) typename std::remove_cv<typename std::remove_pointer<T>::type>::type
 template<typename T, typename = std::enable_if<std::is_pointer<T>::value>, typename Size>
 T inclua_check_array (lua_State *L, int arg, Size * size) {
-	typedef typename std::remove_cv<T>::type arrType;
-	typedef typename std::remove_pointer<arrType>::type pointeeType;
+	typedef remove_cv_from_ptr(T) pointeeType;
 
 	int len = luaL_len (L, arg);
 	luaL_argcheck (L, len > 0, arg, "Array length should be a positive integer");
 	if (size) {
 		*size = len;
 	}
-	arrType ret = new pointeeType [len];
+	pointeeType * ret = new pointeeType [len];
 	arg = lua_absindex (L, arg);
 	for (int i = 0; i < len; i++) {
 		lua_geti (L, arg, i + 1);
@@ -142,15 +142,14 @@ T inclua_check_array (lua_State *L, int arg, Size * size) {
 }
 template<typename T, typename = std::enable_if<std::is_pointer<T>::value>, typename Size, typename... Sizes>
 T inclua_check_array (lua_State *L, int arg, Size * size, Sizes... tail) {
-	typedef typename std::remove_cv<T>::type arrType;
-	typedef typename std::remove_pointer<arrType>::type pointeeType;
+	typedef remove_cv_from_ptr(T) pointeeType;
 
 	int len = luaL_len (L, arg);
 	luaL_argcheck (L, len > 0, arg, "Array length should be a positive integer");
 	if (size) {
 		*size = len;
 	}
-	arrType ret = new pointeeType [len];
+	pointeeType * ret = new pointeeType [len];
 	arg = lua_absindex (L, arg);
 	for (int i = 0; i < len; i++) {
 		lua_geti (L, arg, i + 1);
