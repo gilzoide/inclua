@@ -41,7 +41,7 @@ class Note:
         # strip blank stuff that may come
         s = s.strip ()
         note = reduce (lambda a, b: a or b, map (lambda x: x.parse (s),
-                [Ignore, Input, Output, ArrayInput, ArrayOutput]))
+                [Ignore, Input, Output, ArrayInput, ArrayOutput, SizeInput, SizeOutput]))
         if note: return note
         else:
             raise IncluaError ("Invalid note: {!r}".format (s))
@@ -88,7 +88,7 @@ class Array:
 class ArrayInput (Array, Note):
     def __init__ (self, dims):
         self.kind = 'array in'
-        super (ArrayInput, self).__init__ (dims)
+        Array.__init__ (self, dims)
     def parse (s):
         if s.rfind (' in') != -1:
             dims = Array.parse (s)
@@ -97,8 +97,22 @@ class ArrayInput (Array, Note):
 class ArrayOutput (Array, Note):
     def __init__ (self, dims):
         self.kind = 'array out'
-        super (ArrayOutput, self).__init__ (dims)
+        Array.__init__ (self, dims)
     def parse (s):
         if s.rfind (' out') != -1:
             dims = Array.parse (s)
             return dims and ArrayOutput (dims)
+
+class SizeInput (Note):
+    def __init__ (self):
+        self.kind = 'size in'
+    def parse (s):
+        if s in ['size', 'size in']:
+            return SizeInput ()
+
+class SizeOutput (Note):
+    def __init__ (self):
+        self.kind = 'size out'
+    def parse (s):
+        if s == 'size out':
+            return SizeOutput ()

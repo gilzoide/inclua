@@ -3,6 +3,7 @@ from . import Type
 from .Generator import Generator
 from .Visitor import Visitor
 from .Error import IncluaError
+from .Note import Note
 
 # Struct/Union bindings templates and generator
 record_bindings = r"""
@@ -132,98 +133,86 @@ int wrap_{name} (lua_State *L) {{
     {arguments}
     {call}
     {push_rets}
-    {free_arrays}
+    {free_stuff}
     return {ret_num};
 }}"""
 function_argument_in_bindings = '{type} arg{i} = inclua_check<{type}> (L, {i_stack});'
 function_argument_out_bindings = '{type} arg{i};'
 function_argument_size_bindings = '{type} arg{i};'
-function_argument_arrayin_bindings = '{type} arg{i} = inclua_check_array<{pointee_type}> (L, {i_stack}, {size});'
+function_argument_arrayin_bindings = '{type} arg{i} = inclua_check_array<{type}> (L, {i_stack}, {size});'
 function_argument_arrayin_until_bindings = '{type} arg{i} = inclua_check_array_plus<{pointee_type}> (L, {i_stack}, {trailing});'
-function_argument_arrayout_bindings = '{type} arg{i} = new {pointee_type} [{size}];'
-function_argname_bindings = '{}arg{i}'
+function_argument_arrayout_bindings = '{type} arg{i} = inclua_new_array<{type}> ({sizes});'
+function_argname_bindings = 'arg{i}'
+function_sizename_bindings = 'size{i}'
+function_size_bindings = 'size_t size{i} = {val};'
 function_with_ret_bindings = '{type} ret = {call}'
 function_push_ret_bindings = 'inclua_push (L, {});'
 function_push_ret_array_bindings = 'inclua_push_array (L, {}, {});'
 function_call_bindings = '{sym} ({args});'
-function_free_array_bindings = 'delete[] {};'
+function_free_bindings = '{} ({});'
+def _address_of (s):
+    return '&{}'.format (s)
 def _generate_function (func, notes):
     """Generate function bindings, taking care of the notes given, so that everything
     works really well, and makes people want to use your module"""
-    notes = notes or [None] * func.num_args
+    notes = notes or ['in'] * func.num_args
     arg_decl = []
     array_decl = []
-    arrays = []
+    frees = []
     arg_call = []
     returns = []
     # process arguments, and their notes
     i_lua_stack = 1
+    i_size = 1
     for i, ty, note in zip (range (func.num_args), func.arg_types, notes):
-        note = note or 'in'
-        if note == 'in':
+        info = Note.parse (note)
+        if info.kind == 'in':
             arg_decl.append (function_argument_in_bindings.format (type = ty, i = i + 1, i_stack = i_lua_stack))
-            arg_call.append (function_argname_bindings.format ('', i = i + 1))
+            arg_call.append (function_argname_bindings.format (i = i + 1))
             i_lua_stack += 1
-        elif note == 'out':
+        elif info.kind == 'out':
             arg_decl.append (function_argument_out_bindings.format (type = ty.pointee_type, i = i + 1))
-            arg_call.append (function_argname_bindings.format ('&', i = i + 1))
-            returns.append (function_push_ret_bindings.format (function_argname_bindings.format ('', i = i + 1)))
-        elif note.startswith ('arrayin'):
-            try:
-                size = re.match (r'arrayin\[(.+)\]', note).group (1)
-                array_decl.append (function_argument_arrayin_bindings.format (
-                        type = ty,
-                        pointee_type = ty.pointee_type,
-                        i = i + 1, i_stack = i_lua_stack,
-                        size = size))
-            except:
-                try:
-                    trailing = re.match (r'arrayin\|(.+)', note).group (1)
-                    array_decl.append (function_argument_arrayin_until_bindings.format (
-                            type = ty,
-                            pointee_type = ty.pointee_type,
-                            i = i + 1, i_stack = i_lua_stack,
-                            trailing = trailing))
-                except:
-                    raise IncluaError ('invalid "{}" note: need a size argument ("arrayin[size]") or a trailing element ("array|trailing")'.format (note))
-            argname = function_argname_bindings.format ('', i = i + 1)
+            argname = function_argname_bindings.format (i = i + 1)
+            arg_call.append (_address_of (argname))
+            returns.append (function_push_ret_bindings.format (argname))
+            if info.free:
+                frees.append ((info.free, argname))
+        elif info.kind == 'array in':
+            array_decl.append (function_argument_arrayin_bindings.format (
+                    type = ty,
+                    i = i + 1, i_stack = i_lua_stack,
+                    size = ', '.join (map (lambda s: s == '_' and '(size_t *) NULL' or _address_of (s), info.dims))))
+            argname = function_argname_bindings.format (i = i + 1)
             arg_call.append (argname)
-            arrays.append (argname)
+            frees.append (('inclua_delete_array', '{}, {}'.format (argname, ', '.join (map (lambda s: s == '_' and 'NULL' or s, info.dims)))))
             i_lua_stack += 1
-        elif note.startswith ('arrayout'):
-            argname = function_argname_bindings.format ('', i = i + 1)
-            try:
-                size = re.match (r'arrayout\[(.+)\]', note).group (1)
-                array_decl.append (function_argument_arrayout_bindings.format (
-                        type = ty,
-                        pointee_type = ty.pointee_type,
-                        i = i + 1,
-                        size = size))
-                returns.append (function_push_ret_array_bindings.format (argname, size))
-            except:
-                raise IncluaError ('invalid "{}" note: need a size argument ("arrayout[size]")'.format (note))
+        elif info.kind == 'array out':
+            argname = function_argname_bindings.format (i = i + 1)
+            sizes = ', '.join (info.dims)
+            array_decl.append (function_argument_arrayout_bindings.format (
+                    type = ty,
+                    i = i + 1,
+                    sizes = sizes))
+            returns.append (function_push_ret_array_bindings.format (argname, info.dims[0]))
             arg_call.append (argname)
-            arrays.append (argname)
-        elif note == 'size':
+            frees.append (('inclua_delete_array', '{}, {}'.format (argname, sizes)))
+        elif info.kind == 'size in':
             arg_decl.append (function_argument_size_bindings.format (type = ty, i = i + 1))
-            arg_call.append (function_argname_bindings.format ('', i = i + 1))
-        elif note == 'sizeout':
+            arg_call.append (function_argname_bindings.format (i = i + 1))
+        elif info.kind == 'size out':
             arg_decl.append (function_argument_out_bindings.format (type = ty.pointee_type, i = i + 1))
-            arg_call.append (function_argname_bindings.format ('&', i = i + 1))
-        else:
-            raise IncluaError ("Invalid note for function argument: {}".format (note))
+            argname = function_argname_bindings.format (i = i + 1)
+            arg_call.append (_address_of (argname))
 
     _call = function_call_bindings.format (sym = func, args = ', '.join (arg_call))
     # return
     if str (func.ret_type) != 'void':
         if len (notes) > func.num_args:
-            note = notes[func.num_args]
-            try:
-                size = re.match (r'arrayout\[(.+)\]', note).group (1)
-                arrays.append ('ret');
-                returns.insert (0, function_push_ret_array_bindings.format ('ret', size))
-            except:
-                raise IncluaError ("Invalid note for function return: {}".format (note))
+            info = Note.parse (notes[func.num_args])
+            if info.kind == 'array out':
+                sizes = ', '.join (info.dims)
+                frees.append (('inclua_delete_array', 'ret, {}'.format (sizes)))
+                returns.insert (0, function_push_ret_array_bindings.format ('ret', info.dims[0]))
         else:
             returns.insert (0, function_push_ret_bindings.format ('ret'))
         call = function_with_ret_bindings.format (
@@ -232,13 +221,13 @@ def _generate_function (func, notes):
     else:
         call = _call
     # now generate
-    free_arrays = [function_free_array_bindings.format (arr) for arr in arrays]
+    free_stuff = [function_free_bindings.format (*need_free) for need_free in frees]
     return function_wrapper_bindings.format (
             name = func,
             arguments = '\n    '.join (arg_decl + array_decl) or '// No arguments',
             call = call,
             push_rets = '\n    '.join (returns) or '// No returns',
-            free_arrays = '\n    '.join (free_arrays) or '// No arrays to be freed',
+            free_stuff = '\n    '.join (free_stuff) or '// Nothing to be freed',
             ret_num = len (returns))
     
 # Module initialization templates and generator

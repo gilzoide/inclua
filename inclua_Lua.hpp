@@ -59,17 +59,6 @@ template<> void inclua_push (lua_State *L, char *str) {
 	lua_pushstring (L, str);
 }
 
-template<typename T> void inclua_push_array (lua_State *L, T *arr, size_t size) {
-	lua_newtable (L);
-	for (int i = 0; i < size; i++) {
-		inclua_push (L, arr[i]);
-		lua_seti (L, -2, i + 1);
-	}
-}
-template<> void inclua_push_array (lua_State *L, char *arr, size_t size) {
-	lua_pushlstring (L, arr, size);
-}
-
 
 template<typename T> T inclua_check (lua_State *L, int arg) {
 	typedef typename std::remove_cv<T>::type noCV;
@@ -107,34 +96,95 @@ template<> const char *inclua_check (lua_State *L, int arg) {
 	return luaL_checkstring (L, arg);
 }
 
-template<typename T, typename Size, typename = std::enable_if<std::is_integral<T>::value>>
-T *inclua_check_array (lua_State *L, int arg, Size & size) {
+////////////////////////////////////////////////////////////////////////////////
+//  Array types
+////////////////////////////////////////////////////////////////////////////////
+
+template<typename T, typename = std::enable_if<std::is_pointer<T>::value>>
+void inclua_push_array (lua_State *L, T arr, size_t size) {
+	lua_newtable (L);
+	for (int i = 0; i < size; i++) {
+		inclua_push (L, arr[i]);
+		lua_seti (L, -2, i + 1);
+	}
+}
+template<typename T, typename = std::enable_if<std::is_pointer<T>::value>, typename... Sizes>
+void inclua_push_array (lua_State *L, T arr, size_t size, Sizes... tail) {
+	lua_newtable (L);
+	for (int i = 0; i < size; i++) {
+		inclua_push_array (L, arr[i], tail...);
+		lua_seti (L, -2, i + 1);
+	}
+}
+
+template<> void inclua_push_array (lua_State *L, char *arr, size_t size) {
+	lua_pushlstring (L, arr, size);
+}
+
+template<typename T, typename = std::enable_if<std::is_pointer<T>::value>, typename Size>
+T inclua_check_array (lua_State *L, int arg, Size * size) {
 	typedef typename std::remove_cv<T>::type arrType;
+	typedef typename std::remove_pointer<arrType>::type pointeeType;
 
 	int len = luaL_len (L, arg);
 	luaL_argcheck (L, len > 0, arg, "Array length should be a positive integer");
-	size = len;
-	arrType *ret = new arrType [size];
-	for (int i = 0; i < size; i++) {
-		lua_geti (L, arg, i + 1);
-		ret[i] = inclua_check<T> (L, -1);
+	if (size) {
+		*size = len;
 	}
-	lua_pop (L, size);
+	arrType ret = new pointeeType [len];
+	arg = lua_absindex (L, arg);
+	for (int i = 0; i < len; i++) {
+		lua_geti (L, arg, i + 1);
+		ret[i] = inclua_check<pointeeType> (L, -1);
+	}
+	lua_pop (L, len);
+	return ret;
+}
+template<typename T, typename = std::enable_if<std::is_pointer<T>::value>, typename Size, typename... Sizes>
+T inclua_check_array (lua_State *L, int arg, Size * size, Sizes... tail) {
+	typedef typename std::remove_cv<T>::type arrType;
+	typedef typename std::remove_pointer<arrType>::type pointeeType;
+
+	int len = luaL_len (L, arg);
+	luaL_argcheck (L, len > 0, arg, "Array length should be a positive integer");
+	if (size) {
+		*size = len;
+	}
+	arrType ret = new pointeeType [len];
+	arg = lua_absindex (L, arg);
+	for (int i = 0; i < len; i++) {
+		lua_geti (L, arg, i + 1);
+		ret[i] = inclua_check_array<pointeeType> (L, -1, tail...);
+	}
+	lua_pop (L, len);
 	return ret;
 }
 
-template<typename T>
-T *inclua_check_array_plus (lua_State *L, int arg, T trailing_value) {
-	int len = luaL_len (L, arg);
-	luaL_argcheck (L, len > 0, arg, "Array length should be a positive integer");
-	T *ret = new T [len + 1];
-	for (int i = 0; i < len; i++) {
-		lua_geti (L, arg, i + 1);
-		ret[i] = inclua_check<T> (L, -1);
+template<typename T, typename = std::enable_if<std::is_pointer<T>::value>>
+T inclua_new_array (size_t size) {
+	typedef typename std::remove_pointer<T>::type pointeeType;
+	return new pointeeType [size];
+}
+template<typename T, typename = std::enable_if<std::is_pointer<T>::value>, typename... Sizes>
+T inclua_new_array (size_t size, Sizes... tail) {
+	typedef typename std::remove_pointer<T>::type pointeeType;
+	auto ret = new pointeeType [size];
+	for (size_t i = 0; i < size; i++) {
+		ret[i] = inclua_new_array<pointeeType> (tail...);
 	}
-	ret[len] = trailing_value;
-	lua_pop (L, len);
 	return ret;
+}
+
+template<typename T, typename = std::enable_if<std::is_pointer<T>::value>>
+void inclua_delete_array (T arr, size_t size) {
+	delete[] arr;
+}
+template<typename T, typename = std::enable_if<std::is_pointer<T>::value>, typename... Sizes>
+void inclua_delete_array (T arr, size_t size, Sizes... tail) {
+	for (size_t i = 0; i < size; i++) {
+		inclua_delete_array (arr[i], tail...);
+	}
+	delete[] arr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

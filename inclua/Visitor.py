@@ -54,9 +54,9 @@ class Visitor:
                 elif cursor.kind == clang.CursorKind.ENUM_DECL:
                     self.enums[cursor.hash] = Type.from_cursor (cursor)
                 elif cursor.kind == clang.CursorKind.ENUM_CONSTANT_DECL:
-                    from pprint import pprint
-                    pprint (self.enums[cursor.semantic_parent.hash])
-                    print ()
+                    # from pprint import pprint
+                    # pprint (self.enums[cursor.semantic_parent.hash])
+                    # print ()
                     self.enums[cursor.semantic_parent.hash].add_value (cursor)
             # nome = str (cursor.location.file)
             # if not nome in headers:

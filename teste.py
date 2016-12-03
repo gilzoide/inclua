@@ -3,19 +3,22 @@ import inclua.Lua
 import sys
 
 mod = Generator ('teste')
+mod.set_clang_args (['-I', '/usr/lib/clang/3.9.0/include'])
 mod.add_header ('teste.h')
 
 # teste das anotações
 mod.scope ('Nice')
 mod.ignore ('getOi')
 mod.note ('getAB', ['in', 'out', 'out'])
-mod.note ('somaVet', ['arrayin[arg2]', 'size'])
-mod.note ('somaVetAte0', ['arrayin|0'])
-mod.note ('range', ['arrayout[arg3 - arg2]', 'in', 'in'])
+mod.note ('somaVet', ['array[arg2] in', 'size'])
+mod.note ('somaVetAte0', ['array[_] in'])
+mod.note ('range', ['array[arg3 - arg2] out', 'in', 'in'])
 mod.note ('rangeAlloc', [
     'in',
     'in',
-    'arrayout[arg2 - arg1]' #return
+    'array[arg2 - arg1] out' #return
 ])
+mod.note ('printaMatriz', ['array[arg2][arg3] in', 'size', 'size'])
+mod.note ('printaMatrizQuadrada', ['array[arg2][arg2] in', 'size'])
 
 mod.generate ('lua', len (sys.argv) > 1)

@@ -12,10 +12,6 @@ float somaVet (float *vet, size_t tam) {
 	return soma;
 }
 
-typedef struct Oi Oi;
-// typedef unsigned long size_t;
-typedef int inteiro;
-
 struct Oi {
 	int a;
 	int b;
@@ -73,4 +69,18 @@ int getSoma (Oi *O) {
 
 void printaI (union Outra *o) {
 	printf ("%d\n", o->i);
+}
+
+void printaMatriz (int **mat, int tam1, int tam2) {
+	int i, j;
+	for (i = 0; i < tam1; i++) {
+		for (j = 0; j < tam2; j++) {
+			printf ("%d ", mat[i][j]);
+		}
+		puts ("");
+	}
+}
+
+void printaMatrizQuadrada (int **mat, int tam) {
+	printaMatriz (mat, tam, tam);
 }
