@@ -23,6 +23,9 @@ class Generator:
     def set_clang_args (self, args):
         self.clang_args = args
 
+    def extend_clang_args (self, args):
+        self.clang_args.extend (args)
+
     # Ignore
     def ignore (self, symbol):
         self.ignore_notes[symbol] = True

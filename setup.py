@@ -7,7 +7,7 @@ with open ('README.md', 'r') as readme:
 
 setup (
     name = 'inclua',
-    version = '0.0.1',
+    version = '0.0.2',
     long_description = long_description,
 
     url = 'https://github.com/gilzoide/inclua',
@@ -22,7 +22,7 @@ setup (
         'Programming Language :: Python :: 3',
     ],
     keywords = 'language bindings development',
-    install_requires = ['libclang-py3'],
+    install_requires = ['libclang-py3', 'PyYAML'],
 
     packages = find_packages (),
     entry_points = {
