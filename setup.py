@@ -7,7 +7,7 @@ with open ('README.md', 'r') as readme:
 
 setup (
     name = 'inclua',
-    version = '0.0.2',
+    version = '0.0.3',
     long_description = long_description,
 
     url = 'https://github.com/gilzoide/inclua',
@@ -19,6 +19,7 @@ setup (
         'Development Status :: 3 - Alpha',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)',
+        'Programming Language :: Python :: 2',
         'Programming Language :: Python :: 3',
     ],
     keywords = 'language bindings development',

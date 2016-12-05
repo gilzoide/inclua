@@ -19,9 +19,15 @@ getOi:
 getAB:
   rename: AB
   notes: ['in', 'out', 'out']
+
 somaVet: ['array[arg2] in', 'size']
+
 somaVetAte0: ['array[_] in']
+
 range: ['array[arg3 - arg2] out', 'in', 'in']
+
 rangeAlloc: ['in', 'in', 'array[arg2 - arg1] out']
+
 printaMatriz: ['array[arg2][arg3] in', 'size', 'size']
+
 printaMatrizQuadrada: ['array[arg2][arg2] in', 'size']

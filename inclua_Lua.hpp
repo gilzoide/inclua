@@ -81,6 +81,18 @@ template<> int32_t inclua_check (lua_State *L, int arg) {
 template<> int64_t inclua_check (lua_State *L, int arg) {
 	return luaL_checkinteger (L, arg);
 }
+template<> uint8_t inclua_check (lua_State *L, int arg) {
+	return luaL_checkinteger (L, arg);
+}
+template<> uint16_t inclua_check (lua_State *L, int arg) {
+	return luaL_checkinteger (L, arg);
+}
+template<> uint32_t inclua_check (lua_State *L, int arg) {
+	return luaL_checkinteger (L, arg);
+}
+template<> uint64_t inclua_check (lua_State *L, int arg) {
+	return luaL_checkinteger (L, arg);
+}
 
 template<> float inclua_check (lua_State *L, int arg) {
 	return luaL_checknumber (L, arg);
@@ -95,6 +107,49 @@ template<> long double inclua_check (lua_State *L, int arg) {
 template<> const char *inclua_check (lua_State *L, int arg) {
 	return luaL_checkstring (L, arg);
 }
+
+////////////////////////////////////////////////////////////////////////////////
+//  Records: Structs/Unions
+////////////////////////////////////////////////////////////////////////////////
+#define INCLUA_PUSH(record_name) \
+	template<> void inclua_push (lua_State *L, record_name *ptr) { \
+		if (ptr) { \
+			lua_pushlightuserdata (L, ptr); \
+			luaL_setmetatable (L, #record_name); \
+		} \
+		else { \
+			lua_pushnil (L); \
+		} \
+	}
+
+#define INCLUA_PUSH_NON_OPAQUE(record_name) \
+	template<> void inclua_push (lua_State *L, record_name & obj) { \
+		lua_pushlightuserdata (L, &obj); \
+		luaL_setmetatable (L, #record_name); \
+	}
+
+#define INCLUA_CHECK(record_name) \
+	template<> record_name *inclua_check (lua_State *L, int arg) { \
+		return lua_isnoneornil (L, arg) ? NULL : (record_name *) luaL_checkudata (L, arg, #record_name); \
+	}
+
+#define INCLUA_CHECK_NON_OPAQUE(record_name) \
+	template<> record_name inclua_check (lua_State *L, int arg) { \
+		return *((record_name *) luaL_checkudata (L, arg, #record_name)); \
+	}
+
+////////////////////////////////////////////////////////////////////////////////
+//  Enums
+////////////////////////////////////////////////////////////////////////////////
+#define INCLUA_PUSH_ENUM(enum_name) \
+	template<> void inclua_push (lua_State *L, enum_name value) { \
+		inclua_push<int> (L, value); \
+	}
+
+#define INCLUA_CHECK_ENUM(enum_name) \
+	template<> enum_name inclua_check (lua_State *L, int arg) { \
+		return (enum_name) inclua_check<int> (L, arg); \
+	}
 
 ////////////////////////////////////////////////////////////////////////////////
 //  Array types
@@ -161,12 +216,12 @@ T inclua_check_array (lua_State *L, int arg, Size * size, Sizes... tail) {
 
 template<typename T, typename = std::enable_if<std::is_pointer<T>::value>>
 T inclua_new_array (size_t size) {
-	typedef typename std::remove_pointer<T>::type pointeeType;
+	typedef remove_cv_from_ptr(T) pointeeType;
 	return new pointeeType [size];
 }
 template<typename T, typename = std::enable_if<std::is_pointer<T>::value>, typename... Sizes>
 T inclua_new_array (size_t size, Sizes... tail) {
-	typedef typename std::remove_pointer<T>::type pointeeType;
+	typedef remove_cv_from_ptr(T) pointeeType;
 	auto ret = new pointeeType [size];
 	for (size_t i = 0; i < size; i++) {
 		ret[i] = inclua_new_array<pointeeType> (tail...);
@@ -185,46 +240,4 @@ void inclua_delete_array (T arr, size_t size, Sizes... tail) {
 	}
 	delete[] arr;
 }
-
-////////////////////////////////////////////////////////////////////////////////
-//  Records: Structs/Unions
-////////////////////////////////////////////////////////////////////////////////
-#define INCLUA_PUSH(record_name) \
-	template<> void inclua_push (lua_State *L, record_name *ptr) { \
-		if (ptr) { \
-			lua_pushlightuserdata (L, ptr); \
-			luaL_setmetatable (L, #record_name); \
-		} \
-		else { \
-			lua_pushnil (L); \
-		} \
-	}
-
-#define INCLUA_PUSH_NON_OPAQUE(record_name) \
-	template<> void inclua_push (lua_State *L, record_name & obj) { \
-		lua_pushlightuserdata (L, &obj); \
-		luaL_setmetatable (L, #record_name); \
-	}
-
-#define INCLUA_CHECK(record_name) \
-	template<> record_name *inclua_check (lua_State *L, int arg) { \
-		return lua_isnoneornil (L, arg) ? NULL : (record_name *) luaL_checkudata (L, arg, #record_name); \
-	}
-
-#define INCLUA_CHECK_NON_OPAQUE(record_name) \
-	template<> record_name inclua_check (lua_State *L, int arg) { \
-		return *((record_name *) luaL_checkudata (L, arg, #record_name)); \
-	}
-
-////////////////////////////////////////////////////////////////////////////////
-//  Enums
-////////////////////////////////////////////////////////////////////////////////
-#define INCLUA_PUSH_ENUM(enum_name) \
-	template<> void inclua_push (lua_State *L, enum_name value) { \
-		inclua_push<int> (L, value); \
-	}
-
-#define INCLUA_CHECK_ENUM(enum_name) \
-	template<> enum_name inclua_check (lua_State *L, int arg) { \
-		return (enum_name) inclua_check<int> (L, arg); \
-	}
+#undef remove_cv_from_ptr

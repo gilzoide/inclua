@@ -47,9 +47,15 @@ Any bugs should be reported to <gilzoide@gmail.com>""",
         raise IncluaError ("YAML header configuration should have at least 'module' and 'headers' fields")
     if header_conf.get ('ignore'):
         for i in header_conf['ignore']:
+            G.ignore (i)
+    if header_conf.get ('ignore_regex'):
+        for i in header_conf['ignore_regex']:
             G.ignore_regex (i)
     if header_conf.get ('rename'):
-        for patt, sub in header_conf['rename'].items ():
+        for target, sub in header_conf['rename'].items ():
+            G.rename (target, sub)
+    if header_conf.get ('rename_regex'):
+        for patt, sub in header_conf['rename_regex'].items ():
             G.rename_regex (patt, sub)
     if header_conf.get ('clang_args'):
         G.extend_clang_args (header_conf['clang_args'])
@@ -64,8 +70,12 @@ Any bugs should be reported to <gilzoide@gmail.com>""",
         del header_conf['headers']
         if header_conf.get ('ignore'):
             del header_conf['ignore']
+        if header_conf.get ('ignore_regex'):
+            del header_conf['ignore_regex']
         if header_conf.get ('rename'):
             del header_conf['rename']
+        if header_conf.get ('rename_regex'):
+            del header_conf['rename_regex']
         if header_conf.get ('clang_args'):
             del header_conf['clang_args']
         definitions_conf = header_conf
@@ -84,4 +94,4 @@ Any bugs should be reported to <gilzoide@gmail.com>""",
             except:
                 G.note (target, info)
 
-    G.generate (cli_opts.language, cli_opts.output)
+    G.generate (cli_opts.language, cli_opts.output or sys.stdout)

@@ -56,7 +56,7 @@ class Type (Decl):
         is_anonymous = Type.anonymous_patt.match (symbol)
         if is_anonymous:
             symbol = re.sub (r'\W', '_', is_anonymous.group (1))
-        super (Type, self).__init__ (symbol)
+        Decl.__init__ (self, symbol)
         self.kind = kind
         self.alias = alias
 
@@ -77,11 +77,10 @@ class Type (Decl):
 
 class Typedef (Type):
     def __init__ (self, symbol, underlying_type):
-        super (Typedef, self).__init__ (symbol, underlying_type.kind)
+        Type.__init__ (self, symbol, underlying_type.kind)
         self.underlying_type = underlying_type
 
     def __getattr__ (self, attr):
-        print ('Typedef.__getattr__', attr)
         try:
             return getattr (self, attr)
         except:
@@ -97,7 +96,7 @@ class Typedef (Type):
 
 class PointerType (Type):
     def __init__ (self, symbol, pointee_type):
-        super (PointerType, self).__init__ (symbol, 'pointer')
+        Type.__init__ (self, symbol, 'pointer')
         self.pointee_type = pointee_type
 
     def __repr__ (self):
@@ -109,7 +108,7 @@ class PointerType (Type):
 
 class ArrayType (Type):
     def __init__ (self, symbol, pointee_type):
-        super (ArrayType, self).__init__ (symbol, 'array')
+        Type.__init__ (self, symbol, 'array')
         self.pointee_type = pointee_type
 
     def __str__ (self):
@@ -124,11 +123,11 @@ class ArrayType (Type):
 
 class VoidType (Type):
     def __init__ (self):
-        super (VoidType, self).__init__ ('void', 'void')
+        Type.__init__ (self, 'void', 'void')
 
 class RecordType (Type):
     def __init__ (self, symbol, fields = []):
-        super (RecordType, self).__init__ (symbol, 'record')
+        Type.__init__ (self, symbol, 'record')
         self.fields = fields
         self.num_fields = len (fields)
 
@@ -144,7 +143,7 @@ class RecordType (Type):
 
 class Enum (Type):
     def __init__ (self, symbol, values = {}):
-        super (Enum, self).__init__ (symbol, 'enum')
+        Type.__init__ (self, symbol, 'enum')
         self.values = values
 
     def add_value (self, cursor):
@@ -163,7 +162,7 @@ class Enum (Type):
 class FunctionType (Type):
     """Function pointer type (without the pointer stuff)"""
     def __init__ (self, symbol, ret_type, arg_types):
-        super (FunctionType, self).__init__ (symbol, 'function')
+        Type.__init__ (self, symbol, 'function')
         self.ret_type = ret_type
         self.arg_types = arg_types
         self.num_args = len (arg_types)

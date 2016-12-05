@@ -165,6 +165,10 @@ def _generate_function (func, notes):
     i_lua_stack = 1
     i_size = 1
     for i, ty, note in zip (range (func.num_args), func.arg_types, notes):
+        # don't let user include extra lines of code, so they don't mess things up (users, huh)
+        if ';' in note:
+            raise IncluaError ("Note shouldn't have ';', no extra code allowed! @ {!r}".format (note))
+
         info = Note.parse (note)
         if info.kind == 'in':
             arg_decl.append (function_argument_in_bindings.format (type = ty, i = i + 1, i_stack = i_lua_stack))
@@ -175,6 +179,7 @@ def _generate_function (func, notes):
             argname = function_argname_bindings.format (i = i + 1)
             arg_call.append (_address_of (argname))
             returns.append (function_push_ret_bindings.format (argname))
+            # always free the memory you alloc
             if info.free:
                 frees.append ((info.free, argname))
         elif info.kind == 'array in':

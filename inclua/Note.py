@@ -50,12 +50,14 @@ class Note:
 class Ignore (Note):
     def __init__ (self):
         self.kind = 'ignore'
+    @staticmethod
     def parse (s):
         if s == 'ignore': return Ignore ()
 
 class Input (Note):
     def __init__ (self):
         self.kind = 'in'
+    @staticmethod
     def parse (s):
         if s == 'in': return Input ()
 
@@ -64,6 +66,7 @@ class Output (Note):
     def __init__ (self, free = None):
         self.kind = 'out'
         self.free = free
+    @staticmethod
     def parse (s):
         if s == 'out':
             return Output ()
@@ -75,10 +78,13 @@ class Array:
     """Base class for Arrays, both input, output and inout. May have more than
     one dimension, which is cool!"""
     size_patt = r'\[(.+?)\]'
-    array_patt = r'array(\[.+\])'
+    array_patt = r'array(\[.+\])' # Note that we don't exclude ';', and user may
+                                  # include code where it doesn't belong (if C/C++).
+                                  # frontends should be careful with this!
     def __init__ (self, dims):
         self.dims = dims
         self.ndims = len (dims)
+    @staticmethod
     def parse (s):
         m = re.match (Array.array_patt, s)
         if m:
@@ -89,6 +95,7 @@ class ArrayInput (Array, Note):
     def __init__ (self, dims):
         self.kind = 'array in'
         Array.__init__ (self, dims)
+    @staticmethod
     def parse (s):
         if s.rfind (' in') != -1:
             dims = Array.parse (s)
@@ -98,6 +105,7 @@ class ArrayOutput (Array, Note):
     def __init__ (self, dims):
         self.kind = 'array out'
         Array.__init__ (self, dims)
+    @staticmethod
     def parse (s):
         if s.rfind (' out') != -1:
             dims = Array.parse (s)
@@ -106,6 +114,7 @@ class ArrayOutput (Array, Note):
 class SizeInput (Note):
     def __init__ (self):
         self.kind = 'size in'
+    @staticmethod
     def parse (s):
         if s in ['size', 'size in']:
             return SizeInput ()
@@ -113,6 +122,7 @@ class SizeInput (Note):
 class SizeOutput (Note):
     def __init__ (self):
         self.kind = 'size out'
+    @staticmethod
     def parse (s):
         if s == 'size out':
             return SizeOutput ()
