@@ -1,3 +1,4 @@
+# coding: utf-8
 from inclua import *
 import inclua.lua
 import sys

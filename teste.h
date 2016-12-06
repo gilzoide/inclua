@@ -26,7 +26,16 @@ union Outra {
 typedef enum {
 	COMO_VAI,
 	VOCES,
+	VAI,
+	GENTEM,
 } Nice;
+
+typedef enum {
+	TAO,
+	TUDO,
+	BAO,
+	HEIN
+} MaisEnum;
 
 Oi *getOi (Oi *o) {
 	return o;

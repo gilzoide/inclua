@@ -127,14 +127,14 @@ void inclua_register_{alias} (lua_State *L) {{
     {enum_constant_lines}
 }}
 """
-enum_constant_bindings = r"""inclua_push<int> (L, {const}); lua_setfield (L, -2, "{const}");"""
+enum_constant_bindings = r"""inclua_push<int> (L, {const}); lua_setfield (L, -2, "{alias}");"""
 enum_not_anonymous_bindings = r"""INCLUA_PUSH_ENUM ({enum});
 INCLUA_CHECK_ENUM ({enum});
 """
-def _generate_enum (enum):
+def _generate_enum (G, enum):
     """Generate enum binding functions, pushing all of it's values to toplevel module,
     or a namespaced table"""
-    lines = [enum_constant_bindings.format (const = const)
+    lines = [enum_constant_bindings.format (const = const, alias = G.final_name (const))
             for const in enum.values.keys ()]
     not_anonymous = str (enum).startswith ('anonymous') and '// Anonymous' or enum_not_anonymous_bindings.format (enum = enum)
     return enum_wrapper_bindings.format (
@@ -252,7 +252,7 @@ def _generate_function (func, notes):
             ret_num = len (returns))
     
 # Module initialization templates and generator
-module_bindings = """/* Inclua wrapper automático e pá
+module_bindings = """/* Inclua automatic generated wrapper
  * Licensa?
  */
 
@@ -311,7 +311,7 @@ def generate_lua (G):
     # definitions
     structs = [_generate_record (struct, 'struct') for struct in bind['structs']]
     unions = [_generate_record (union, 'union') for union in bind['unions']]
-    enums = [_generate_enum (enum) for enum in bind['enums']]
+    enums = [_generate_enum (G, enum) for enum in bind['enums']]
     functions = [_generate_function (func, G.get_note (func)) for func in bind['functions']]
     # registration
     func_register = [module_func_reg_bindings.format (alias = G.final_name (func), func = func) for func in bind['functions']]

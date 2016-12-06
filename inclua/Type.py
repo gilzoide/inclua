@@ -173,7 +173,7 @@ class Enum (Type):
 
     @staticmethod
     def from_type (ty):
-        return Type.remember_type (Enum (ty.spelling))
+        return Type.remember_type (Enum (ty.spelling, {}))
 
 class FunctionType (Type):
     """Function pointer type (without the pointer stuff)"""
