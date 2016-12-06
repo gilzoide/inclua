@@ -20,6 +20,9 @@ Passo a passo:
 
     # 2. criar um Generator, já com o nome do módulo (que é necessário)
     gen = Generator ('nome_do_módulo')
+
+    # é uma boa ideia incluir o caminho dos headers do clang, pra ele sacar `size_t`
+    gen.set_clang_args (["-I/usr/lib/clang/3.9.0/include"])
     
     # 3. definir os headers. Note que pode ser um arquivo .c também, desde que esse seja compilado junto
     gen.add_header ('meu_header.h')
@@ -31,8 +34,14 @@ Passo a passo:
     # excluídos da memória, dentre outros.
     gen.ignore_regex ('_.+')
     gen.rename_regex ('^modulo_', '')
+
+    gen.ignore ('modulo_malloc')
+
     gen.note ('modulo_getXY', ['in', 'out', 'out'])
+    gen.rename ('modulo_getXY', 'get_xy')
+
     gen.note ('modulo_somaVetor', ['array[arg2] in', 'size'])
+
 
     # 5. partiu gerar =]
     gen.generate ('linguagem_escolhida', 'arquivo_de_saída')

@@ -34,6 +34,10 @@ Passo a passo:
     rename_regex :
       '^modulo_' : ''
 
+    # é uma boa ideia incluir o caminho dos headers do clang, pra ele sacar `size_t`
+    clang_args :
+      - "-I/usr/lib/clang/3.9.0/include"
+
     # 4. separe o documento YAML, se quiser/precisar
     ---
 
@@ -42,12 +46,15 @@ Passo a passo:
     # argumentos para uma função são argumentos de saída, ou se são vetores
     # (pra conversão do tipo nativo da linguagem destino), e se esses devem ser
     # excluídos da memória, dentre outros.
-    modulo_getXY :
-      - in
-      - out
-      - out
+    modulo_malloc : ignore
 
-    modulo_somaVetor : [in, out, out]
+    modulo_getXY :
+      rename: get_xy
+      notes: [in, out, out]
+
+    modulo_somaVetor :
+      - array[arg2] in
+      - size
 
 E gere pelo comando **inclua**
 
