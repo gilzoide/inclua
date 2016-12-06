@@ -1,13 +1,15 @@
 ## Inclua build/install script ##
 
 from setuptools import setup, find_packages
+from codecs import open
 
-with open ('README.md', 'r') as readme:
+with open ('README.rst', encoding = 'utf-8') as readme:
     long_description = readme.read ()
 
 setup (
     name = 'inclua',
     version = '0.0.3',
+    description = 'C/C++ to scripting languages wrapper generator, INitialy for binding C to LUA',
     long_description = long_description,
 
     url = 'https://github.com/gilzoide/inclua',

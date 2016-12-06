@@ -18,7 +18,7 @@ getOi:
 # Notas de argumentos
 getAB:
   rename: AB
-  notes: ['in', 'out', 'out']
+  notes: [in, out, out]
 
 somaVet: ['array[arg2] in', 'size']
 
