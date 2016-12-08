@@ -105,5 +105,5 @@ class Generator:
         return wrapper
 
     @staticmethod
-    def add_generator (func, lang):
+    def add_generator (lang, func):
         Generator.languages[lang] = func

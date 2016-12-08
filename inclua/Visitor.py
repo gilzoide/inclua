@@ -33,7 +33,7 @@ class Visitor:
                 , options = clang.TranslationUnit.PARSE_SKIP_FUNCTION_BODIES)
 
         visit_queue = list (tu.cursor.get_children ())
-        self.visit (visit_queue, header_name)
+        self._visit (visit_queue, header_name)
 
     def apply_ignores (self, G):
         no_ignore = lambda x: not G.should_ignore (str (x))
@@ -44,7 +44,7 @@ class Visitor:
             'functions' :   list (filter (no_ignore, self.functions)),
         }
 
-    def visit (self, visit_queue, header_name):
+    def _visit (self, visit_queue, header_name):
         headers = set ()
         while visit_queue:
             cursor = visit_queue[0]

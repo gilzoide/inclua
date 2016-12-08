@@ -346,4 +346,4 @@ def generate_lua (G):
             union_register = '\n'.join (union_register),
             enum_register = '\n'.join (enum_register))
 
-Generator.add_generator (generate_lua, 'lua')
+Generator.add_generator ('lua', generate_lua)

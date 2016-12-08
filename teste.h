@@ -93,3 +93,18 @@ void printaMatriz (int **mat, int tam1, int tam2) {
 void printaMatrizQuadrada (int **mat, int tam) {
 	printaMatriz (mat, tam, tam);
 }
+
+int * geraAleatorios (size_t * tamanho) {
+	size_t n = rand () % 9 + 1;
+	int * vetor, i;
+	if ((vetor = (int *) malloc (n * sizeof (int))) == NULL) {
+		*tamanho = 0;
+		return NULL;
+	}
+	*tamanho = n;
+
+	for (i = 0; i < n; i++) {
+		vetor[i] = rand ();
+	}
+	return vetor;
+}

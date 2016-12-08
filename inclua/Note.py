@@ -57,7 +57,7 @@ class Note:
         # strip blank stuff that may come
         s = s.strip ()
         note = reduce (lambda a, b: a or b, map (lambda x: x.parse (s),
-                [Ignore, Input, Output, ArrayInput, ArrayOutput, SizeInput, SizeOutput]))
+                [Ignore, Input, Output, InOut, ArrayInput, ArrayOutput, SizeInput, SizeOutput]))
         if note: return note
         else:
             raise IncluaError ("Invalid note: {!r}".format (s))
@@ -71,14 +71,21 @@ class Ignore (Note):
         if s == 'ignore': return Ignore ()
 
 class Input (Note):
-    def __init__ (self):
+    default_patt = r'=\s*(.+)'
+    with_default_patt = r'in\s*' + default_patt
+    def __init__ (self, default = None):
         self.kind = 'in'
+        self.default = default
     @staticmethod
     def parse (s):
-        if s == 'in': return Input ()
+        if s == 'in':
+            return Input ()
+        else:
+            default = re.match (Input.with_default_patt, s)
+            return default and Input (default.group (1))
 
 class Output (Note):
-    free_patt = r'out free\[([A-Za-z_]\w*)\]'
+    free_patt = r'out\s+free\[([A-Za-z_]\w*)\]'
     def __init__ (self, free = None):
         self.kind = 'out'
         self.free = free
@@ -90,11 +97,23 @@ class Output (Note):
             free = re.match (Output.free_patt, s)
             return free and Output (free.group (1))
 
+class InOut (Input, Output):
+    def __init__ (self, default = None, free = None):
+        Input.__init__ (self, default)
+        Output.__init__ (self, free)
+        self.kind = 'inout'
+    @staticmethod
+    def parse (s):
+        if s.startswith ('inout'):
+            default = re.search (Input.default_patt + '$', s)
+            free = re.match (Output.free_patt, s[2:])
+            return InOut (default and default.group (1), free and free.group (1))
+
 class Array:
     """Base class for Arrays, both input, output and inout. May have more than
     one dimension, which is cool!"""
-    size_patt = r'\[(.+?)\]'
-    array_patt = r'array(\[.+\])' # Note that we don't exclude ';', and user may
+    size_patt = r'\[(.+?)\]\s*'
+    array_patt = r'array\s*(\[.+\])' # Note that we don't exclude ';', and user may
                                   # include code where it doesn't belong (if C/C++).
                                   # frontends should be careful with this!
     def __init__ (self, dims):
