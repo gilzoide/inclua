@@ -197,7 +197,7 @@ def _generate_function (func, notes):
             returns.append (function_push_ret_bindings.format (argname))
             # always free the memory you alloc
             if info.free:
-                frees.append ((info.free, argname))
+                frees.append ( (info.free, argname) )
         elif info.kind == 'array in':
             array_decl.append (function_argument_arrayin_bindings.format (
                     type = ty,
@@ -218,7 +218,7 @@ def _generate_function (func, notes):
             arg_call.append (argname)
             frees.append (('inclua_delete_array', '{}, {}'.format (argname, sizes)))
         elif info.kind == 'size in':
-            arg_decl.append (function_argument_size_bindings.format (type = ty, i = i + 1))
+            arg_decl.append (function_argument_size_bindings.format (type = 'size_t', i = i + 1))
             arg_call.append (function_argname_bindings.format (i = i + 1))
         elif info.kind == 'size out':
             arg_decl.append (function_argument_out_bindings.format (type = ty.pointee_type, i = i + 1))
@@ -228,12 +228,20 @@ def _generate_function (func, notes):
     _call = function_call_bindings.format (sym = func, args = ', '.join (arg_call))
     # return
     if str (func.ret_type) != 'void':
+        # there's a Note for return, see if it's something "out"
         if len (notes) > func.num_args:
             info = Note.parse (notes[func.num_args])
-            if info.kind == 'array out':
+            if info.kind == 'out':
+                returns.insert (0, function_push_ret_bindings.format ('ret'))
+                if info.free:
+                    frees.append ( (info.free, 'ret') )
+            elif info.kind == 'array out':
                 sizes = ', '.join (info.dims)
                 frees.append (('inclua_delete_array', 'ret, {}'.format (sizes)))
                 returns.insert (0, function_push_ret_array_bindings.format ('ret', info.dims[0]))
+            else:
+                raise IncluaError ("Note for return value should be 'out' or 'array out', not {!r}".format (info))
+        # no Note, plain old "out"
         else:
             returns.insert (0, function_push_ret_bindings.format ('ret'))
         call = function_with_ret_bindings.format (

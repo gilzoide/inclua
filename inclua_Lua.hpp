@@ -26,6 +26,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 template<typename T> void inclua_push (lua_State *L, T val) {
 	typedef typename std::remove_cv<T>::type noCV;
+	static_assert (!std::is_same<T, noCV>::value, "Type not yet registered in inclua_push");
 	inclua_push<noCV> (L, val);
 }
 
@@ -49,6 +50,9 @@ template<> void inclua_push (lua_State *L, int32_t i) {
 template<> void inclua_push (lua_State *L, int64_t i) {
 	lua_pushinteger (L, i);
 }
+template<> void inclua_push (lua_State *L, long long int i) {
+	lua_pushinteger (L, i);
+}
 template<> void inclua_push (lua_State *L, uint8_t i) {
 	lua_pushinteger (L, i);
 }
@@ -59,6 +63,9 @@ template<> void inclua_push (lua_State *L, uint32_t i) {
 	lua_pushinteger (L, i);
 }
 template<> void inclua_push (lua_State *L, uint64_t i) {
+	lua_pushinteger (L, i);
+}
+template<> void inclua_push (lua_State *L, unsigned long long int i) {
 	lua_pushinteger (L, i);
 }
 
@@ -72,6 +79,9 @@ template<> void inclua_push (lua_State *L, long double flt) {
 	lua_pushnumber (L, flt);
 }
 
+template<> void inclua_push (lua_State *L, const char *str) {
+	lua_pushstring (L, str);
+}
 template<> void inclua_push (lua_State *L, char *str) {
 	lua_pushstring (L, str);
 }
@@ -80,6 +90,10 @@ template<> void inclua_push (lua_State *L, char *str) {
 template<typename T> T inclua_check (lua_State *L, int arg) {
 	typedef typename std::remove_cv<T>::type noCV;
 	return inclua_check<noCV> (L, arg);
+}
+
+template<> bool inclua_check (lua_State *L, int arg) {
+	return lua_toboolean (L, arg);
 }
 
 template<> char inclua_check (lua_State *L, int arg) {
@@ -98,6 +112,9 @@ template<> int32_t inclua_check (lua_State *L, int arg) {
 template<> int64_t inclua_check (lua_State *L, int arg) {
 	return luaL_checkinteger (L, arg);
 }
+template<> long long int inclua_check (lua_State *L, int arg) {
+	return luaL_checkinteger (L, arg);
+}
 template<> uint8_t inclua_check (lua_State *L, int arg) {
 	return luaL_checkinteger (L, arg);
 }
@@ -108,6 +125,9 @@ template<> uint32_t inclua_check (lua_State *L, int arg) {
 	return luaL_checkinteger (L, arg);
 }
 template<> uint64_t inclua_check (lua_State *L, int arg) {
+	return luaL_checkinteger (L, arg);
+}
+template<> unsigned long long int inclua_check (lua_State *L, int arg) {
 	return luaL_checkinteger (L, arg);
 }
 
@@ -188,14 +208,16 @@ void inclua_push_array (lua_State *L, T arr, size_t size, Sizes... tail) {
 		lua_seti (L, -2, i + 1);
 	}
 }
-
-template<> void inclua_push_array (lua_State *L, char *arr, size_t size) {
+template<>
+void inclua_push_array (lua_State *L, char *arr, size_t size) {
+	// char array? Ah, string it is!
 	lua_pushlstring (L, arr, size);
 }
 
+
 #define remove_cv_from_ptr(T) typename std::remove_cv<typename std::remove_pointer<T>::type>::type
-template<typename T, typename = std::enable_if<std::is_pointer<T>::value>, typename Size>
-T inclua_check_array (lua_State *L, int arg, Size * size) {
+template<typename T, typename = std::enable_if<std::is_pointer<T>::value>>
+T inclua_check_array (lua_State *L, int arg, size_t * size) {
 	typedef remove_cv_from_ptr(T) pointeeType;
 
 	int len = luaL_len (L, arg);
@@ -212,8 +234,8 @@ T inclua_check_array (lua_State *L, int arg, Size * size) {
 	lua_pop (L, len);
 	return ret;
 }
-template<typename T, typename = std::enable_if<std::is_pointer<T>::value>, typename Size, typename... Sizes>
-T inclua_check_array (lua_State *L, int arg, Size * size, Sizes... tail) {
+template<typename T, typename = std::enable_if<std::is_pointer<T>::value>, typename... Sizes>
+T inclua_check_array (lua_State *L, int arg, size_t * size, Sizes... tail) {
 	typedef remove_cv_from_ptr(T) pointeeType;
 
 	int len = luaL_len (L, arg);
@@ -230,6 +252,12 @@ T inclua_check_array (lua_State *L, int arg, Size * size, Sizes... tail) {
 	lua_pop (L, len);
 	return ret;
 }
+template<>
+const char * inclua_check_array (lua_State *L, int arg, size_t * size) {
+	// char array? Ah, string it is!
+	return luaL_checklstring (L, arg, size);
+}
+
 
 template<typename T, typename = std::enable_if<std::is_pointer<T>::value>>
 T inclua_new_array (size_t size) {
@@ -246,6 +274,7 @@ T inclua_new_array (size_t size, Sizes... tail) {
 	return ret;
 }
 
+
 template<typename T, typename = std::enable_if<std::is_pointer<T>::value>>
 void inclua_delete_array (T arr, size_t size) {
 	delete[] arr;
@@ -257,4 +286,10 @@ void inclua_delete_array (T arr, size_t size, Sizes... tail) {
 	}
 	delete[] arr;
 }
+
+template<>
+void inclua_delete_array (const char * arr, size_t size) {
+	// in Lua, the strings from luaL_checkstring are internal, so no need to delete'em
+}
+
 #undef remove_cv_from_ptr

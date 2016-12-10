@@ -58,7 +58,8 @@ Notas suportadas
 
     .. code:: ebnf
 
-        Input = 'in', [ [ espaço ], '=', [ espaço ], tudo ]
+        Input = 'in', [ [ espaço ], valor_padrão ]
+        valor_padrão = '=', [ espaço ], tudo ;
 
 .. _out:
 
@@ -90,7 +91,8 @@ Notas suportadas
 
     .. code:: ebnf
 
-         Output = 'out', [ espaço, 'free[', identificador, ']' ] ;
+         Output = 'out', [ espaço, libera ] ;
+         libera = 'free[', identificador, ']' ;
          identificador = (letra | '_'), { (letra | numero | '_') } ;
 
 .. _inout:
@@ -100,7 +102,9 @@ TODO terminar
 **inout (entrada e saída)**
     Há argumentos em funções em C que são passadas por referência e não só têm
     seu valor utilizado, como o modifica, e tal modificação é persistente. Para
-    esses casos, há a **nota** **inout**, que é uma mistura da in_ e out_.
+    esses casos, há a **nota** **inout**, que é uma mistura da in_ e out_. Pode
+    ser útil para linguagens alvo que não podem passar tipos nativos (inteiros
+    e *floats*, por exemplo) por referência para funções.
 
     .. code:: c
 

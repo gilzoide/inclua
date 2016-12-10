@@ -49,6 +49,6 @@ Tutorial
 --------
 Tutorials on creating wrappers, either using the python lib or the standalone
 YAML version, and for creating **Generators** yourself, are available in the
-`tutorial directory`_.
+tutorial_.
 
-.. _Tutorial directory: https://github.com/gilzoide/inclua/tree/master/tutorial
+.. _tutorial: https://github.com/gilzoide/inclua/blob/master/tutorial/index.rst
