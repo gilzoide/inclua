@@ -16,10 +16,14 @@
 
 from .Generator import Generator
 from .Error import IncluaError
+from .GeneralInfo import version
 import yaml
 import argparse
 import sys
 import importlib
+
+# define package __version__ string
+__version__ = version
 
 def main ():
     """Generates the bindings from a YAML configuration file, that follows the
