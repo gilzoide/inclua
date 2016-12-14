@@ -15,8 +15,10 @@ Passo a passo:
 3. definir informações gerais, como símbolos ignorados e renomeações
 4. opcionalmente separar o documento YAML, para possibilitar o uso de símbolos
    reconhecidos por **inclua** como símbolos do código processado
-5. definir as informações necessárias
+5. definir as informações necessárias (Notas_)
 6. gerar!
+
+.. _Notas: notas.rst
 
 .. code:: yaml
 

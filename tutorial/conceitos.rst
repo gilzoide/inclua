@@ -53,3 +53,14 @@ Classes e conceitos importantes
     - Declarações de *enums* e seus valores associados (nome e valor)
     - Declarações de funções, com informações sobre seus argumentos (tipos) e
       tipo de retorno
+
+TODO: por o resto
+**GeneralInfo (Informações gerais sobre inclua)**
+
+**Note (Notas)**
+
+**Type (Tipo)**
+
+**Function (Função)**
+
+**Error (Erro)**

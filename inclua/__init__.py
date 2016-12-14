@@ -37,12 +37,13 @@ Any bugs should be reported to <gilzoide@gmail.com>""",
             formatter_class = argparse.RawDescriptionHelpFormatter)
     parser.add_argument ('input', action = 'store', type = argparse.FileType ('r'),
             help = "input YAML configuration file")
+    # parser.add_argument (
     parser.add_argument ('-o', '--output', action = 'store',
             help = "output wrapper file, stdout if not present")
     parser.add_argument ('-l', '--language', action = 'store', required = True,
             help = "binding target language")
     parser.add_argument ('clang_args', nargs = argparse.REMAINDER,
-            help = "arguments to clang parser, useful for \"-Dname\" and \"-Dname=val\" macros")
+            help = "arguments to clang parser, useful for \"-Dname\"/\"-Dname=val\" macros and \"-Iinclude_directory\" flags (which will be used by inclua to look for the headers)")
 
     cli_opts = parser.parse_args ()
     # assert generator exists

@@ -18,7 +18,10 @@
 Types in a more useful way to Inclua"""
 
 import clang.cindex as clang
+import os.path as path
+from sys import stderr
 from . import Type, Function
+from .Error import IncluaError
 
 class Visitor:
     def __init__ (self):
@@ -29,11 +32,20 @@ class Visitor:
         self.index = clang.Index.create ()
 
     def parse_header (self, header_name, clang_args = []):
-        tu = self.index.parse (header_name, args = clang_args
-                , options = clang.TranslationUnit.PARSE_SKIP_FUNCTION_BODIES)
+        # if "header_name" ain't found in current directory, try in every dir listed with "-I"
+        dirs = ['.'] + list (map (lambda p: p[2:], filter (lambda s: s.startswith ('-I'), clang_args)))
+        for d in dirs:
+            header_path = path.join (d, header_name)
+            try:
+                tu = self.index.parse (header_path, args = clang_args
+                        , options = clang.TranslationUnit.PARSE_SKIP_FUNCTION_BODIES)
 
-        visit_queue = list (tu.cursor.get_children ())
-        self._visit (visit_queue, header_name)
+                visit_queue = list (tu.cursor.get_children ())
+                self._visit (visit_queue, header_path)
+                return
+            except:
+                stderr.write ('[inclua] Failed to find {!r} for parsing'.format (header_path))
+        raise IncluaError ("Couldn't find {!r} anywhere in {}".format (header_name, dirs))
 
     def apply_ignores (self, G):
         no_ignore = lambda x: not G.should_ignore (str (x))

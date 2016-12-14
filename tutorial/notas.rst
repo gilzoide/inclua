@@ -97,8 +97,6 @@ Notas suportadas
 
 .. _inout:
 
-TODO terminar
-
 **inout (entrada e saída)**
     Há argumentos em funções em C que são passadas por referência e não só têm
     seu valor utilizado, como o modifica, e tal modificação é persistente. Para
@@ -196,7 +194,7 @@ TODO terminar
 
     .. code:: ebnf
 
-        SizeIn = 'size' [ ' in' ] ;
+        SizeIn = 'size', [ ' in' ] ;
 
 .. _array out:
 

@@ -1,7 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
-#include <stddef.h>
 
 float somaVet (float *vet, size_t tam) {
 	int i;

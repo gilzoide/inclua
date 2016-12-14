@@ -7,8 +7,10 @@ Passo a passo:
 1. importar o módulo **inclua** e módulo da linguagem alvo
 2. criar um **Generator**
 3. definir os *headers* a serem processados
-4. definir as informações necessárias
+4. definir as informações necessárias (Notas_)
 5. gerar!
+
+.. _Notas: notas.rst
 
 .. code:: python
 

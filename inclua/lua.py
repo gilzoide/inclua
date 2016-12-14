@@ -612,7 +612,6 @@ def generate_lua (G):
 
     bind = V.apply_ignores (G)
 
-    #include ""
     includes = [module_include_bindings.format (file = file) for file in G.headers]
     # definitions
     structs = [_generate_record (struct, 'struct') for struct in bind['structs']]
