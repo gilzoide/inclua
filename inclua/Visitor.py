@@ -44,7 +44,7 @@ class Visitor:
                 self._visit (visit_queue, header_path)
                 return
             except:
-                stderr.write ('[inclua] Failed to find {!r} for parsing'.format (header_path))
+                stderr.write ('[inclua] Failed to find {!r} for parsing\n'.format (header_path))
         raise IncluaError ("Couldn't find {!r} anywhere in {}".format (header_name, dirs))
 
     def apply_ignores (self, G):

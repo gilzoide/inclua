@@ -25,6 +25,12 @@ import importlib
 # define package __version__ string
 __version__ = version
 
+class VersionPrinter (argparse.Action):
+    def __call__ (self, parser, namespace, values, option_string):
+        """Prints program version"""
+        print (version)
+        sys.exit ()
+
 def main ():
     """Generates the bindings from a YAML configuration file, that follows the
     same rules as using the library directly"""
@@ -37,7 +43,8 @@ Any bugs should be reported to <gilzoide@gmail.com>""",
             formatter_class = argparse.RawDescriptionHelpFormatter)
     parser.add_argument ('input', action = 'store', type = argparse.FileType ('r'),
             help = "input YAML configuration file")
-    # parser.add_argument (
+    parser.add_argument ('-v', '--version', nargs = 0, action = VersionPrinter,
+            help = "prints program version")
     parser.add_argument ('-o', '--output', action = 'store',
             help = "output wrapper file, stdout if not present")
     parser.add_argument ('-l', '--language', action = 'store', required = True,

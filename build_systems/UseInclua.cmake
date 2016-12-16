@@ -7,6 +7,9 @@ Defines the following functions
 
 - INCLUA_ADD_MODULE(name language input_file [ flags ])
 - INCLUA_LINK_LIBRARIES(name [ libraries ])
+
+By default, the generated wrapper extension is "cpp". You can change it by
+setting the variable INCLUA_OUTPUT_EXTENSION.
 #]]
 
 macro (INCLUA_ADD_MODULE name language input_file)
@@ -21,7 +24,7 @@ macro (INCLUA_ADD_MODULE name language input_file)
 
 	# run inclua command
 	add_custom_command (OUTPUT ${_inclua_output}
-		COMMAND inclua -o ${_inclua_output} -l ${language} ${_inclua_input} -I${_inclua_local_dir} ${ARGN}
+		COMMAND ${INCLUA_EXECUTABLE} -o ${_inclua_output} -l ${language} ${_inclua_input} -I${_inclua_local_dir} ${ARGN}
 		DEPENDS ${_inclua_input}
 		COMMENT "Inclua module definition")
 	# proxy name for target
@@ -30,9 +33,9 @@ macro (INCLUA_ADD_MODULE name language input_file)
 	target_include_directories (${INCLUA_${name}_WRAPPER} PUBLIC ${_inclua_local_dir})
 	# remove the "lib" prefix on Unix systems
 	set_target_properties (${INCLUA_${name}_WRAPPER} PROPERTIES PREFIX "")
-	add_dependencies (${INCLUA_${name}_WRAPPER} ${_inclua_output})
 endmacro()
 
+# link libraries to the generated wrappers
 macro (INCLUA_LINK_LIBRARIES name)
 	if (INCLUA_${name}_WRAPPER)
 		target_link_libraries (${INCLUA_${name}_WRAPPER} ${ARGN})
