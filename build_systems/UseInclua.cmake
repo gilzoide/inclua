@@ -24,7 +24,7 @@ macro (INCLUA_ADD_MODULE name language input_file)
 
 	# run inclua command
 	add_custom_command (OUTPUT ${_inclua_output}
-		COMMAND ${INCLUA_EXECUTABLE} -o ${_inclua_output} -l ${language} ${_inclua_input} -I${_inclua_local_dir} ${ARGN}
+		COMMAND ${INCLUA_EXECUTABLE} -o ${_inclua_output} -l ${language} ${_inclua_input} ${INCLUA_CLANG_INCLUDE_FLAG} -I${_inclua_local_dir} ${ARGN}
 		DEPENDS ${_inclua_input}
 		COMMENT "Inclua module definition")
 	# proxy name for target

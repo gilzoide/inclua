@@ -1,6 +1,4 @@
 module : teste
-clang_args :
-- "-I/usr/lib/clang/3.9.0/include"
 
 headers :
 - teste.h

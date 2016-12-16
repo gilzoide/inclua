@@ -17,6 +17,9 @@
 """General infomation about Inclua, like version and so. A common notice for
 generated wrappers is also available, possibly commented like C."""
 
+import re
+import clang.cindex as clang
+
 version = '0.1.0'
 
 # Generated wrappers notice, provided as a list so that any generator functions
@@ -31,5 +34,23 @@ notice = [
     "Fell free to change and distribute it, just be careful.",
 ]
 
+
+# Notice written as a C/C++ comment
 C_notice = r"""/* {}
  */""".format ('\n * '.join (notice))
+
+
+def get_clang_version ():
+    """Try to get libclang version from the python library name"""
+    lib_name = str (clang.conf.lib)
+    # TODO: check if this works on windows
+    m = re.search (r'libclang.*?(\d(\.\d)?(\.\d)?)', lib_name)
+    if m:
+        ret = m.group (1)
+        # no minor nor subminor, insert '.0.0'
+        if not m.group (2):
+            ret += '.0.0'
+        # no subminor version, insert '.0'
+        elif not m.group (3):
+            ret += '.0'
+        return ret
