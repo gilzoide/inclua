@@ -26,10 +26,31 @@ import importlib
 __version__ = version
 
 class VersionPrinter (argparse.Action):
+    """Argparse Action that prints inclua version"""
     def __call__ (self, parser, namespace, values, option_string):
         """Prints program version"""
         print (version)
         sys.exit ()
+
+class DocPrinter (argparse.Action):
+    """Argparse Action that prints language generators' docs"""
+    def __call__ (self, parser, namespace, values, option_string):
+        lang = values[0]
+        _find_lang (lang)
+        print (Generator.get_doc (lang))
+        sys.exit ()
+
+def _find_lang (lang):
+    """Find the language by importing a module from inclua, or current directory.
+    Raises if not found"""
+    try:
+        importlib.import_module ('inclua.{}'.format (lang))
+    except:
+        try:
+            importlib.import_module (lang)
+        except:
+            raise IncluaError ("Language {!r} not found in inclua, nor as an import in current directory".format (lang))
+
 
 def main ():
     """Generates the bindings from a YAML configuration file, that follows the
@@ -45,6 +66,8 @@ Any bugs should be reported to <gilzoide@gmail.com>""",
             help = "input YAML configuration file")
     parser.add_argument ('-v', '--version', nargs = 0, action = VersionPrinter,
             help = "prints program version")
+    parser.add_argument ('-hl', '--help-language', nargs = 1, action = DocPrinter,
+            help = "prints the language generator documentation", metavar = 'LANGUAGE')
     parser.add_argument ('-o', '--output', action = 'store',
             help = "output wrapper file, stdout if not present")
     parser.add_argument ('-l', '--language', action = 'store', required = True,
@@ -54,14 +77,7 @@ Any bugs should be reported to <gilzoide@gmail.com>""",
 
     cli_opts = parser.parse_args ()
     # assert generator exists
-    lang = cli_opts.language
-    try:
-        importlib.import_module ('inclua.{}'.format (lang))
-    except:
-        try:
-            importlib.import_module (lang)
-        except:
-            raise IncluaError ("Language {!r} not found in inclua, nor as an import in current directory".format (lang))
+    _find_lang (cli_opts.language)
 
     yaml_docs = yaml.load_all (cli_opts.input)
 

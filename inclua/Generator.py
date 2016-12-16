@@ -16,6 +16,7 @@
 
 import sys
 import re
+from .Error import IncluaError
 
 class Generator:
     """Class for wrapper generators. You can add the wrapper generator for
@@ -95,7 +96,7 @@ class Generator:
 
     # Generate, that's why we're here =]
     def generate (self, lang, output = sys.stdout):
-        wrapper = Generator.languages[lang] (self)
+        wrapper = Generator._get_lang (lang)[0] (self)
         if output:
             try:
                 output.write (wrapper)
@@ -105,5 +106,26 @@ class Generator:
         return wrapper
 
     @staticmethod
-    def add_generator (lang, func):
-        Generator.languages[lang] = func
+    def add_generator (lang, func, doc = None):
+        """Adds a target language generator.
+        
+        They are functions (or any object with the __call__ method implemented)
+        that receives the Generator as parameter, and return a string with the
+        wrapper code.
+        Generator functions should use a Visitor object to parse the C code and
+        retrieve the necessary information.
+        
+        Docs are also useful, and can be queried by the standalone"""
+        Generator.languages[lang] = (func, doc)
+
+    @staticmethod
+    def get_doc (lang):
+        return Generator._get_lang (lang)[1]
+
+    @staticmethod
+    def _get_lang (lang):
+        """Get the language generator tuple, asserting 'lang' is registered"""
+        try:
+            return Generator.languages[lang]
+        except:
+            raise IncluaError ("Language {!r} not registered in inclua".format (lang))

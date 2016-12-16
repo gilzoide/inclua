@@ -499,6 +499,17 @@ def _generate_function (func, notes):
             # always free the memory you alloc
             if info.free:
                 frees.append ( (info.free, argname) )
+        elif info.kind == 'inout':
+            # input
+            arg_decl.append (function_argument_in_bindings.format (type = ty.pointee_type, i = i + 1, i_stack = i_lua_stack))
+            i_lua_stack += 1
+            # and output
+            argname = function_argname_bindings.format (i = i + 1)
+            arg_call.append (_address_of (argname))
+            returns.append (function_push_ret_bindings.format (argname))
+            # always free the memory you alloc
+            if info.free:
+                frees.append ( (info.free, argname) )
         elif info.kind == 'array in':
             array_decl.append (function_argument_arrayin_bindings.format (
                     type = ty,
@@ -653,4 +664,22 @@ def generate_lua (G):
             union_register = '\n'.join (union_register),
             enum_register = '\n'.join (enum_register))
 
-Generator.add_generator ('lua', generate_lua)
+Generator.add_generator ('lua', generate_lua, '\n'.join ([
+"Inclua Lua wrapper generator",
+"============================",
+"What you should know:",
+"",
+"- generated code is C++11",
+"- nothing is defined in global scope, everything is in the module table",
+"- doesn't yet support input default arguments",
+"- non opaque structs/unions can be instantiated with the `new` function from",
+"  it's metatable: `obj = my_module.struct_metatable.new ()`",
+"- all structs/unions may index it's metatable if the key isn't present as a",
+"  field. This way it is easy to include methods (and metamethods):",
+"  `my_module.struct_metatable.__tostring = my_module.print_struct",
+"  print (some_struct_in_memory)",
+"  my_module.struct_metatable.someFunc = my_module.someFunc",
+"  some_struct_in_memory:someFunc (extra_args)`",
+"- every struct/union pointer is a Lua full userdata, which means that equality",
+"  between pointers doesn't work like expected. This will be fixed soon.",
+]))

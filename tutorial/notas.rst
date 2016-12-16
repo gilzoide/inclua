@@ -1,11 +1,11 @@
 Notas sobre funções
 ===================
-Muitas funções em C são difíceis de serem decifradas. Pointeiros como argumento,
-por exemplo, podem ser um argumento de entrada, um argumento de saída (para
-múltiplos retornos, por exemplo), ou mesmo um vetor de entrada, que deve ser
-levado em consideração na hora de gerar código *wrapper*.
+Muitas funções em C são difíceis de serem decifradas somente por seu protótipo.
+Pointeiros como argumento, por exemplo, podem ser um argumento de entrada, um
+argumento de saída (para múltiplos retornos, por exemplo), ou mesmo um vetor de
+entrada, que deve ser levado em consideração na hora de gerar código *wrapper*.
 
-Para facilitar a nossa vida, foram criadas **Notas**, que informam **inclua**
+Para facilitar a nossa vida, foram criadas **Notas**, que informam ``inclua``
 o que cada argumento (ou mesmo o retorno) de uma função quer dizer. Nem todas
 as linguagens alvo funcionam do mesmo jeito, mas se todas as possibilidades
 forem cobertas, cada uma pode usar as informações do jeito que melhor couber.

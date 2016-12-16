@@ -33,3 +33,5 @@ printaMatriz: ['array[arg2][arg3] in', 'size', 'size']
 printaMatrizQuadrada: ['array[arg2][arg2] in', 'size']
 
 geraAleatorios: ['size out', 'array[arg1] out']
+
+swap: ['inout', 'inout']
