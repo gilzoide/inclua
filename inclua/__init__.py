@@ -17,6 +17,7 @@
 from .Generator import Generator
 from .Error import IncluaError
 from .GeneralInfo import version, get_clang_version
+from .Visitor import Visitor
 import yaml
 import argparse
 import sys
@@ -28,14 +29,13 @@ __version__ = version
 class VersionPrinter (argparse.Action):
     """Argparse Action that prints inclua version"""
     def __call__ (self, parser, namespace, values, option_string):
-        """Prints program version"""
         print (version)
         sys.exit ()
 
 class ClangVersion (argparse.Action):
     """Argparse Action that prints the used clang version"""
     def __call__ (self, parser, namespace, values, option_string):
-        print (get_clang_version () or "couldn't find clang version")
+        print (get_clang_version () or "[inclua] Couldn't find clang version")
         sys.exit ()
 
 class DocPrinter (argparse.Action):
@@ -57,6 +57,75 @@ def _find_lang (lang):
         except:
             raise IncluaError ("Language {!r} not found in inclua, nor as an import in current directory".format (lang))
 
+def _include_yaml (stream, G):
+    """Process a YAML file and register everything in Generator `G`. May be
+    called recursively for included YAML files."""
+    yaml_docs = yaml.load_all (stream)
+
+    # process header YAML doc, the general stuff
+    try:
+        header_conf = next (yaml_docs)
+        if not G.mod_name:
+            G.set_module_name (header_conf['module'])
+    except yaml.scanner.ScannerError as ex:
+        raise IncluaError ("YAML parse error: " + str (ex))
+    except KeyError:
+        raise IncluaError ("YAML header configuration should have at least 'module' and 'headers' fields")
+    if header_conf.get ('clang_args'):
+        G.extend_clang_args (header_conf['clang_args'])
+    if header_conf.get ('headers'):
+        for h in header_conf['headers']:
+            G.add_header (h)
+    # include other YAML files. 
+    if header_conf.get ('include'):
+        for f_name in header_conf['include']:
+            with open (Visitor.find_path (f_name, G.clang_args), 'r') as f:
+                _include_yaml (f, G)
+    if header_conf.get ('ignore'):
+        for i in header_conf['ignore']:
+            G.ignore (i)
+    if header_conf.get ('ignore_regex'):
+        for i in header_conf['ignore_regex']:
+            G.ignore_regex (i)
+    if header_conf.get ('rename'):
+        for target, sub in header_conf['rename'].items ():
+            G.rename (target, sub)
+    if header_conf.get ('rename_regex'):
+        for patt, sub in header_conf['rename_regex'].items ():
+            G.rename_regex (patt, sub)
+
+    # process definition notes YAML doc if present, or use header one
+    try:
+        definitions_conf = next (yaml_docs)
+    except:
+        # get rid of header stuff
+        def _delete_if_present (conf, key):
+            if conf.get (key):
+                del conf[key]
+        _delete_if_present (header_conf, 'module')
+        _delete_if_present (header_conf, 'headers')
+        _delete_if_present (header_conf, 'include')
+        _delete_if_present (header_conf, 'ignore')
+        _delete_if_present (header_conf, 'ignore_regex')
+        _delete_if_present (header_conf, 'rename')
+        _delete_if_present (header_conf, 'rename_regex')
+        _delete_if_present (header_conf, 'clang_args')
+        # now header is the definition configuration
+        definitions_conf = header_conf
+    for target, info in definitions_conf.items ():
+        if info == 'ignore':
+            G.ignore (target)
+        elif info == 'scope':
+            G.scope (target)
+        else:
+            try:
+                rename = info['rename']
+                G.rename (target, rename)
+                if info.get ('notes'):
+                    notes = info['notes']
+                    G.note (target, notes)
+            except:
+                G.note (target, info)
 
 def main ():
     """Generates the bindings from a YAML configuration file, that follows the
@@ -87,64 +156,10 @@ Any bugs should be reported to <gilzoide@gmail.com>""",
     # assert generator exists
     _find_lang (cli_opts.language)
 
-    yaml_docs = yaml.load_all (cli_opts.input)
-
-    # process header YAML doc, the general stuff
-    try:
-        header_conf = next (yaml_docs)
-        G = Generator (header_conf['module'])
-        for h in header_conf['headers']:
-            G.add_header (h)
-    except:
-        raise IncluaError ("YAML header configuration should have at least 'module' and 'headers' fields")
-    if header_conf.get ('ignore'):
-        for i in header_conf['ignore']:
-            G.ignore (i)
-    if header_conf.get ('ignore_regex'):
-        for i in header_conf['ignore_regex']:
-            G.ignore_regex (i)
-    if header_conf.get ('rename'):
-        for target, sub in header_conf['rename'].items ():
-            G.rename (target, sub)
-    if header_conf.get ('rename_regex'):
-        for patt, sub in header_conf['rename_regex'].items ():
-            G.rename_regex (patt, sub)
-    if header_conf.get ('clang_args'):
-        G.extend_clang_args (header_conf['clang_args'])
+    # start with the root YAML file
+    G = Generator ()
     G.extend_clang_args (cli_opts.clang_args)
+    _include_yaml (cli_opts.input, G)
 
-    # process definition notes YAML doc if present, or use header one
-    try:
-        definitions_conf = next (yaml_docs)
-    except:
-        # get rid of header stuff
-        del header_conf['module']
-        del header_conf['headers']
-        if header_conf.get ('ignore'):
-            del header_conf['ignore']
-        if header_conf.get ('ignore_regex'):
-            del header_conf['ignore_regex']
-        if header_conf.get ('rename'):
-            del header_conf['rename']
-        if header_conf.get ('rename_regex'):
-            del header_conf['rename_regex']
-        if header_conf.get ('clang_args'):
-            del header_conf['clang_args']
-        definitions_conf = header_conf
-    for target, info in definitions_conf.items ():
-        if info == 'ignore':
-            G.ignore (target)
-        elif info == 'scope':
-            G.scope (target)
-        else:
-            try:
-                rename = info['rename']
-                G.rename (target, rename)
-                if info.get ('notes'):
-                    notes = info['notes']
-                    G.note (target, notes)
-            except:
-                G.note (target, info)
-    
     # and generate, that's what we're here for ;]
     G.generate (cli_opts.language, cli_opts.output or sys.stdout)

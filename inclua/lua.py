@@ -299,7 +299,14 @@ T inclua_new_array (size_t size, Sizes... tail) {
 
 
 template<typename T, typename = std::enable_if<std::is_pointer<T>::value>>
+void inclua_delete_array (T arr) {
+    delete[] arr;
+}
+template<typename T, typename = std::enable_if<std::is_pointer<T>::value>>
 void inclua_delete_array (T arr, size_t size) {
+    for (size_t i = 0; i < size; i++) {
+        inclua_delete_array (arr[i]);
+    }
     delete[] arr;
 }
 template<typename T, typename = std::enable_if<std::is_pointer<T>::value>, typename... Sizes>
@@ -469,6 +476,8 @@ function_call_bindings = '{sym} ({args});'
 function_free_bindings = '{} ({});'
 def _address_of (s):
     return '&{}'.format (s)
+def _generate_delete_array_args (arr, sizes):
+    return ', '.join ([arr] + sizes[1:])
 def _generate_function (func, notes):
     """Generate function bindings, taking care of the notes given, so that everything
     works really well, and makes people want to use your module"""
@@ -517,7 +526,7 @@ def _generate_function (func, notes):
                     size = ', '.join (map (lambda s: s in ['_', 'NULL'] and '(size_t *) NULL' or _address_of (s), info.dims))))
             argname = function_argname_bindings.format (i = i + 1)
             arg_call.append (argname)
-            frees.append (('inclua_delete_array', '{}, {}'.format (argname, ', '.join (map (lambda s: s == '_' and 'NULL' or s, info.dims)))))
+            frees.append ( ('inclua_delete_array', ', '.join (map (lambda s: s == '_' and 'NULL' or s, [argname] + info.dims[1:]))) )
             i_lua_stack += 1
         elif info.kind == 'array out':
             argname = function_argname_bindings.format (i = i + 1)
@@ -526,9 +535,9 @@ def _generate_function (func, notes):
                     type = ty,
                     i = i + 1,
                     sizes = sizes))
-            returns.append (function_push_ret_array_bindings.format (argname, info.dims[0]))
+            returns.append (function_push_ret_array_bindings.format (argname, sizes))
             arg_call.append (argname)
-            frees.append (('inclua_delete_array', '{}, {}'.format (argname, sizes)))
+            frees.append ( ('inclua_delete_array', _generate_delete_array_args (argname, info.dims)) )
         elif info.kind == 'size in':
             arg_decl.append (function_argument_size_bindings.format (type = 'size_t', i = i + 1))
             arg_call.append (function_argname_bindings.format (i = i + 1))
@@ -549,8 +558,8 @@ def _generate_function (func, notes):
                     frees.append ( (info.free, 'ret') )
             elif info.kind == 'array out':
                 sizes = ', '.join (info.dims)
-                frees.append (('inclua_delete_array', 'ret, {}'.format (sizes)))
-                returns.insert (0, function_push_ret_array_bindings.format ('ret', info.dims[0]))
+                frees.append ( ('inclua_delete_array', _generate_delete_array_args ('ret', info.dims)) )
+                returns.insert (0, function_push_ret_array_bindings.format ('ret', sizes))
             else:
                 raise IncluaError ("Note for return value should be 'out' or 'array out', not {!r}".format (info))
         # no Note, plain old "out"

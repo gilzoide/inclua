@@ -24,7 +24,7 @@ class Generator:
 
     languages = {}
 
-    def __init__ (self, mod_name):
+    def __init__ (self, mod_name = None):
         self.headers = []
         self.mod_name = mod_name
         self.clang_args = []
@@ -33,6 +33,10 @@ class Generator:
         self.rename_notes = { '_regex': [] }
         self.scope_enum = set ()
         self.arg_notes = {}
+
+    # Header information
+    def set_module_name (self, mod_name):
+        self.mod_name = mod_name
 
     def add_header (self, header):
         self.headers.append (header);
@@ -55,8 +59,7 @@ class Generator:
         try:
             if self.arg_notes[symbol].kind == 'ignore': return True
         except:
-            pass
-        return any (map (lambda patt: patt.fullmatch (symbol), self.ignore_notes['_regex']))
+            return any (map (lambda patt: patt.fullmatch (symbol), self.ignore_notes['_regex']))
 
     # Rename
     def rename (self, target, new_symbol_or_func):
@@ -66,6 +69,9 @@ class Generator:
         self.rename_notes['_regex'].append ((re.compile (regex), subst))
 
     def final_name (self, symbol):
+        """Apply the renaming registered for target if there is one, or any
+        regex substitution that changes something. If no renaming is registered
+        for target, return it unchanged"""
         symbol = str (symbol)
         new_symbol_or_func = self.rename_notes.get (symbol)
         if new_symbol_or_func:
@@ -96,6 +102,10 @@ class Generator:
 
     # Generate, that's why we're here =]
     def generate (self, lang, output = sys.stdout):
+        """Generate wrapper code for the `lang` language, write it to `output`,
+        and return it.
+
+        Raises if language isn't registered"""
         wrapper = Generator._get_lang (lang)[0] (self)
         if output:
             try:
@@ -120,6 +130,7 @@ class Generator:
 
     @staticmethod
     def get_doc (lang):
+        """Get the documentation given when registering a language generator"""
         return Generator._get_lang (lang)[1]
 
     @staticmethod

@@ -3,13 +3,16 @@ UseInclua
 =========
 
 Generate wrappers with inclua.
-Defines the following functions
+Defines the following macros
 
 - INCLUA_ADD_MODULE(name language input_file [ flags ])
 - INCLUA_LINK_LIBRARIES(name [ libraries ])
 
-By default, the generated wrapper extension is "cpp". You can change it by
-setting the variable INCLUA_OUTPUT_EXTENSION.
+Configuration variables are:
+
+- INCLUA_OUTPUT_EXTENSION: generated wrapper file extension. The default is "cpp"
+- INCLUA_OUTPUT_DIRECTORY: built library output directory, created at runtime
+- INCLUA_INCLUDE_DIRECTORIES: include directories for compiling the resulting library
 #]]
 
 macro (INCLUA_ADD_MODULE name language input_file)
@@ -18,7 +21,7 @@ macro (INCLUA_ADD_MODULE name language input_file)
 	# first, check if extension is specified. Default = C++
 	if (NOT INCLUA_OUTPUT_EXTENSION)
 		set (INCLUA_OUTPUT_EXTENSION "cpp")
-	endif()
+	endif ()
 	# output is input with the extension changed
 	string (REGEX REPLACE "\\.[^.]+$" ".${INCLUA_OUTPUT_EXTENSION}" _inclua_output "${input_file}")
 
@@ -31,8 +34,11 @@ macro (INCLUA_ADD_MODULE name language input_file)
 	set (INCLUA_${name}_WRAPPER ${name})
 	add_library (${INCLUA_${name}_WRAPPER} MODULE ${_inclua_output})
 	target_include_directories (${INCLUA_${name}_WRAPPER} PUBLIC ${_inclua_local_dir})
-	# remove the "lib" prefix on Unix systems
-	set_target_properties (${INCLUA_${name}_WRAPPER} PROPERTIES PREFIX "")
+	# remove the "lib" prefix on Unix systems, and set output and include directories
+	set_target_properties (${INCLUA_${name}_WRAPPER} PROPERTIES
+		PREFIX ""
+		LIBRARY_OUTPUT_DIRECTORY "${INCLUA_OUTPUT_DIRECTORY}"
+		LIBRARY_INCLUDE_DIRECTORIES "${INCLUA_INCLUDE_DIRECTORIES}")
 endmacro()
 
 # link libraries to the generated wrappers
