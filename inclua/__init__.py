@@ -112,20 +112,22 @@ def _include_yaml (stream, G):
         _delete_if_present (header_conf, 'clang_args')
         # now header is the definition configuration
         definitions_conf = header_conf
-    for target, info in definitions_conf.items ():
-        if info == 'ignore':
-            G.ignore (target)
-        elif info == 'scope':
-            G.scope (target)
-        else:
-            try:
-                rename = info['rename']
-                G.rename (target, rename)
-                if info.get ('notes'):
-                    notes = info['notes']
-                    G.note (target, notes)
-            except:
-                G.note (target, info)
+    # if there are extra definitions, process them
+    if definitions_conf:
+        for target, info in definitions_conf.items ():
+            if info == 'ignore':
+                G.ignore (target)
+            elif info == 'scope':
+                G.scope (target)
+            else:
+                try:
+                    rename = info['rename']
+                    G.rename (target, rename)
+                    if info.get ('notes'):
+                        notes = info['notes']
+                        G.note (target, notes)
+                except:
+                    G.note (target, info)
 
 def main ():
     """Generates the bindings from a YAML configuration file, that follows the

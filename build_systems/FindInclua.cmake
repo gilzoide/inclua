@@ -32,12 +32,6 @@ if (INCLUA_EXECUTABLE)
 		/usr/local/lib
 		/usr/lib
 		/lib)
-	if (INCLUA_CLANG_INCLUDE_PATH)
-		set (INCLUA_CLANG_INCLUDE_FLAG "-I${INCLUA_CLANG_INCLUDE_PATH}")
-	else ()
-		set (INCLUA_CLANG_INCLUDE_FLAG "")
-	endif()
-
 	# hide internal variables
 	mark_as_advanced (INCLUA_CLANG_VERSION
 		INCLUA_CLANG_INCLUDE_PATH
@@ -46,6 +40,6 @@ endif()
 
 # Handle QUIET and REQUIRED, and set version string
 include (FindPackageHandleStandardArgs)
-FIND_PACKAGE_HANDLE_STANDARD_ARGS (INCLUA
+FIND_PACKAGE_HANDLE_STANDARD_ARGS (Inclua
 	REQUIRED_VARS INCLUA_EXECUTABLE
 	VERSION_VAR INCLUA_VERSION)
