@@ -28,7 +28,7 @@ class Visitor:
         self.structs = set ()
         self.unions = set ()
         self.enums = {}
-        self.functions = []
+        self.functions = set ()
         self.index = clang.Index.create ()
 
     @staticmethod
@@ -83,7 +83,7 @@ class Visitor:
                     self.unions.add (Type.from_cursor (cursor))
                 # Functions
                 elif cursor.kind == clang.CursorKind.FUNCTION_DECL:
-                    self.functions.append (Function.from_cursor (cursor))
+                    self.functions.add (Function.from_cursor (cursor))
                 # Enums
                 elif cursor.kind == clang.CursorKind.ENUM_DECL:
                     self.enums[cursor.hash] = Type.from_cursor (cursor)

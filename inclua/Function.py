@@ -20,6 +20,10 @@ from . import Type
 from .Decl import Decl
 
 class Function (Decl):
+
+    # Known functions, for memoizing
+    known_functions = {}
+
     def __init__ (self, symbol, ret_type, arg_types):
         Decl.__init__ (self, symbol)
         self.ret_type = ret_type
@@ -29,8 +33,15 @@ class Function (Decl):
     def __repr__ (self):
         return 'Function ("{}", {}, {})'.format (self.symbol, self.ret_type, self.arg_types)
 
+    def remember_function (func):
+        Function.known_functions[func.symbol] = func
+        return func
+
 def from_cursor (cur):
     name = cur.spelling
+    memoized = Function.known_functions.get (name)
+    if memoized: return memoized
+
     ret_type = Type.from_type (cur.result_type)
     arg_types = [Type.from_type (a.type) for a in cur.get_arguments ()]
-    return Function (name, ret_type, arg_types)
+    return Function.remember_function (Function (name, ret_type, arg_types))

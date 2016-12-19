@@ -91,10 +91,20 @@ template<> void inclua_push (lua_State *L, long double flt) {
 }
 
 template<> void inclua_push (lua_State *L, const char *str) {
-    lua_pushstring (L, str);
+    if (str) {
+        lua_pushstring (L, str);
+    }
+    else {
+        lua_pushnil (L);
+    }
 }
 template<> void inclua_push (lua_State *L, char *str) {
-    lua_pushstring (L, str);
+    if (str) {
+        lua_pushstring (L, str);
+    }
+    else {
+        lua_pushnil (L);
+    }
 }
 
 template<> void inclua_push (lua_State *L, void *ptr) {
@@ -157,7 +167,7 @@ template<> long double inclua_check (lua_State *L, int arg) {
 }
 
 template<> const char *inclua_check (lua_State *L, int arg) {
-    return luaL_checkstring (L, arg);
+    return lua_isnoneornil (L, arg) ? NULL : luaL_checkstring (L, arg);
 }
 
 template<> void *inclua_check (lua_State *L, int arg) {
@@ -258,9 +268,16 @@ void inclua_push_array (lua_State *L, char *arr, size_t size) {
 template<typename T, typename = std::enable_if<std::is_pointer<T>::value>>
 T inclua_check_array (lua_State *L, int arg, size_t * size) {
     typedef remove_cv_from_ptr(T) pointeeType;
+    // check for NULL array
+    if (lua_isnoneornil (L, arg)) {
+        if (size) {
+            *size = 0;
+        }
+        return NULL;
+    }
 
     int len = luaL_len (L, arg);
-    luaL_argcheck (L, len > 0, arg, "Array length should be a positive integer");
+    luaL_argcheck (L, len >= 0, arg, "Array length should be a positive integer");
     if (size) {
         *size = len;
     }
@@ -276,9 +293,16 @@ T inclua_check_array (lua_State *L, int arg, size_t * size) {
 template<typename T, typename = std::enable_if<std::is_pointer<T>::value>, typename... Sizes>
 T inclua_check_array (lua_State *L, int arg, size_t * size, Sizes... tail) {
     typedef remove_cv_from_ptr(T) pointeeType;
+    // check for NULL array
+    if (lua_isnoneornil (L, arg)) {
+        if (size) {
+            *size = 0;
+        }
+        return NULL;
+    }
 
     int len = luaL_len (L, arg);
-    luaL_argcheck (L, len > 0, arg, "Array length should be a positive integer");
+    luaL_argcheck (L, len >= 0, arg, "Array length should be a positive integer");
     if (size) {
         *size = len;
     }
@@ -709,5 +733,7 @@ Generator.add_generator ('lua', generate_lua, '\n'.join ([
 "  my_module.struct_metatable.someFunc = my_module.someFunc",
 "  some_struct_in_memory:someFunc (extra_args)`",
 "- every struct/union pointer is a Lua full userdata, which means that equality",
-"  between pointers doesn't work like expected. This will be fixed soon.",
+"  between pointers doesn't work like expected. This will be fixed soon",
+"- all output parameters that are pointers are initialized with NULL, as some",
+"  functions may relly on that to know if it worked",
 ]))
