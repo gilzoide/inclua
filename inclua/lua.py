@@ -97,6 +97,10 @@ template<> void inclua_push (lua_State *L, char *str) {
     lua_pushstring (L, str);
 }
 
+template<> void inclua_push (lua_State *L, void *ptr) {
+    lua_pushlightuserdata (L, ptr);
+}
+
 
 template<typename T> T inclua_check (lua_State *L, int arg) {
     typedef typename std::remove_cv<T>::type noCV;
@@ -154,6 +158,18 @@ template<> long double inclua_check (lua_State *L, int arg) {
 
 template<> const char *inclua_check (lua_State *L, int arg) {
     return luaL_checkstring (L, arg);
+}
+
+template<> void *inclua_check (lua_State *L, int arg) {
+    void *ptr = lua_touserdata (L, arg);
+    // if full userdata, do the uservalue trick
+    if (lua_type (L, arg) == LUA_TUSERDATA) {
+        if (lua_getuservalue (L, arg) != LUA_TBOOLEAN) {
+            ptr = *((void **) ptr);
+        }
+        lua_pop (L, 1);
+    }
+    return ptr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -318,7 +334,7 @@ void inclua_delete_array (T arr, size_t size, Sizes... tail) {
 }
 
 template<>
-void inclua_delete_array (const char * arr, size_t size) {
+void inclua_delete_array (const char * arr) {
     // in Lua, the strings from luaL_checkstring are internal, so no need to delete'em
 }
 
@@ -461,7 +477,7 @@ int wrap_{name} (lua_State *L) {{
     return {ret_num};
 }}"""
 function_argument_in_bindings = '{type} arg{i} = inclua_check<{type}> (L, {i_stack});'
-function_argument_out_bindings = '{type} arg{i};'
+function_argument_out_bindings = '{type} arg{i}{init};'
 function_argument_size_bindings = '{type} arg{i};'
 function_argument_arrayin_bindings = '{type} arg{i} = inclua_check_array<{type}> (L, {i_stack}, {size});'
 function_argument_arrayin_until_bindings = '{type} arg{i} = inclua_check_array_plus<{pointee_type}> (L, {i_stack}, {trailing});'
@@ -501,7 +517,10 @@ def _generate_function (func, notes):
             arg_call.append (function_argname_bindings.format (i = i + 1))
             i_lua_stack += 1
         elif info.kind == 'out':
-            arg_decl.append (function_argument_out_bindings.format (type = ty.pointee_type, i = i + 1))
+            arg_decl.append (function_argument_out_bindings.format (
+                    type = ty.pointee_type,
+                    i = i + 1,
+                    init = '' if ty.kind != 'pointer' else ' = NULL'))
             argname = function_argname_bindings.format (i = i + 1)
             arg_call.append (_address_of (argname))
             returns.append (function_push_ret_bindings.format (argname))
@@ -542,7 +561,7 @@ def _generate_function (func, notes):
             arg_decl.append (function_argument_size_bindings.format (type = 'size_t', i = i + 1))
             arg_call.append (function_argname_bindings.format (i = i + 1))
         elif info.kind == 'size out':
-            arg_decl.append (function_argument_out_bindings.format (type = ty.pointee_type, i = i + 1))
+            arg_decl.append (function_argument_out_bindings.format (type = ty.pointee_type, i = i + 1, init = ''))
             argname = function_argname_bindings.format (i = i + 1)
             arg_call.append (_address_of (argname))
 
