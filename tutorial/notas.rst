@@ -28,8 +28,19 @@ informação é valiosa na hora de determinarmos vetores e seus tamanhos, dentre
 outros. Além disso, retornos de funções são sempre chamados "ret".
 
 
-Notas suportadas
-----------------
+Notas Para Funções
+------------------
+**ignore**
+    Ignora a função, não criando *wrappers* para ela.
+
+**native (função nativa)**
+    Marca funções que já são *wrappers*, e portanto não precisam ser
+    modificadas. Isso é importante, pois às vezes pode ser necessário criar
+    funções customizadas para interagir bem com a linguagem alvo.
+
+
+Notas Para Argumentos
+---------------------
 .. _in:
 
 **in (entrada)**

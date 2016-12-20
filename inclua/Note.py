@@ -19,7 +19,7 @@ whatever fits. This module specifies the grammar, functions to parse, and
 classes that hold the needed information.
 
 Grammar:
-    Note = 'ignore' | Function | Enum
+    Note = 'ignore' | 'native' | Function | Enum
 
     Function = Array |  Inout
     Array = 'array[' Size '] ' (In | Out)
@@ -57,7 +57,7 @@ class Note:
         # strip blank stuff that may come
         s = s.strip ()
         note = reduce (lambda a, b: a or b, map (lambda x: x.parse (s),
-                [Ignore, Input, Output, InOut, ArrayInput, ArrayOutput, SizeInput, SizeOutput]))
+                [Ignore, Native, Input, Output, InOut, ArrayInput, ArrayOutput, SizeInput, SizeOutput]))
         if note: return note
         else:
             raise IncluaError ("Invalid note: {!r}".format (s))
@@ -69,6 +69,13 @@ class Ignore (Note):
     @staticmethod
     def parse (s):
         if s == 'ignore': return Ignore ()
+
+class Native (Note):
+    def __init__ (self):
+        self.kind = 'native'
+    @staticmethod
+    def parse (s):
+        if s == 'native': return Native ()
 
 class Input (Note):
     default_patt = r'=\s*(.+)'

@@ -26,7 +26,7 @@ inclua_hpp = r"""
 #ifndef INCLUA_LUA_HPP
 #define INCLUA_LUA_HPP
 
-#include <lua.hpp>
+#include "lua.hpp"
 #include <cstdlib>
 #include <cstring>
 #include <cstdint>
@@ -500,6 +500,10 @@ int wrap_{name} (lua_State *L) {{
     {free_stuff}
     return {ret_num};
 }}"""
+native_function_wrapper_bindings = r"""
+int wrap_{name} (lua_State *L) {{
+    return {name} (L);
+}}"""
 function_argument_in_bindings = '{type} arg{i} = inclua_check<{type}> (L, {i_stack});'
 function_argument_out_bindings = '{type} arg{i}{init};'
 function_argument_size_bindings = '{type} arg{i};'
@@ -521,6 +525,11 @@ def _generate_delete_array_args (arr, sizes):
 def _generate_function (func, notes):
     """Generate function bindings, taking care of the notes given, so that everything
     works really well, and makes people want to use your module"""
+
+    # just tail call native functions
+    if notes == 'native':
+        return native_function_wrapper_bindings.format (name = func)
+
     notes = notes or ['in'] * func.num_args
     arg_decl = []
     array_decl = []
@@ -544,7 +553,7 @@ def _generate_function (func, notes):
             arg_decl.append (function_argument_out_bindings.format (
                     type = ty.pointee_type,
                     i = i + 1,
-                    init = '' if ty.kind != 'pointer' else ' = NULL'))
+                    init = '' if ty.pointee_type.kind != 'pointer' else ' = nullptr'))
             argname = function_argname_bindings.format (i = i + 1)
             arg_call.append (_address_of (argname))
             returns.append (function_push_ret_bindings.format (argname))
