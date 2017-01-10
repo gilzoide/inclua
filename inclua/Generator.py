@@ -33,6 +33,7 @@ class Generator:
         self.rename_notes = { '_regex': [] }
         self.scope_enum = set ()
         self.arg_notes = {}
+        self.constants = {}
 
     # Header information
     def set_module_name (self, mod_name):
@@ -99,6 +100,10 @@ class Generator:
 
     def get_note (self, func):
         return self.arg_notes.get (str (func))
+
+    # Constants
+    def add_constant (self, name, value):
+        self.constants[name] = value
 
     # Generate, that's why we're here =]
     def generate (self, lang, output = sys.stdout):

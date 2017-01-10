@@ -3,6 +3,9 @@ module : teste
 headers :
 - teste.h
 
+constants :
+  ZERO : ZERO
+
 ---
 Nice : scope
 

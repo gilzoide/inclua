@@ -2,9 +2,11 @@
 #include <stdio.h>
 #include <stdint.h>
 
+#define ZERO 0
+
 float somaVet (float *vet, size_t tam) {
 	int i;
-	float soma = 0;
+	float soma = ZERO;
 	for (i = 0; i < tam; i++) {
 		soma += vet[i];
 	}

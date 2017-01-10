@@ -60,6 +60,7 @@ class Visitor:
             'enums'     :   list (filter (no_ignore, self.enums.values ())),
             'unions'    :   list (filter (no_ignore, self.unions)),
             'functions' :   list (filter (no_ignore, self.functions)),
+            'constants' :   list (G.constants.items ()),
         }
 
     def _visit (self, visit_queue, header_name):

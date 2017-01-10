@@ -631,7 +631,7 @@ def _generate_function (func, notes):
             push_rets = '\n    '.join (returns) or '// No returns',
             free_stuff = '\n    '.join (free_stuff) or '// Nothing to be freed',
             ret_num = len (returns))
-    
+
 # Module initialization templates and generator
 module_bindings = r"""{inclua_notice}
 {header}
@@ -657,6 +657,7 @@ extern "C" int luaopen_{module} (lua_State *L) {{
     {struct_register}
     {union_register}
     {enum_register}
+    {constant_register}
 
     return 1;
 }}
@@ -675,6 +676,10 @@ module_enum_register_scoped_bindings = """
     lua_newtable (L);
     inclua_register_{enum} (L);
     lua_setfield (L, -2, "{alias}");"""
+module_constant_register_bindings = """
+    // Constant {name}
+    inclua_push (L, {value});
+    lua_setfield (L, -2, "{name}");"""
 
 def generate_lua (G):
     """Function that generates bindings for Lua 5.2+"""
@@ -710,6 +715,8 @@ def generate_lua (G):
             enum = trim_enum (str (enum)),
             alias = trim_enum (G.final_name (enum)))
             for enum in bind['enums']]
+    constant_register = [module_constant_register_bindings.format (name = name, value = value)
+            for name, value in bind['constants']]
 
     return module_bindings.format (
             module = G.mod_name,
@@ -723,7 +730,8 @@ def generate_lua (G):
             func_register = '\n        '.join (func_register) or '// No functions',
             struct_register = '\n'.join (struct_register),
             union_register = '\n'.join (union_register),
-            enum_register = '\n'.join (enum_register))
+            enum_register = '\n'.join (enum_register),
+            constant_register = '\n'.join (constant_register))
 
 Generator.add_generator ('lua', generate_lua, '\n'.join ([
 "Inclua Lua wrapper generator",

@@ -25,4 +25,6 @@ mod.note ('printaMatriz', ['array[arg2][arg3] in', 'size', 'size'])
 mod.note ('printaMatrizQuadrada', ['array[arg2][arg2] in', 'size'])
 mod.note ('geraAleatorios', ['size out', 'array[arg1] out'])
 
+# mod.add_constant ('ZERO', 'ZERO')
+
 mod.generate ('lua', len (sys.argv) > 1)

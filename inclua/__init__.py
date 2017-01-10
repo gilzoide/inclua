@@ -93,6 +93,9 @@ def _include_yaml (stream, G):
     if header_conf.get ('rename_regex'):
         for patt, sub in header_conf['rename_regex'].items ():
             G.rename_regex (patt, sub)
+    if header_conf.get ('constants'):
+        for name, value in header_conf['constants'].items ():
+            G.add_constant (name, value)
 
     # process definition notes YAML doc if present, or use header one
     try:
@@ -109,6 +112,7 @@ def _include_yaml (stream, G):
         _delete_if_present (header_conf, 'ignore_regex')
         _delete_if_present (header_conf, 'rename')
         _delete_if_present (header_conf, 'rename_regex')
+        _delete_if_present (header_conf, 'constants')
         _delete_if_present (header_conf, 'clang_args')
         # now header is the definition configuration
         definitions_conf = header_conf
