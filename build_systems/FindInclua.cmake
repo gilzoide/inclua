@@ -22,16 +22,22 @@ if (INCLUA_EXECUTABLE)
 
 	# find clang include directory and add it to include paths
 	# needed for important clang definitions, like size_t, for example
-	execute_process (COMMAND ${INCLUA_EXECUTABLE} -clv
-		OUTPUT_VARIABLE INCLUA_CLANG_VERSION
+	find_program (_CLANG_EXECUTABLE NAMES clang clang-3.5 clang-3.6 clang-3.7
+		clang-3.8 clang-3.9 clang-4.0)
+	execute_process (COMMAND ${_CLANG_EXECUTABLE} --version
+		OUTPUT_VARIABLE _CLANG_VERSION
 		OUTPUT_STRIP_TRAILING_WHITESPACE)
+	string (REGEX MATCH "[0-9]\\.[0-9]\\.[0-9]" _CLANG_VERSION ${_CLANG_VERSION})
 	find_path (INCLUA_CLANG_INCLUDE_PATH
 		NAMES stddef.h
-		PATH_SUFFIXES "clang/${INCLUA_CLANG_VERSION}/include"
+		PATH_SUFFIXES "clang/${_CLANG_VERSION}/include"
 		PATHS
 		/usr/local/lib
 		/usr/lib
 		/lib)
+	if (INCLUA_CLANG_INCLUDE_PATH STREQUAL "INCLUA_CLANG_INCLUDE_PATH-NOTFOUND")
+		message (WARNING "Couldn't find clang include path, which could lead in errors with implementation defined C types (like size_t)")
+	endif ()
 	# hide internal variables
 	mark_as_advanced (INCLUA_CLANG_VERSION
 		INCLUA_CLANG_INCLUDE_PATH
