@@ -10,7 +10,7 @@ mod.add_header ('teste.h')
 # teste das anotações
 mod.scope ('Nice')
 mod.rename ('getOi', 'oie')
-mod.rename ('union Outra', 'outra')
+# mod.rename ('union Outra', 'outra')
 
 mod.note ('getAB', ['in', 'out', 'out'])
 mod.note ('somaVet', ['array[arg2] in', 'size'])

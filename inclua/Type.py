@@ -33,6 +33,8 @@ def from_type (ty):
         return Type.from_type (ty, 'int')
     elif kind in ['FLOAT', 'FLOAT128', 'DOUBLE', 'LONGDOUBLE']:
         return Type.from_type (ty, 'float')
+    elif kind == 'BOOL':
+        return Bool.from_type (ty)
     elif kind in ['INCOMPLETEARRAY', 'CONSTANTARRAY', 'VARIABLEARRAY']:
         return ArrayType.from_type (ty)
     elif kind == 'VOID':
@@ -90,6 +92,14 @@ class Type (Decl):
     def remember_type (ty):
         Type.known_types[ty.symbol] = ty
         return ty
+
+class Bool (Type):
+    def __init__ (self):
+        Type.__init__ (self, 'bool', 'bool')
+
+    @staticmethod
+    def from_type (ty):
+        return Bool ()
 
 class Typedef (Type):
     def __init__ (self, symbol, underlying_type):
@@ -158,7 +168,7 @@ class RecordType (Type):
         return Type.remember_type (RecordType (ty.spelling, fields))
 
 class Enum (Type):
-    def __init__ (self, symbol, values = {}):
+    def __init__ (self, symbol, values):
         Type.__init__ (self, symbol, 'enum')
         self.values = values
 

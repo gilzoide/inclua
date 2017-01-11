@@ -198,7 +198,7 @@ template<> void *inclua_check (lua_State *L, int arg) {
     }
 
 #define INCLUA_PUSH_NON_OPAQUE(record_name) \
-    template<> void inclua_push (lua_State *L, record_name & obj) { \
+    template<> void inclua_push (lua_State *L, record_name obj) { \
         record_name **block = (record_name **) lua_newuserdata (L, sizeof (void *)); \
         luaL_setmetatable (L, #record_name); \
         *block = &obj; \
@@ -367,24 +367,19 @@ void inclua_delete_array (const char * arr) {
 """
 
 # Struct/Union bindings templates and generator
-record_bindings = r"""
+record_bindings = r"""////////////////////////////////////////////////////////////////////////////////
+//  {record}
 ////////////////////////////////////////////////////////////////////////////////
-//  {struct_or_union} {alias}
-////////////////////////////////////////////////////////////////////////////////
-INCLUA_PUSH ({record});
-INCLUA_CHECK ({record});
 {non_opaque}
-
 void inclua_register_{alias} (lua_State *L) {{
-    luaL_newmetatable (L, "{record}");
-    {metamethods}
-    lua_pushliteral (L, "{record}");
-    lua_setfield (L, -2, "__metatable");
+    if (luaL_newmetatable (L, "{record}")) {{
+        {metamethods}
+        lua_pushliteral (L, "{record}");
+        lua_setfield (L, -2, "__metatable");
+    }}
 }}
 """
-record_non_opaque_bindings = r"""INCLUA_PUSH_NON_OPAQUE ({record});
-INCLUA_CHECK_NON_OPAQUE ({record});
-
+record_non_opaque_bindings = r"""
 int inclua_push_new_{alias} (lua_State *L) {{
     lua_newuserdata (L, sizeof ({record}));
     luaL_setmetatable (L, "{record}");
@@ -401,9 +396,7 @@ int inclua_index_{alias} (lua_State *L) {{
     {index_lines}
     else {{
         luaL_getmetatable (L, "{record}");
-        if (lua_getfield (L, -1, key) == LUA_TNIL) {{
-            return luaL_error (L, "{struct_or_union} {alias} doesn't have a \"%s\" field", key);
-        }}
+        lua_getfield (L, -1, key);
         lua_rotate (L, -2, 1);
         lua_pop (L, 1);
     }}
@@ -415,26 +408,38 @@ int inclua_new_index_{alias} (lua_State *L) {{
     const char *key = inclua_check<const char *> (L, 2);
 
     {new_index_lines}
-    else return luaL_error (L, "{struct_or_union} {alias} doesn't have a \"%s\" field", key);
+    else return luaL_error (L, "{record} doesn't have a \"%s\" field", key);
 
     return 0;
 }}
 """
 record_metamethods_bindings = r"""
-    const luaL_Reg metamethods[] = {{
-        {{ "__index", inclua_index_{alias} }},
-        {{ "__newindex", inclua_new_index_{alias} }},
-        {{ "new", inclua_push_new_{alias} }},
-        {{ NULL, NULL }},
-    }};
-    luaL_setfuncs (L, metamethods, 0);
+        const luaL_Reg metamethods[] = {{
+            {{ "__index", inclua_index_{alias} }},
+            {{ "__newindex", inclua_new_index_{alias} }},
+            {{ "new", inclua_push_new_{alias} }},
+            {{ NULL, NULL }},
+        }};
+        luaL_setfuncs (L, metamethods, 0);
 """
 record_index_metatable_bindings = r"""
-    lua_pushvalue (L, -1);
-    lua_setfield (L, -2, "__index");
+        lua_pushvalue (L, -1);
+        lua_setfield (L, -2, "__index");
 """
 record_index_bindings = '{0} (!strcmp (key, "{field}")) inclua_push (L, {ref_if_record}obj->{field});'
 record_new_index_bindings = '{0} (!strcmp (key, "{field}")) obj->{field} = inclua_check<{type}> (L, 3);'
+record_push_check_bindings = r"""// Push/Check {record}
+INCLUA_PUSH ({record});
+INCLUA_CHECK ({record});"""
+record_push_check_non_opaque_bindings = r"""// Push/Check {record}
+INCLUA_PUSH ({record});
+INCLUA_CHECK ({record});
+INCLUA_PUSH_NON_OPAQUE ({record});
+INCLUA_CHECK_NON_OPAQUE ({record});"""
+
+
+def _trim_prefix (s):
+    return s.split (' ')[-1]
 
 def _generate_record_index (record):
     return '\n    '.join ([record_index_bindings.format (i == 0 and 'if' or 'else if',
@@ -445,13 +450,15 @@ def _generate_record_new_index (record):
     return '\n    '.join ([record_new_index_bindings.format (i == 0 and 'if' or 'else if', field = f[0], type = f[1])
             for i, f in enumerate (record.fields)])
 
-def _generate_record (record, struct_or_union):
+def _generate_record_push_check (record):
+    return (record.num_fields > 0 and record_push_check_non_opaque_bindings or record_push_check_bindings).format (record = record)
+
+def _generate_record (record):
     """Generate record binding functions, taking care if record is opaque (got no fields)"""
-    meta = record.alias or record.symbol.replace ('{} '.format (struct_or_union), '')
+    meta = record.alias or _trim_prefix (record.symbol)
     if record.num_fields > 0:
         non_opaque = record_non_opaque_bindings.format (
                 record = record,
-                struct_or_union = struct_or_union,
                 alias = meta,
                 index_lines = _generate_record_index (record),
                 new_index_lines = _generate_record_new_index (record))
@@ -460,7 +467,6 @@ def _generate_record (record, struct_or_union):
         non_opaque, metamethods = '', record_index_metatable_bindings
     return record_bindings.format (
             record = record,
-            struct_or_union = struct_or_union,
             alias = meta,
             non_opaque = non_opaque,
             metamethods = metamethods)
@@ -468,7 +474,7 @@ def _generate_record (record, struct_or_union):
 # Enum bindings templates and generator
 enum_wrapper_bindings = r"""
 ////////////////////////////////////////////////////////////////////////////////
-//  Enum {alias}
+//  enum {alias}
 ////////////////////////////////////////////////////////////////////////////////
 {not_anonymous}
 void inclua_register_{alias} (lua_State *L) {{
@@ -637,9 +643,9 @@ module_bindings = r"""{inclua_notice}
 {header}
 {includes}
 
-{structs}
-{unions}
+{push_check}
 {enums}
+{records}
 ////////////////////////////////////////////////////////////////////////////////
 //  Functions
 ////////////////////////////////////////////////////////////////////////////////
@@ -654,8 +660,7 @@ extern "C" int luaopen_{module} (lua_State *L) {{
         {{ NULL, NULL }},
     }};
     luaL_newlib (L, functions);
-    {struct_register}
-    {union_register}
+    {record_register}
     {enum_register}
     {constant_register}
 
@@ -665,19 +670,19 @@ extern "C" int luaopen_{module} (lua_State *L) {{
 module_include_bindings = '#include "{file}"'
 module_func_reg_bindings = '{{ "{alias}", wrap_{func} }},'
 module_record_register_bindings = """
-    // {struct_or_union} {record}
-    inclua_register_{record} (L);
+    // {record}
+    inclua_register_{trimmed} (L);
     lua_setfield (L, -2, "{alias}");"""
 module_enum_register_bindings = """
-    // Enum {enum}
+    // enum {enum}
     inclua_register_{enum} (L);"""
 module_enum_register_scoped_bindings = """
-    // Enum {enum}
+    // enum {enum}
     lua_newtable (L);
     inclua_register_{enum} (L);
     lua_setfield (L, -2, "{alias}");"""
 module_constant_register_bindings = """
-    // Constant {name}
+    // constant {name}
     inclua_push (L, {value});
     lua_setfield (L, -2, "{name}");"""
 
@@ -690,30 +695,23 @@ def generate_lua (G):
     bind = V.apply_ignores (G)
 
     includes = [module_include_bindings.format (file = file) for file in G.headers]
+    # push/check definitions
+    push_check = [_generate_record_push_check (record) for record in bind['records']]
     # definitions
-    structs = [_generate_record (struct, 'struct') for struct in bind['structs']]
-    unions = [_generate_record (union, 'union') for union in bind['unions']]
+    records = [_generate_record (record) for record in bind['records']]
     enums = [_generate_enum (G, enum) for enum in bind['enums']]
     functions = [_generate_function (func, G.get_note (func)) for func in bind['functions']]
     # registration
     func_register = [module_func_reg_bindings.format (alias = G.final_name (func), func = func) for func in bind['functions']]
 
-    trim_struct = lambda s: s.replace ('struct ', '')
-    struct_register = [module_record_register_bindings.format (
-            record = trim_struct (str (struct)),
-            alias = trim_struct (G.final_name (struct)),
-            struct_or_union = 'struct')
-            for struct in bind['structs']]
-    trim_union = lambda s: s.replace ('union ', '')
-    union_register = [module_record_register_bindings.format (
-            record = trim_union (str (union)),
-            alias = trim_union (G.final_name (union)),
-            struct_or_union = 'union')
-            for union in bind['unions']]
-    trim_enum = lambda s: s.replace ('enum ', '')
+    record_register = [module_record_register_bindings.format (
+            record = record,
+            trimmed = _trim_prefix (str (record)),
+            alias = _trim_prefix (G.final_name (record)))
+            for record in bind['records']]
     enum_register = [(G.is_scoped (enum) and module_enum_register_scoped_bindings or module_enum_register_bindings).format (
-            enum = trim_enum (str (enum)),
-            alias = trim_enum (G.final_name (enum)))
+            enum = _trim_prefix (str (enum)),
+            alias = _trim_prefix (G.final_name (enum)))
             for enum in bind['enums']]
     constant_register = [module_constant_register_bindings.format (name = name, value = value)
             for name, value in bind['constants']]
@@ -723,13 +721,12 @@ def generate_lua (G):
             inclua_notice = GeneralInfo.C_notice,
             header = inclua_hpp,
             includes = '\n'.join (includes),
-            structs = '\n'.join (structs),
-            unions = '\n'.join (unions),
+            push_check = '\n'.join (push_check),
+            records = '\n'.join (records),
             enums = '\n'.join (enums),
             functions = '\n'.join (functions),
             func_register = '\n        '.join (func_register) or '// No functions',
-            struct_register = '\n'.join (struct_register),
-            union_register = '\n'.join (union_register),
+            record_register = '\n'.join (record_register),
             enum_register = '\n'.join (enum_register),
             constant_register = '\n'.join (constant_register))
 

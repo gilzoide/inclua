@@ -20,7 +20,7 @@ generated wrappers is also available, possibly commented like C."""
 import re
 import clang.cindex as clang
 
-version = '0.1.2'
+version = '0.1.3'
 
 # Generated wrappers notice, provided as a list so that any generator functions
 # can use it not only in C, but whatever suits it better (use str.join or

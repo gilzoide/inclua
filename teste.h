@@ -13,10 +13,10 @@ float somaVet (float *vet, size_t tam) {
 	return soma;
 }
 
-struct Oi {
+typedef struct Oi {
 	int a;
 	int b;
-};
+} Oi;
 
 union Outra {
 	int i;
@@ -37,6 +37,10 @@ typedef enum {
 	BAO,
 	HEIN
 } MaisEnum;
+
+struct ComEnum {
+	Nice n;
+};
 
 Oi *getOi (Oi *o) {
 	return o;

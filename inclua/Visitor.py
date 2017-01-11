@@ -25,8 +25,7 @@ from .Error import IncluaError
 
 class Visitor:
     def __init__ (self):
-        self.structs = set ()
-        self.unions = set ()
+        self.records = set ()
         self.enums = {}
         self.functions = set ()
         self.index = clang.Index.create ()
@@ -56,15 +55,14 @@ class Visitor:
     def apply_ignores (self, G):
         no_ignore = lambda x: not G.should_ignore (str (x))
         return {
-            'structs'   :   list (filter (no_ignore, self.structs)),
+            'records'   :   list (filter (no_ignore, self.records)),
             'enums'     :   list (filter (no_ignore, self.enums.values ())),
-            'unions'    :   list (filter (no_ignore, self.unions)),
             'functions' :   list (filter (no_ignore, self.functions)),
             'constants' :   list (G.constants.items ()),
         }
 
     def _visit (self, visit_queue, header_name):
-        headers = set ()
+        # headers = set ()
         while visit_queue:
             cursor = visit_queue[0]
             del visit_queue[0]
@@ -76,12 +74,9 @@ class Visitor:
                 except:
                     pass
             if str (cursor.location.file) == header_name:
-                # Structs
-                if cursor.kind == clang.CursorKind.STRUCT_DECL:
-                    self.structs.add (Type.from_cursor (cursor))
-                # Unions
-                elif cursor.kind == clang.CursorKind.UNION_DECL:
-                    self.unions.add (Type.from_cursor (cursor))
+                # Structs/Unions
+                if cursor.kind in [clang.CursorKind.STRUCT_DECL, clang.CursorKind.UNION_DECL]:
+                    self.records.add (Type.from_cursor (cursor))
                 # Functions
                 elif cursor.kind == clang.CursorKind.FUNCTION_DECL:
                     self.functions.add (Function.from_cursor (cursor))
