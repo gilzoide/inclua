@@ -413,11 +413,39 @@ int inclua_new_index_{alias} (lua_State *L) {{
     return 0;
 }}
 """
+record_anonymous_non_opaque_bindings = r"""
+int inclua_index_{alias} (lua_State *L) {{
+    {record} *obj = inclua_check<{record} *> (L, 1);
+    const char *key = inclua_check<const char *> (L, 2);
+
+    {index_lines}
+    else return luaL_error (L, "{record} doesn't have a \"%s\" field", key);
+    return 1;
+}}
+
+int inclua_new_index_{alias} (lua_State *L) {{
+    {record} *obj = inclua_check<{record} *> (L, 1);
+    const char *key = inclua_check<const char *> (L, 2);
+
+    {new_index_lines}
+    else return luaL_error (L, "{record} doesn't have a \"%s\" field", key);
+
+    return 0;
+}}
+"""
 record_metamethods_bindings = r"""
         const luaL_Reg metamethods[] = {{
             {{ "__index", inclua_index_{alias} }},
             {{ "__newindex", inclua_new_index_{alias} }},
             {{ "new", inclua_push_new_{alias} }},
+            {{ NULL, NULL }},
+        }};
+        luaL_setfuncs (L, metamethods, 0);
+"""
+record_anonymous_metamethods_bindings = r"""
+        const luaL_Reg metamethods[] = {{
+            {{ "__index", inclua_index_{alias} }},
+            {{ "__newindex", inclua_new_index_{alias} }},
             {{ NULL, NULL }},
         }};
         luaL_setfuncs (L, metamethods, 0);
@@ -431,6 +459,13 @@ record_new_index_bindings = '{0} (!strcmp (key, "{field}")) obj->{field} = inclu
 record_push_check_bindings = r"""// Push/Check {record}
 INCLUA_PUSH ({record});
 INCLUA_CHECK ({record});"""
+record_anonymous_push_bindings = r"""// Push/Check anonymous {record}
+{record} {{
+    {anon_fields}
+}};
+INCLUA_PUSH ({record});
+INCLUA_CHECK ({record});"""
+record_anonymous_field_bindings = r"""{type} {name};"""
 record_push_check_non_opaque_bindings = r"""// Push/Check {record}
 INCLUA_PUSH ({record});
 INCLUA_CHECK ({record});
@@ -443,28 +478,49 @@ def _trim_prefix (s):
 
 def _generate_record_index (record):
     return '\n    '.join ([record_index_bindings.format (i == 0 and 'if' or 'else if',
-            field = f[0], type = f[1], ref_if_record = f[1].kind == 'record' and '&' or '')
+            field = f[0], type = f[1], ref_if_record = f[1].kind == 'record' and 
+                    (f[1].is_anonymous () and '({} *) &'.format (f[1]) or '&') or '')
             for i, f in enumerate (record.fields)])
 
 def _generate_record_new_index (record):
     return '\n    '.join ([record_new_index_bindings.format (i == 0 and 'if' or 'else if', field = f[0], type = f[1])
-            for i, f in enumerate (record.fields)])
+            for i, f in enumerate (record.fields) if not f[1].is_anonymous ()])
+
+def _generate_anon_fields (record):
+    return '\n    '.join ([record_anonymous_field_bindings.format (
+            type = f[1], name = f[0])
+            for f in record.fields])
 
 def _generate_record_push_check (record):
-    return (record.num_fields > 0 and record_push_check_non_opaque_bindings or record_push_check_bindings).format (record = record)
+    if record.is_anonymous ():
+        return record_anonymous_push_bindings.format (
+                record = record,
+                anon_fields = _generate_anon_fields (record))
+    elif record.num_fields <= 0:
+        bindings = record_push_check_bindings
+    else:
+        bindings = record_push_check_non_opaque_bindings
+    return bindings.format (record = record)
 
-def _generate_record (record):
+def _generate_record (record, notes):
     """Generate record binding functions, taking care if record is opaque (got no fields)"""
-    meta = record.alias or _trim_prefix (record.symbol)
-    if record.num_fields > 0:
+    meta = _trim_prefix (str (record))
+    if record.is_anonymous ():
+        non_opaque = record_anonymous_non_opaque_bindings.format (
+                record = record,
+                alias = meta,
+                index_lines = _generate_record_index (record),
+                new_index_lines = _generate_record_new_index (record))
+        metamethods = record_anonymous_metamethods_bindings.format (record = record, alias = meta)
+    elif record.num_fields == 0 or notes == 'opaque':
+        non_opaque, metamethods = '', record_index_metatable_bindings
+    else:
         non_opaque = record_non_opaque_bindings.format (
                 record = record,
                 alias = meta,
                 index_lines = _generate_record_index (record),
                 new_index_lines = _generate_record_new_index (record))
         metamethods = record_metamethods_bindings.format (record = record, alias = meta)
-    else:
-        non_opaque, metamethods = '', record_index_metatable_bindings
     return record_bindings.format (
             record = record,
             alias = meta,
@@ -537,6 +593,8 @@ def _generate_function (func, notes):
         return native_function_wrapper_bindings.format (name = func)
 
     notes = notes or ['in'] * func.num_args
+    if len (notes) < func.num_args:
+        raise IncluaError ("Expected at least {} notes for wrapping '{!s}', but only {} were given".format (func.num_args, func, len (notes)))
     arg_decl = []
     array_decl = []
     frees = []
@@ -698,7 +756,7 @@ def generate_lua (G):
     # push/check definitions
     push_check = [_generate_record_push_check (record) for record in bind['records']]
     # definitions
-    records = [_generate_record (record) for record in bind['records']]
+    records = [_generate_record (record, G.get_note (record)) for record in bind['records']]
     enums = [_generate_enum (G, enum) for enum in bind['enums']]
     functions = [_generate_function (func, G.get_note (func)) for func in bind['functions']]
     # registration

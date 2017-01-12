@@ -47,10 +47,4 @@ def get_clang_version ():
     m = re.search (r'libclang.*?(\d(\.\d)?(\.\d)?)', lib_name)
     if m:
         ret = m.group (1)
-        # no minor nor subminor, insert '.0.0'
-        if not m.group (2):
-            ret += '.0.0'
-        # no subminor version, insert '.0'
-        elif not m.group (3):
-            ret += '.0'
         return ret

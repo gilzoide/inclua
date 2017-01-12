@@ -66,16 +66,16 @@ class Visitor:
         while visit_queue:
             cursor = visit_queue[0]
             del visit_queue[0]
-            # Typedef: just alias the type
-            if cursor.kind == clang.CursorKind.TYPEDEF_DECL:
-                ty = Type.from_cursor (cursor)
-                try:
-                    ty.underlying_type.alias = cursor.spelling
-                except:
-                    pass
             if str (cursor.location.file) == header_name:
+                # Typedef: just alias the type
+                if cursor.kind == clang.CursorKind.TYPEDEF_DECL:
+                    ty = Type.from_cursor (cursor)
+                    try:
+                        ty.underlying_type.alias = cursor.spelling
+                    except:
+                        pass
                 # Structs/Unions
-                if cursor.kind in [clang.CursorKind.STRUCT_DECL, clang.CursorKind.UNION_DECL]:
+                elif cursor.kind in [clang.CursorKind.STRUCT_DECL, clang.CursorKind.UNION_DECL]:
                     self.records.add (Type.from_cursor (cursor))
                 # Functions
                 elif cursor.kind == clang.CursorKind.FUNCTION_DECL:

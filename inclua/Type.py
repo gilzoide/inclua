@@ -49,7 +49,10 @@ def from_type (ty):
         return Enum.from_type (ty)
     elif kind == 'FUNCTIONPROTO':
         return FunctionType.from_type (ty)
-    elif kind in ['UNEXPOSED', 'ELABORATED']:
+    elif kind == 'ELABORATED':
+        # anonymous records
+        return RecordType.from_type (ty)
+    elif kind == 'UNEXPOSED':
         pass
     else:
         raise IncluaError ('Clang TypeKind {} not supported: {}'.format (kind, ty.spelling))
@@ -67,14 +70,10 @@ class Type (Decl):
     known_types = {}
 
     # Regex for giving anonymous enums/structs/unions a nice name based on it's location
-    anonymous_patt = re.compile (r".+\((anonymous.+)\)")
+    anonymous_patt = re.compile (r".+\((anonymous ).*(at .+)\)")
 
     def __init__ (self, symbol, kind, alias = None):
-        # anonymous struct/union/enum
-        is_anonymous = Type.anonymous_patt.match (symbol)
-        if is_anonymous:
-            symbol = re.sub (r'\W', '_', is_anonymous.group (1))
-        Decl.__init__ (self, symbol)
+        Decl.__init__ (self, Type.fix_anonymous (symbol))
         self.kind = kind
         self.alias = alias
 
@@ -84,9 +83,21 @@ class Type (Decl):
     def __repr__ (self):
         return 'Type ("{}")'.format (self.symbol)
 
+    def is_anonymous (self):
+        return self.symbol.startswith ('anonymous')
+
+    @staticmethod
+    def fix_anonymous (symbol):
+        # anonymous struct/union/enum
+        is_anonymous = Type.anonymous_patt.match (symbol)
+        if is_anonymous:
+            symbol = re.sub (r'\W', '_', is_anonymous.group (1) + is_anonymous.group (2))
+        return symbol
+
     @staticmethod
     def from_type (ty, kind = None):
-        return Type.known_types.get (ty.spelling) or kind and Type (ty.spelling, kind)
+        spelling = Type.fix_anonymous (ty.spelling)
+        return Type.known_types.get (spelling) or kind and Type (spelling, kind)
 
     @staticmethod
     def remember_type (ty):
@@ -107,9 +118,9 @@ class Typedef (Type):
         self.underlying_type = underlying_type
 
     def __getattr__ (self, attr):
-        try:
+        if attr in ['symbol', 'underlying_type']:
             return getattr (self, attr)
-        except:
+        else:
             return getattr (self.underlying_type, attr)
 
     def __repr__ (self):
@@ -164,7 +175,11 @@ class RecordType (Type):
     def from_type (ty):
         fields = []
         for cur in ty.get_fields ():
-            fields.append ((cur.spelling, from_type (cur.type)))
+            field_type = from_type (cur.type)
+            # anonymous record fields: rename it wisely, so notes can be taken
+            if field_type.is_anonymous ():
+                field_type.alias = ty.spelling + '_field_' + cur.spelling
+            fields.append ( (cur.spelling, field_type) )
         return Type.remember_type (RecordType (ty.spelling, fields))
 
 class Enum (Type):

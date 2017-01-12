@@ -4,7 +4,7 @@ import inclua.lua
 import sys
 
 mod = Generator ('teste')
-mod.set_clang_args (['-I/usr/lib/clang/3.9.0/include'])
+mod.set_clang_args (['-I/usr/lib/clang/3.9.1/include'])
 mod.add_header ('teste.h')
 
 # teste das anotações

@@ -38,8 +38,12 @@ typedef enum {
 	HEIN
 } MaisEnum;
 
-struct ComEnum {
+struct ComEnumEAnon {
 	Nice n;
+	struct {
+		int x;
+		int y;
+	} ponto;
 };
 
 Oi *getOi (Oi *o) {

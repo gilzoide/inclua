@@ -60,7 +60,7 @@ class Generator:
         try:
             if self.arg_notes[symbol].kind == 'ignore': return True
         except:
-            return any (map (lambda patt: patt.fullmatch (symbol), self.ignore_notes['_regex']))
+            return any (map (lambda patt: patt.search (symbol), self.ignore_notes['_regex']))
 
     # Rename
     def rename (self, target, new_symbol_or_func):
