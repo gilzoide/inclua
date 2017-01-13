@@ -47,13 +47,13 @@ def from_type (ty):
         return RecordType.from_type (ty)
     elif kind == 'ENUM':
         return Enum.from_type (ty)
-    elif kind == 'FUNCTIONPROTO':
+    elif kind in ['FUNCTIONPROTO', 'FUNCTIONNOPROTO']:
         return FunctionType.from_type (ty)
     elif kind == 'ELABORATED':
         # anonymous records
         return RecordType.from_type (ty)
     elif kind == 'UNEXPOSED':
-        pass
+        return FunctionType.from_type (ty)
     else:
         raise IncluaError ('Clang TypeKind {} not supported: {}'.format (kind, ty.spelling))
 
@@ -133,11 +133,17 @@ class Typedef (Type):
 
 class PointerType (Type):
     def __init__ (self, symbol, pointee_type):
-        Type.__init__ (self, symbol, 'pointer')
+        Type.__init__ (self, symbol, 'pointer' if pointee_type.kind != 'function' else 'functionpointer')
         self.pointee_type = pointee_type
 
     def __repr__ (self):
         return 'PointerType ({0!r}, {1!r})'.format (self.symbol, self.pointee_type)
+
+    def __getattr__ (self, attr):
+        if attr in ['symbol', 'alias', 'pointee_type']:
+            return getattr (self, attr)
+        else:
+            return getattr (self.pointee_type, attr)
 
     @staticmethod
     def from_type (ty):
@@ -210,6 +216,6 @@ class FunctionType (Type):
 
     @staticmethod
     def from_type (ty):
-        ret_type = Type.from_type (ty.get_result ())
-        arg_types = [Type.from_type (a) for a in ty.argument_types ()]
+        ret_type = from_type (ty.get_result ())
+        arg_types = [from_type (a) for a in ty.argument_types ()] if ty.kind == 'FUNCTIONPROTO' else []
         return Type.remember_type (FunctionType (ty.spelling, ret_type, arg_types))

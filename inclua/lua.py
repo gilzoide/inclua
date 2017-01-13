@@ -481,16 +481,13 @@ def _generate_record_index (record):
             field = f[0], type = f[1], ref_if_record = f[1].kind == 'record' and 
                     (f[1].is_anonymous () and '({} *) &'.format (f[1]) or '&') or '')
             for i, f in enumerate (record.fields)])
-
 def _generate_record_new_index (record):
     return '\n    '.join ([record_new_index_bindings.format (i == 0 and 'if' or 'else if', field = f[0], type = f[1])
             for i, f in enumerate (record.fields) if not f[1].is_anonymous ()])
-
 def _generate_anon_fields (record):
     return '\n    '.join ([record_anonymous_field_bindings.format (
             type = f[1], name = f[0])
             for f in record.fields])
-
 def _generate_record_push_check (record):
     if record.is_anonymous ():
         return record_anonymous_push_bindings.format (
@@ -501,7 +498,6 @@ def _generate_record_push_check (record):
     else:
         bindings = record_push_check_non_opaque_bindings
     return bindings.format (record = record)
-
 def _generate_record (record, notes):
     """Generate record binding functions, taking care if record is opaque (got no fields)"""
     meta = _trim_prefix (str (record))
@@ -567,6 +563,16 @@ int wrap_{name} (lua_State *L) {{
     return {name} (L);
 }}"""
 function_argument_in_bindings = '{type} arg{i} = inclua_check<{type}> (L, {i_stack});'
+function_argument_funcpointer_in_bindings = r"""{ret_type} (*arg{i}) ({arguments});
+    if (lua_isnoneornil (L, {i_stack})) {{
+        arg{i} = nullptr;
+    }}
+    else {{
+        luaL_checktype (L, {i_stack}, LUA_TFUNCTION);
+        lua_pushvalue (L, {i_stack});
+        lua_setfield (L, LUA_REGISTRYINDEX, "INCLUA_CALLBACKINDEX_{callback_name}");
+        arg{i} = inclua_callback_{callback_name};
+    }}"""
 function_argument_out_bindings = '{type} arg{i}{init};'
 function_argument_size_bindings = '{type} arg{i};'
 function_argument_arrayin_bindings = '{type} arg{i} = inclua_check_array<{type}> (L, {i_stack}, {size});'
@@ -580,6 +586,20 @@ function_push_ret_bindings = 'inclua_push (L, {});'
 function_push_ret_array_bindings = 'inclua_push_array (L, {}, {});'
 function_call_bindings = '{sym} ({args});'
 function_free_bindings = '{} ({});'
+
+callback_bindings = r"""
+{ret_type} inclua_callback_{callback_name} ({call_arguments}) {{
+    lua_State *L = callback_State;
+    lua_getfield (L, LUA_REGISTRYINDEX, "INCLUA_CALLBACKINDEX_{callback_name}");
+    {push_arguments}
+    lua_call (L, {num_arguments}, {num_rets});
+    {maybe_return}
+}}"""
+callback_return_non_void_bindings = r"""
+    {ret_type} ret = inclua_check<{ret_type}> (L, -1);
+    return ret;"""
+callbacks = []
+
 def _address_of (s):
     return '&{}'.format (s)
 def _generate_delete_array_args (arr, sizes):
@@ -610,8 +630,38 @@ def _generate_function (func, notes):
 
         info = Note.parse (note)
         if info.kind == 'in':
-            arg_decl.append (function_argument_in_bindings.format (type = ty, i = i + 1, i_stack = i_lua_stack))
-            arg_call.append (function_argname_bindings.format (i = i + 1))
+            argname = function_argname_bindings.format (i = i + 1)
+            # function pointer input
+            if ty.kind == 'functionpointer':
+                callback_name = str (func) + argname
+                arguments = ', '.join (["{type}".format (i = i + 1, type = ty)
+                        for ty in ty.arg_types])
+                call_arguments = ', '.join (["{type} arg{i}".format (i = i + 1, type = ty)
+                        for i, ty in enumerate (ty.arg_types)])
+                push_arguments = '\n'.join (["inclua_push (L, arg{i});".format (i = i + 1)
+                        for i in range (len (ty.arg_types))])
+                if ty.ret_type.kind == 'void':
+                    maybe_return = 'return;'
+                    num_rets = 0
+                else:
+                    maybe_return = callback_return_non_void_bindings.format (ret_type = ty.ret_type)
+                    num_rets = 1
+                arg_decl.append (function_argument_funcpointer_in_bindings.format (
+                        type = ty, i = i + 1, i_stack = i_lua_stack,
+                        callback_name = callback_name,
+                        arguments = arguments,
+                        ret_type = ty.ret_type))
+                callbacks.append (callback_bindings.format (
+                        ret_type = ty.ret_type,
+                        callback_name = callback_name,
+                        call_arguments = call_arguments,
+                        num_arguments = len (ty.arg_types),
+                        num_rets = num_rets,
+                        push_arguments = push_arguments,
+                        maybe_return = maybe_return))
+            else:
+                arg_decl.append (function_argument_in_bindings.format (type = ty, i = i + 1, i_stack = i_lua_stack))
+            arg_call.append (argname)
             i_lua_stack += 1
         elif info.kind == 'out':
             arg_decl.append (function_argument_out_bindings.format (
@@ -705,6 +755,12 @@ module_bindings = r"""{inclua_notice}
 {enums}
 {records}
 ////////////////////////////////////////////////////////////////////////////////
+//  Callbacks
+////////////////////////////////////////////////////////////////////////////////
+lua_State *callback_State = nullptr;
+{callbacks}
+
+////////////////////////////////////////////////////////////////////////////////
 //  Functions
 ////////////////////////////////////////////////////////////////////////////////
 {functions}
@@ -721,6 +777,8 @@ extern "C" int luaopen_{module} (lua_State *L) {{
     {record_register}
     {enum_register}
     {constant_register}
+    // lua_State for function arguments
+    callback_State = L;
 
     return 1;
 }}
@@ -782,6 +840,7 @@ def generate_lua (G):
             push_check = '\n'.join (push_check),
             records = '\n'.join (records),
             enums = '\n'.join (enums),
+            callbacks = '\n'.join (callbacks),
             functions = '\n'.join (functions),
             func_register = '\n        '.join (func_register) or '// No functions',
             record_register = '\n'.join (record_register),

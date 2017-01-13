@@ -123,3 +123,14 @@ void swap (int * a, int * b) {
 	*a = *b;
 	*b = aux;
 }
+
+// typedef int (*RetInt) ();
+// void printaResult (RetInt f) {
+void printaResult (int (*f) ()) {
+	if (f) {
+		printf ("%d\n", f ());
+	}
+	else {
+		puts ("poxa, queria função =/");
+	}
+}
