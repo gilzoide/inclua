@@ -633,8 +633,8 @@ def _generate_function (func, notes):
             argname = function_argname_bindings.format (i = i + 1)
             # function pointer input
             if ty.kind == 'functionpointer':
-                callback_name = str (func) + argname
-                arguments = ', '.join (["{type}".format (i = i + 1, type = ty)
+                callback_name = str (func) + '_' + argname
+                arguments = ', '.join (["{type}".format (type = ty)
                         for ty in ty.arg_types])
                 call_arguments = ', '.join (["{type} arg{i}".format (i = i + 1, type = ty)
                         for i, ty in enumerate (ty.arg_types)])
@@ -867,4 +867,5 @@ Generator.add_generator ('lua', generate_lua, '\n'.join ([
 "  between pointers doesn't work like expected. This will be fixed soon",
 "- all output parameters that are pointers are initialized with NULL, as some",
 "  functions may relly on that to know if it worked",
+"- structs/unions that have function pointers as fields cannot be bound",
 ]))

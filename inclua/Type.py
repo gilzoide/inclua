@@ -206,6 +206,14 @@ class Enum (Type):
     def from_type (ty):
         return Type.remember_type (Enum (ty.spelling, {}))
 
+import clang.cindex as clang
+def getarg_types (ty):
+    """libclang-py3 only gets the argument types for FUNCTIONPROTO TypeKind.
+    This isn't always what should happen, as FUNCTIONNOPROTO can have args too.
+    Resort to using the raw libclang for that"""
+    for i in range (clang.conf.lib.clang_getNumArgTypes (ty)):
+        yield clang.conf.lib.clang_getArgType (ty, i)
+
 class FunctionType (Type):
     """Function pointer type (without the pointer stuff)"""
     def __init__ (self, symbol, ret_type, arg_types):
@@ -217,5 +225,5 @@ class FunctionType (Type):
     @staticmethod
     def from_type (ty):
         ret_type = from_type (ty.get_result ())
-        arg_types = [from_type (a) for a in ty.argument_types ()] if ty.kind == 'FUNCTIONPROTO' else []
+        arg_types = [from_type (a) for a in getarg_types (ty)]
         return Type.remember_type (FunctionType (ty.spelling, ret_type, arg_types))

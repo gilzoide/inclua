@@ -126,9 +126,9 @@ void swap (int * a, int * b) {
 
 // typedef int (*RetInt) ();
 // void printaResult (RetInt f) {
-void printaResult (int (*f) ()) {
+void printaResult (int (*f) (int)) {
 	if (f) {
-		printf ("%d\n", f ());
+		printf ("%d\n", f (1));
 	}
 	else {
 		puts ("poxa, queria função =/");
