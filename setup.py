@@ -4,14 +4,14 @@ from setuptools import setup, find_packages
 from codecs import open
 
 # get Inclua version
-from inclua.GeneralInfo import version
+#  from inclua.GeneralInfo import version
 
 with open ('README.rst', encoding = 'utf-8') as readme:
     long_description = readme.read ()
 
 setup (
     name = 'inclua',
-    version = version,
+    version = '0.1.3',
     description = 'C/C++ to scripting languages wrapper generator, INitialy for binding C to LUA',
     long_description = long_description,
 

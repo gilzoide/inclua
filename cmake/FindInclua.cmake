@@ -22,8 +22,8 @@ if (INCLUA_EXECUTABLE)
 
 	# find clang include directory and add it to include paths
 	# needed for important clang definitions, like size_t, for example
-	find_program (_CLANG_EXECUTABLE NAMES clang clang-3.5 clang-3.6 clang-3.7
-		clang-3.8 clang-3.9 clang-4.0)
+	find_program (_CLANG_EXECUTABLE NAMES clang clang-4.0 clang-3.9 clang-3.8
+		clang-3.7 clang-3.6 clang-3.5)
 	execute_process (COMMAND ${_CLANG_EXECUTABLE} --version
 		OUTPUT_VARIABLE _CLANG_VERSION
 		OUTPUT_STRIP_TRAILING_WHITESPACE)
