@@ -17,18 +17,15 @@
 
 #pragma once
 
-#include "lua.h"
-#include "lualib.h"
-#include "lauxlib.h"
+#include "lua.hpp"
 #include "clang-c/Index.h"
 
 #include <vector>
 
 using namespace std;
 
-// Visitor functions
-CXChildVisitResult visitor(CXCursor, CXCursor, CXClientData);
+/// Visit the header passing optional arguments to clang
 int visitHeader (const char *headername, vector<const char*> args);
 
 // Lua wrapper
-extern "C" int luaopen_visitor (lua_State *L);
+extern "C" int luaopen_inclua_visitor (lua_State *L);

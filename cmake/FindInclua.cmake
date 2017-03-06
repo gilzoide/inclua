@@ -13,6 +13,7 @@ Defines the following variables
 
 find_program (INCLUA_EXECUTABLE NAMES inclua)
 
+# TODO use FindClang.cmake here
 if (INCLUA_EXECUTABLE)
 	# find inclua version
 	execute_process (COMMAND ${INCLUA_EXECUTABLE} -v

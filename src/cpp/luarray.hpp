@@ -17,30 +17,23 @@
 
 #pragma once
 
-#include <clang-c/CXString.h>
-#include <iostream>
+#include "lua.hpp"
+#include <vector>
 
-/** RAII wrapper for clang's CXString, with automatic cast to const char*
- */
-class clString {
-public:
-	/// Ctor
-	clString (CXString str) : str (str) {}
-	/// Dtor
-	~clString () {
-		clang_disposeString (str);
-	}
-	/// Assignment directly from a CXString
-	clString& operator= (CXString& str) {
-		this->str = str;
-		return *this;
-	}
-	/// Cast to const char*
-	operator const char* () {
-		return clang_getCString (str);
-	}
+using namespace std;
 
-private:
-	/// The CXString
-	CXString str;
-};
+/// Get a string vector from Lua
+vector<const char *> getStringArray (lua_State *L, int arg) {
+	vector<const char *> ret;
+	if (!lua_isnoneornil (L, arg)) {
+		int len = luaL_len (L, arg);
+		arg = lua_absindex (L, arg);
+		for (int i = 1; i <= len; i++) {
+			lua_geti (L, arg, i);
+			ret.push_back (luaL_checkstring (L, -1));
+		}
+		lua_pop (L, len);
+	}
+	return move (ret);
+}
+

@@ -16,13 +16,24 @@
  */
 
 #include "visitor.hpp"
+#include "luarray.hpp"
+
+int lua_visitHeader (lua_State *L) {
+	const char *headerName = luaL_checkstring (L, 1);
+	vector<const char *> args = getStringArray (L, 2);
+	auto ret = visitHeader (headerName, args);
+	lua_pushinteger (L, ret);
+	return 1;
+}
+
 
 const luaL_Reg functions[] = {
+	{ "visitHeader", lua_visitHeader },
 	{ NULL, NULL },
 };
 
 extern "C" {
-	int luaopen_visitor (lua_State *L) {  
+	int luaopen_inclua_visitor (lua_State *L) {  
 		luaL_newlib (L, functions);
 		return 1;
 	}

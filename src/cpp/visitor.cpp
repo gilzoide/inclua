@@ -57,8 +57,9 @@ int visitHeader (const char *headername, vector<const char*> args) {
 		return 0;
 	}
 	clang_visitChildren (clang_getTranslationUnitCursor (tu), visitor, 0);
-	clang_disposeIndex (idx);
 
+	clang_disposeTranslationUnit (tu);
+	clang_disposeIndex (idx);
 	return 1;
 }
 
