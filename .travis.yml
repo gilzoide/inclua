@@ -1,0 +1,19 @@
+language: python
+
+cache: pip
+
+env:
+  - LUA="lua 5.2"
+  - LUA="lua 5.3"
+
+before_install:
+  - pip install hererocks
+  - hererocks env --$LUA -rlatest
+  - source env/bin/activate
+  - luarocks install busted
+
+install:
+  - luarocks make
+
+script:
+  - busted

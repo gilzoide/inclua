@@ -15,27 +15,32 @@
  * along with Inclua.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "visitor.hpp"
-#include "luarray.hpp"
+#pragma once
 
-int lua_visitHeader (lua_State *L) {
-	const char *headerName = luaL_checkstring (L, 1);
-	vector<const char *> args = getStringArray (L, 2);
-	auto ret = visitHeader (headerName, args);
-	lua_pushinteger (L, ret);
-	return 1;
-}
+#include <clang-c/Index.h>
 
+#include "clString.hpp"
 
-const luaL_Reg functions[] = {
-	{ "visitHeader", lua_visitHeader },
-	{ NULL, NULL },
-};
-
-extern "C" {
-	int luaopen_inclua_visitor (lua_State *L) {  
-		luaL_newlib (L, functions);
-		return 1;
+/** RAII wrapper for clang's CXType, with automatic cast to const char*
+ */
+class clType {
+public:
+	/// Ctor
+	clType(CXType type) : type(type), str(clang_getTypeSpelling(type)) {}
+	/// Assignment directly from a CXString
+	clType& operator=(CXType& type) {
+		this->type = type;
+		return *this;
 	}
-}
+	/// Cast to const char*
+	operator const char*() {
+		return str;
+	}
+
+private:
+	/// The CXType
+	CXType type;
+	/// And it's spelling
+	clString str;
+};
 

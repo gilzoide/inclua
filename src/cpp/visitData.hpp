@@ -18,22 +18,16 @@
 #pragma once
 
 #include "lua.hpp"
-#include <vector>
 
-using namespace std;
-
-/// Get a string vector from Lua
-vector<const char *> getStringArray(lua_State *L, int arg) {
-	vector<const char *> ret;
-	if(!lua_isnoneornil(L, arg)) {
-		int len = luaL_len(L, arg);
-		arg = lua_absindex(L, arg);
-		for(int i = 1; i <= len; i++) {
-			lua_geti(L, arg, i);
-			ret.push_back(luaL_checkstring(L, -1));
-		}
-		lua_pop(L, len);
-	}
-	return move(ret);
-}
+/**
+ * Visitor custom data
+ */
+struct visitData {
+	/// Lua state to accumulate data directly in a table
+	lua_State *L;
+	/// The header name
+	const char *headerName;
+	/// Ctor
+	visitData(lua_State *L, const char *headerName) : L(L), headerName(headerName) {}
+};
 

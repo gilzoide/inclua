@@ -1,0 +1,5 @@
+describe('inclua.visitor', function()
+	it('is succesfully required', function()
+		assert.has_no.errors(function() require 'inclua' end)
+	end)
+end)

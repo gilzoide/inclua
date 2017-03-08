@@ -18,26 +18,25 @@
 #pragma once
 
 #include <clang-c/CXString.h>
-#include <iostream>
 
 /** RAII wrapper for clang's CXString, with automatic cast to const char*
  */
 class clString {
 public:
 	/// Ctor
-	clString (CXString str) : str (str) {}
+	clString(CXString str) : str(str) {}
 	/// Dtor
-	~clString () {
-		clang_disposeString (str);
+	~clString() {
+		clang_disposeString(str);
 	}
 	/// Assignment directly from a CXString
-	clString& operator= (CXString& str) {
+	clString& operator=(CXString& str) {
 		this->str = str;
 		return *this;
 	}
 	/// Cast to const char*
-	operator const char* () {
-		return clang_getCString (str);
+	operator const char*() {
+		return clang_getCString(str);
 	}
 
 private:

@@ -1,8 +1,8 @@
 file (GLOB cppSrc cpp/*.cpp)
-add_library (visitor SHARED ${cppSrc})
-target_include_directories (visitor PUBLIC ${CLANG_C_INCLUDE_DIR} ${LUA_INCLUDE_DIR})
-target_link_libraries (visitor ${CLANG_LIBRARY} ${LUA_LIBRARIES})
-set_target_properties (visitor PROPERTIES
+add_library (visitHeader SHARED ${cppSrc})
+target_include_directories (visitHeader PUBLIC ${CLANG_C_INCLUDE_DIR} ${LUA_INCLUDE_DIR})
+target_link_libraries (visitHeader ${CLANG_LIBRARY} ${LUA_LIBRARIES})
+set_target_properties (visitHeader PROPERTIES
 	PREFIX ""
 	CXX_STANDARD 11
 	LIBRARY_OUTPUT_DIRECTORY ${CMAKE_PROJECT_NAME})
@@ -24,7 +24,7 @@ if (NOT LUADIR)
 	set (LUADIR share/lua/${LUA_VER})
 endif ()
 
-install (TARGETS visitor
+install (TARGETS visitHeader
 	LIBRARY DESTINATION ${LIBDIR}/${CMAKE_PROJECT_NAME})
 install (FILES ${luaSrc}
 	DESTINATION ${LUADIR}/${CMAKE_PROJECT_NAME})

@@ -15,51 +15,85 @@
  * along with Inclua.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "visitor.hpp"
+#include "lua.hpp"
+#include "clang-c/Index.h"
+
+#include "visitData.hpp"
+#include "headerInfo.hpp"
 #include "clString.hpp"
+#include "luarray.hpp"
 
 #include <iostream>
+#include <vector>
+#include <cstring>
 
-CXChildVisitResult visitor (CXCursor cursor, CXCursor, CXClientData) {  
-	CXCursorKind kind = clang_getCursorKind(cursor);
+CXChildVisitResult visitor(CXCursor cursor, CXCursor, visitData *data) {  
+	// get the source location...
+	CXSourceLocation location = clang_getCursorLocation(cursor);
+	CXFile file;
+	unsigned line;
+	unsigned column;
+	clang_getFileLocation(location, &file, &line, &column, nullptr);
+	clString fileName = clang_getFileName(file);
 
-	// Consider functions and methods
-	switch (kind) {
-		case CXCursor_FunctionDecl:
-		case CXCursor_CXXMethod:
-			clString cursorName = clang_getCursorDisplayName(cursor);
+	// ...and only get information if it's the required header
+	if(!strcmp(fileName, data->headerName)) {
+		CXCursorKind kind = clang_getCursorKind(cursor);
+		clString kindName = clang_getCursorKindSpelling(kind);
 
-			// Get the source location
-			CXSourceRange range = clang_getCursorExtent(cursor);
-			CXSourceLocation location = clang_getRangeStart(range);
+		switch(kind) {
+			// case CXCursor_FunctionDecl:
+			// case CXCursor_CXXMethod:
+			// case CXCursor_StructDecl:
+			// case CXCursor_UnionDecl:
+				// std::cout << "Found \"" << cursorName << "\" at "
+					// << line << ":" << column << " in " << fileName
+					// << std::endl;
+				// break;
 
-			CXFile file;
-			unsigned line;
-			unsigned column;
-			clang_getFileLocation(location, &file, &line, &column, nullptr);
+			case CXCursor_EnumDecl: handleEnum(data, cursor); break;
+			case CXCursor_EnumConstantDecl: handleEnumConstant(data, cursor); break;
+			case CXCursor_TypedefDecl: handleTypedef(data, cursor); break;
 
-			clString fileName = clang_getFileName(file);
-
-			std::cout << "Found call to " << cursorName << " at "
-				<< line << ":" << column << " in " << fileName
-				<< std::endl;
-			break;
+			// default:
+				// std::cout << "Não sei isso: " << kindName << '(' << cursorName << ')'<< std::endl;
+		}
 	}
 
 	return CXChildVisit_Recurse;
 }
 
-int visitHeader (const char *headername, vector<const char*> args) {
-	auto idx = clang_createIndex (1, 1);
-	auto tu = clang_parseTranslationUnit (idx, headername, args.data (),
-			args.size (), NULL, 0, CXTranslationUnit_SkipFunctionBodies);
-	if (!tu) {
+/**
+ * Visit a header, storing the results in a Visitor.
+ *
+ * @warning Don't ever use this function with a non-Visitor table,
+ * as some methods are expected to be there.
+ */
+int visitHeader(lua_State *L) {
+	// parameters from Lua
+	luaL_checktype(L, 1, LUA_TTABLE);
+	const char *headerName = luaL_checkstring(L, 2);
+	vector<const char *> args = getStringArray(L, 3);
+
+	auto idx = clang_createIndex(1, 1);
+	auto tu = clang_parseTranslationUnit(idx, headerName, args.data(),
+			args.size(), NULL, 0, CXTranslationUnit_SkipFunctionBodies);
+	if(!tu) {
 		return 0;
 	}
-	clang_visitChildren (clang_getTranslationUnitCursor (tu), visitor, 0);
+	visitData data(L, headerName);
+	clang_visitChildren(clang_getTranslationUnitCursor(tu),
+			(CXCursorVisitor) visitor, &data);
 
-	clang_disposeTranslationUnit (tu);
-	clang_disposeIndex (idx);
+	clang_disposeTranslationUnit(tu);
+	clang_disposeIndex(idx);
 	return 1;
+}
+
+extern "C" {
+	int luaopen_inclua_visitHeader(lua_State *L) {  
+		lua_pushcfunction(L, visitHeader);
+		return 1;
+	}
 }
 

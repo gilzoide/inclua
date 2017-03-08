@@ -4,6 +4,8 @@
 
 #define ZERO 0
 
+typedef int Inteiro;
+
 float somaVet (float *vet, size_t tam) {
 	int i;
 	float soma = ZERO;
@@ -24,7 +26,7 @@ union Outra {
 	Oi o;
 };
 
-typedef enum {
+typedef enum nice {
 	COMO_VAI,
 	VOCES,
 	VAI,

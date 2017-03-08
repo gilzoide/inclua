@@ -11,7 +11,7 @@ __pycache__
 *.pyc
 
 # setuptools stuff
-build/
+build*/
 dist/
 *egg-info
 
