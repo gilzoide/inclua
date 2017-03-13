@@ -43,6 +43,10 @@ function Visitor:handleEnumConstant(hash, name, value)
 	self.enums[hash].values[name] = value
 end
 
+function Visitor:handleFunction(name, ty)
+	print('Function', name, ty.spelling)
+end
+
 return function()
 	return setmetatable({
 		enums = {},

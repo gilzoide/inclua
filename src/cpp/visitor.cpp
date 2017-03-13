@@ -42,7 +42,7 @@ CXChildVisitResult visitor(CXCursor cursor, CXCursor, visitData *data) {
 		clString kindName = clang_getCursorKindSpelling(kind);
 
 		switch(kind) {
-			// case CXCursor_FunctionDecl:
+			case CXCursor_FunctionDecl: handleFunction(data, cursor); break;
 			// case CXCursor_CXXMethod:
 			// case CXCursor_StructDecl:
 			// case CXCursor_UnionDecl:

@@ -29,6 +29,9 @@ function inclua._test()
 			print('  ' .. name, val)
 		end
 	end
+	-- for k, v in pairs(V.structs) do
+		-- print('Structs ' .. tostring(k), v.alias or v.name)
+	-- end
 end
 
 return inclua

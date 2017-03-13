@@ -15,36 +15,30 @@
  * along with Inclua.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#pragma once
+#include "typeInfo.hpp"
 
-#include <clang-c/Index.h>
-
-#include "clString.hpp"
-
-/** RAII wrapper for clang's CXType, with automatic cast to const char*
- */
-class clType {
-public:
-	/// Ctor
-	clType(CXType type) : type(type), str(clang_getTypeSpelling(type)) {}
-	/// Assignment directly from a CXString
-	clType& operator=(CXType& type) {
-		this->type = type;
-		return *this;
+void pushType(lua_State *L, CXType type) {
+	if(type.kind == CXType_Invalid) {
+		throw "Invalid CXType!";
 	}
-	/// Cast to const char*
-	operator const char*() {
-		return str;
-	}
-	/// Cast back to CXType
-	operator CXType() {
-		return type;
-	}
+	clType ty(type);
+	
+	lua_newtable(L);
+	lua_pushstring(L, ty);
+	lua_setfield(L, -2, "spelling");
+	switch(type.kind) {
+		case CXType_Void:
+			lua_pushliteral(L, "void");
+			lua_setfield(L, -2, "kind");
+			break;
 
-private:
-	/// The CXType
-	CXType type;
-	/// And it's spelling
-	clString str;
-};
+		case CXType_Pointer:
+			CXType element_type = clang_getPointeeType(type);
+			lua_pushstring(L, element_type.kind != CXType_FunctionNoProto
+					&& element_type.kind != CXType_FunctionProto ?
+					"function_pointer" : "pointer");
+			lua_setfield(L, -2, "kind");
+			break;
+	}
+}
 

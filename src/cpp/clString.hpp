@@ -38,6 +38,10 @@ public:
 	operator const char*() {
 		return clang_getCString(str);
 	}
+	/// Cast back to CXString
+	operator CXString() {
+		return str;
+	}
 
 private:
 	/// The CXString

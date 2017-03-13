@@ -18,6 +18,7 @@
 #pragma once
 
 #include "visitData.hpp"
+#include "typeInfo.hpp"
 #include "clString.hpp"
 #include "clType.hpp"
 
@@ -35,7 +36,7 @@ void pushMethod(visitData *data, const char *name) {
 
 /// Get Cursor spelling, filling blank with `anonymous_at_<file>_<line>_<col>`
 string getCursorName(CXCursor cursor) {
-	clString spelling = clang_getCursorDisplayName(cursor);
+	clString spelling = clang_getCursorSpelling(cursor);
 	const char *cursorName = spelling;
 	if(*cursorName) {
 		return cursorName;
@@ -59,7 +60,7 @@ string getCursorName(CXCursor cursor) {
 }
 
 void handleTypedef(visitData *data, CXCursor cursor) {
-	clString alias = clang_getCursorDisplayName(cursor);
+	clString alias = clang_getCursorSpelling(cursor);
 	CXType underlying = clang_getTypedefDeclUnderlyingType(cursor);
 	auto underlying_hash = clang_hashCursor(clang_getTypeDeclaration(underlying));
 
@@ -82,7 +83,7 @@ void handleEnum(visitData *data, CXCursor cursor) {
 }
 
 void handleEnumConstant(visitData *data, CXCursor cursor) {
-	clString name = clang_getCursorDisplayName(cursor);
+	clString name = clang_getCursorSpelling(cursor);
 	auto cursor_hash = clang_hashCursor(clang_getCursorSemanticParent(cursor));
 	auto value = clang_getEnumConstantDeclValue(cursor);
 
@@ -94,3 +95,13 @@ void handleEnumConstant(visitData *data, CXCursor cursor) {
 	lua_call(L, 4, 0);
 }
 
+void handleFunction(visitData *data, CXCursor cursor) {
+	clString name = clang_getCursorSpelling(cursor);
+	auto type = clang_getCursorType(cursor);
+
+	lua_State *L = data->L;
+	pushMethod(data, "handleFunction");
+	lua_pushstring(L, name);
+	pushType(L, type);
+	lua_call(L, 3, 0);
+}

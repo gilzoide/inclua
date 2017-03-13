@@ -17,34 +17,23 @@
 
 #pragma once
 
-#include <clang-c/Index.h>
+#include "lua.hpp"
 
-#include "clString.hpp"
+#include "clType.hpp"
 
-/** RAII wrapper for clang's CXType, with automatic cast to const char*
+/**
+ * Push a table containing information about a CXType.
+ *
+ * type = {
+ *     kind = ['void' | 'simple' | 'pointer' | 'array' | 'record' | 'function_pointer'],
+ *     spelling = <CXType.spelling>,
+ *     (pointer and array) element_type = <type of an element>,
+ *     (array) size = <int, with size (if specified)>,
+ *     (record) fields = <table with fields, name - type pairs>,
+ *     (function) result_type = <the return type>,
+ *     (function) arguments = <table with argument types>,
+ *     (function) variadic = <bool: is function variadic?>
+ * }
  */
-class clType {
-public:
-	/// Ctor
-	clType(CXType type) : type(type), str(clang_getTypeSpelling(type)) {}
-	/// Assignment directly from a CXString
-	clType& operator=(CXType& type) {
-		this->type = type;
-		return *this;
-	}
-	/// Cast to const char*
-	operator const char*() {
-		return str;
-	}
-	/// Cast back to CXType
-	operator CXType() {
-		return type;
-	}
-
-private:
-	/// The CXType
-	CXType type;
-	/// And it's spelling
-	clString str;
-};
+void pushType(lua_State *L, CXType type);
 
