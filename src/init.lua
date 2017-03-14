@@ -23,15 +23,21 @@ inclua.Visitor = require 'inclua.visitor'
 function inclua._test()
 	V = inclua.Visitor()
 	V:visitHeader("../../example/teste.h", {"-I/usr/lib/clang/3.9.1/include/"})
-	for k, v in pairs(V.enums) do
+	for k, v in ipairs(V.enums) do
 		print('Enum ' .. tostring(k), v.alias or v.name)
 		for name, val in pairs(v.values) do
 			print('  ' .. name, val)
 		end
 	end
-	-- for k, v in pairs(V.structs) do
-		-- print('Structs ' .. tostring(k), v.alias or v.name)
-	-- end
+	for k, v in pairs(V.functions) do
+		print('Function ' .. k, v.type.spelling)
+	end
+	for k, v in ipairs(V.records) do
+		print('Record ' .. v.name, v.alias)
+		for name, ty in pairs(v.type.fields) do
+			print('  ' .. name, ty.spelling)
+		end
+	end
 end
 
 return inclua

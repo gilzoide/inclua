@@ -32,6 +32,11 @@ public:
 		this->type = type;
 		return *this;
 	}
+	/// Get Type Hash (declaration cursor)
+	unsigned get_hash() {
+		auto cursor = clang_getTypeDeclaration(clang_getCanonicalType(type));
+		return clang_hashCursor(cursor);
+	}
 	/// Cast to const char*
 	operator const char*() {
 		return str;

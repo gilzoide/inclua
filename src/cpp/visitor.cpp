@@ -44,12 +44,10 @@ CXChildVisitResult visitor(CXCursor cursor, CXCursor, visitData *data) {
 		switch(kind) {
 			case CXCursor_FunctionDecl: handleFunction(data, cursor); break;
 			// case CXCursor_CXXMethod:
-			// case CXCursor_StructDecl:
-			// case CXCursor_UnionDecl:
-				// std::cout << "Found \"" << cursorName << "\" at "
-					// << line << ":" << column << " in " << fileName
-					// << std::endl;
-				// break;
+			case CXCursor_StructDecl:
+			case CXCursor_UnionDecl:
+				handleRecord(data, cursor);
+				break;
 
 			case CXCursor_EnumDecl: handleEnum(data, cursor); break;
 			case CXCursor_EnumConstantDecl: handleEnumConstant(data, cursor); break;
@@ -92,6 +90,10 @@ int visitHeader(lua_State *L) {
 
 extern "C" {
 	int luaopen_inclua_visitHeader(lua_State *L) {  
+		// Type memoization table
+		lua_newtable(L);
+		lua_setfield(L, LUA_REGISTRYINDEX, INCLUA_KNOWN_TYPES);
+
 		lua_pushcfunction(L, visitHeader);
 		return 1;
 	}

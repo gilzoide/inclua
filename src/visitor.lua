@@ -16,10 +16,14 @@
 -- along with Inclua.  If not, see <http://www.gnu.org/licenses/>.
 --]]
 
-local Visitor = {
-	visitHeader = require 'inclua.visitHeader',
-}
+local _visitHeader = require 'inclua.visitHeader'
+
+local Visitor = {}
 Visitor.__index = Visitor
+
+function Visitor:visitHeader(header, clang_args)
+	return _visitHeader(self, header, clang_args)
+end
 
 function Visitor:handleTypedef(alias, ty_hash)
 	if self.allDefs[ty_hash] then
@@ -44,7 +48,25 @@ function Visitor:handleEnumConstant(hash, name, value)
 end
 
 function Visitor:handleFunction(name, ty)
-	print('Function', name, ty.spelling)
+	if self.functions[name] == nil then
+		local newFunction = {
+			name = name,
+			type = ty,
+		}
+		self.functions[name] = newFunction
+	end
+end
+
+function Visitor:handleRecord(name, ty)
+	if self.records[name] == nil then
+		local newRecord = {
+			name = name,
+			type = ty,
+		}
+		self.records[name] = newRecord
+		self.allDefs[ty.hash] = newRecord
+		table.insert(self.records, newRecord)
+	end
 end
 
 return function()

@@ -21,6 +21,8 @@
 
 #include "clType.hpp"
 
+#define INCLUA_KNOWN_TYPES "INCLUA_KNOWN_TYPES"
+
 /**
  * Push a table containing information about a CXType.
  *
@@ -37,3 +39,7 @@
  */
 void pushType(lua_State *L, CXType type);
 
+/**
+ * Get spelling, fixing when it is anonymous
+ */
+// string finalSpelling(CXCursor cursor);
