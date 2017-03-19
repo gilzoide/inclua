@@ -17,6 +17,8 @@
 
 #include "typeInfo.hpp"
 
+#include <regex>
+
 enum CXVisitorResult fieldVisitor(CXCursor cursor, lua_State *L) {
 	clString name = clang_getCursorSpelling(cursor);
 	CXType type = clang_getCursorType(cursor);
@@ -27,19 +29,40 @@ enum CXVisitorResult fieldVisitor(CXCursor cursor, lua_State *L) {
 	return CXVisit_Continue;
 }
 
+string finalSpelling(CXType type) {
+	clType ty(type);
+	string spelling;
+
+	// if anonymous, give it a name based on its location
+	const regex anonymous_re(R"ANON(.+\(anonymous.*at (.+)\))ANON");
+	cmatch match;
+
+	if(!regex_match((const char *) ty, match, anonymous_re)) {
+		spelling = ty;
+	}
+	else {
+		const regex c_id("\\W");
+		spelling = "anonymous_at_";
+		regex_replace(back_inserter(spelling), match[1].first, match[1].second, c_id, "_");
+	}
+
+	return move(spelling);
+}
+
 void pushType(lua_State *L, CXType type) {
 	if(type.kind == CXType_Invalid) {
 		throw "Invalid CXType!";
 	}
 	clType ty(type);
+	auto spelling = finalSpelling(type);
 
 	// Type memoization
 	lua_getfield(L, LUA_REGISTRYINDEX, INCLUA_KNOWN_TYPES);
-	if(lua_getfield(L, -1, ty) == LUA_TNIL) {
+	if(lua_getfield(L, -1, spelling.data()) == LUA_TNIL) {
 		lua_pop(L, 1);
 
 		lua_newtable(L);
-		lua_pushstring(L, ty);
+		lua_pushstring(L, spelling.data());
 		lua_setfield(L, -2, "spelling");
 		switch(type.kind) {
 			case CXType_Void:
@@ -108,7 +131,7 @@ void pushType(lua_State *L, CXType type) {
 		}
 		// register type in Registry[INCLUA_KNOWN_TYPES]
 		lua_pushvalue(L, -1);
-		lua_setfield(L, -3, ty);
+		lua_setfield(L, -3, spelling.data());
 	}
 	// pop Registry[INCLUA_KNOWN_TYPES]
 	lua_rotate(L, -2, 1);

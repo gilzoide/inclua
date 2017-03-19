@@ -18,6 +18,8 @@
 
 local inclua = {}
 
+inclua.VERSION = '0.0.1'
+
 inclua.Visitor = require 'inclua.visitor'
 
 function inclua._test()

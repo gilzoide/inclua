@@ -18,7 +18,6 @@
 generated wrappers is also available, possibly commented like C."""
 
 import re
-import clang.cindex as clang
 
 version = '0.1.3'
 
@@ -39,12 +38,3 @@ notice = [
 C_notice = r"""/* {}
  */""".format ('\n * '.join (notice))
 
-
-def get_clang_version ():
-    """Try to get libclang version from the python library name"""
-    lib_name = str (clang.conf.lib)
-    # TODO: check if this works on windows
-    m = re.search (r'libclang.*?(\d(\.\d)?(\.\d)?)', lib_name)
-    if m:
-        ret = m.group (1)
-        return ret

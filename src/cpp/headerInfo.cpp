@@ -33,24 +33,12 @@ void pushMethod(visitData *data, const char *name) {
 string getCursorName(CXCursor cursor) {
 	clString spelling = clang_getCursorSpelling(cursor);
 	const char *cursorName = spelling;
-	if(*cursorName) {
+	if(cursorName[0] != '\0') {
 		return cursorName;
 	}
 	// Anonymous
 	else {
-		CXSourceLocation location = clang_getCursorLocation(cursor);
-		CXFile file;
-		unsigned line;
-		unsigned column;
-		clang_getFileLocation(location, &file, &line, &column, nullptr);
-		clString fileName = clang_getFileName(file);
-		// replace non-word chars by '_'
-		regex anon_regex("\\W");
-
-		ostringstream os;
-		os << "anonymous_at_" << regex_replace((const char *) fileName, anon_regex, "_")
-				<< '_' << line << '_' << column;
-		return os.str();
+		return finalSpelling(clang_getCursorType(cursor));
 	}
 }
 

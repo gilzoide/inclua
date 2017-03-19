@@ -21,6 +21,9 @@
 
 #include "clType.hpp"
 
+#include <string>
+using namespace std;
+
 #define INCLUA_KNOWN_TYPES "INCLUA_KNOWN_TYPES"
 
 /**
@@ -42,4 +45,5 @@ void pushType(lua_State *L, CXType type);
 /**
  * Get spelling, fixing when it is anonymous
  */
-// string finalSpelling(CXCursor cursor);
+string finalSpelling(CXType type);
+

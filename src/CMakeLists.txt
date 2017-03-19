@@ -1,3 +1,4 @@
+# C++ visitor
 file (GLOB cppSrc cpp/*.cpp)
 add_library (visitHeader SHARED ${cppSrc})
 target_include_directories (visitHeader PUBLIC ${CLANG_C_INCLUDE_DIR} ${LUA_INCLUDE_DIR})

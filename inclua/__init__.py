@@ -16,7 +16,7 @@
 
 from .Generator import Generator
 from .Error import IncluaError
-from .GeneralInfo import version, get_clang_version
+from .GeneralInfo import version
 from .Visitor import Visitor
 import yaml
 import argparse
@@ -30,12 +30,6 @@ class VersionPrinter (argparse.Action):
     """Argparse Action that prints inclua version"""
     def __call__ (self, parser, namespace, values, option_string):
         print (version)
-        sys.exit ()
-
-class ClangVersion (argparse.Action):
-    """Argparse Action that prints the used clang version"""
-    def __call__ (self, parser, namespace, values, option_string):
-        print (get_clang_version () or "[inclua] Couldn't find clang version")
         sys.exit ()
 
 class DocPrinter (argparse.Action):
@@ -147,8 +141,6 @@ Any bugs should be reported to <gilzoide@gmail.com>""",
             help = "input YAML configuration file")
     parser.add_argument ('-v', '--version', nargs = 0, action = VersionPrinter,
             help = "prints program version")
-    parser.add_argument ('-clv', '--clang-version', nargs = 0, action = ClangVersion,
-            help = "prints used clang version")
     parser.add_argument ('-hl', '--help-language', nargs = 1, action = DocPrinter,
             help = "prints the language generator documentation", metavar = 'LANGUAGE')
     parser.add_argument ('-o', '--output', action = 'store',

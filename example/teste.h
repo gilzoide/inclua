@@ -33,12 +33,12 @@ typedef enum nice {
 	GENTEM,
 } Nice;
 
-typedef enum {
+enum {
 	TAO,
 	TUDO,
 	BAO,
 	HEIN
-} MaisEnum;
+};
 
 struct ComEnumEAnon {
 	Nice n;
