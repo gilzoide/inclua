@@ -29,7 +29,7 @@ void pushMethod(visitData *data, const char *name) {
 	lua_pushvalue(L, 1);
 }
 
-/// Get Cursor spelling, filling blank with `anonymous_at_<file>_<line>_<col>`
+/// Get Cursor spelling, filling blank with the Type spelling
 string getCursorName(CXCursor cursor) {
 	clString spelling = clang_getCursorSpelling(cursor);
 	const char *cursorName = spelling;
@@ -55,13 +55,13 @@ void handleTypedef(visitData *data, CXCursor cursor) {
 }
 
 void handleEnum(visitData *data, CXCursor cursor) {
-	auto name = getCursorName(cursor);
 	auto cursor_hash = clang_hashCursor(cursor);
+	auto type = clang_getCursorType(cursor);
 
 	lua_State *L = data->L;
 	pushMethod(data, "handleEnum");
 	lua_pushinteger(L, cursor_hash);
-	lua_pushstring(L, name.data());
+	pushType(L, type);
 	lua_call(L, 3, 0);
 }
 
@@ -90,14 +90,22 @@ void handleFunction(visitData *data, CXCursor cursor) {
 }
 
 void handleRecord(visitData *data, CXCursor cursor) {
-	auto name = getCursorName(cursor);
 	auto type = clang_getCursorType(cursor);
 
 	lua_State *L = data->L;
 	pushMethod(data, "handleRecord");
-	lua_pushstring(L, name.data());
+	pushType(L, type);
+	lua_call(L, 2, 0);
+}
+
+void handleVar(visitData *data, CXCursor cursor) {
+	clString name = clang_getCursorSpelling(cursor);
+	auto type = clang_getCursorType(cursor);
+
+	lua_State *L = data->L;
+	pushMethod(data, "handleVar");
+	lua_pushstring(L, name);
 	pushType(L, type);
 	lua_call(L, 3, 0);
 }
-
 

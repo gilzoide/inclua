@@ -26,18 +26,27 @@ function inclua._test()
 	V = inclua.Visitor()
 	V:visitHeader("../../example/teste.h", {"-I/usr/lib/clang/3.9.1/include/"})
 	for k, v in ipairs(V.enums) do
-		print('Enum ' .. tostring(k), v.alias or v.name)
+		print('Enum ' .. tostring(k), v.name, v.alias)
 		for name, val in pairs(v.values) do
 			print('  ' .. name, val)
 		end
 	end
-	for k, v in pairs(V.functions) do
-		print('Function ' .. k, v.type.spelling)
+	for k, v in ipairs(V.functions) do
+		print('Function ' .. v.name, v.type.spelling)
 	end
 	for k, v in ipairs(V.records) do
 		print('Record ' .. v.name, v.alias)
 		for name, ty in pairs(v.type.fields) do
 			print('  ' .. name, ty.spelling)
+		end
+	end
+	for k, v in ipairs(V.globals) do
+		print('Var ' .. v.name, v.type.spelling)
+	end
+
+	for k, v in pairs(V.allDefs) do
+		if v.alias then
+			print('Typedef ' .. v.alias, k)
 		end
 	end
 end

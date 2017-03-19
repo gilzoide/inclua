@@ -5,6 +5,7 @@
 #define ZERO 0
 
 typedef int Inteiro;
+const double PI = 3.1415;
 
 float somaVet (float *vet, size_t tam) {
 	int i;
@@ -20,6 +21,8 @@ typedef struct Oi {
 	int b;
 } Oi;
 
+Oi singleton;
+
 union Outra {
 	int i;
 	char c;
@@ -33,19 +36,20 @@ typedef enum nice {
 	GENTEM,
 } Nice;
 
-enum {
-	TAO,
-	TUDO,
-	BAO,
-	HEIN
-};
-
 struct ComEnumEAnon {
 	Nice n;
 	struct {
 		int x;
 		int y;
 	} ponto;
+
+	enum {
+		TAO,
+		TUDO,
+		BAO,
+		HEIN
+	} maisEnum;
+
 };
 
 Oi *getOi (Oi *o) {

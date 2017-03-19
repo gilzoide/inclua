@@ -16,13 +16,13 @@
 -- along with Inclua.  If not, see <http://www.gnu.org/licenses/>.
 --]]
 
-local _visitHeader = require 'inclua.visitHeader'
+local cppVisitHeader = require 'inclua.visitHeader'
 
 local Visitor = {}
 Visitor.__index = Visitor
 
 function Visitor:visitHeader(header, clang_args)
-	return _visitHeader(self, header, clang_args)
+	return cppVisitHeader(self, header, clang_args)
 end
 
 function Visitor:handleTypedef(alias, ty_hash)
@@ -31,10 +31,12 @@ function Visitor:handleTypedef(alias, ty_hash)
 	end
 end
 
-function Visitor:handleEnum(hash, name)
+function Visitor:handleEnum(hash, ty)
+	local name = ty.spelling
 	if self.enums[hash] == nil then
 		local newEnum = {
 			name = name,
+			type = ty,
 			values = {},
 		}
 		self.enums[hash] = newEnum
@@ -54,10 +56,12 @@ function Visitor:handleFunction(name, ty)
 			type = ty,
 		}
 		self.functions[name] = newFunction
+		table.insert(self.functions, newFunction)
 	end
 end
 
-function Visitor:handleRecord(name, ty)
+function Visitor:handleRecord(ty)
+	local name = ty.spelling
 	if self.records[name] == nil then
 		local newRecord = {
 			name = name,
@@ -69,11 +73,21 @@ function Visitor:handleRecord(name, ty)
 	end
 end
 
+function Visitor:handleVar(name, ty)
+	local newGlobalVar = {
+		name = name,
+		type = ty,
+	}
+	self.globals[name] = newGlobalVar
+	table.insert(self.globals, newGlobalVar)
+end
+
 return function()
 	return setmetatable({
 		enums = {},
 		records = {},
 		functions = {},
+		globals = {},
 		-- All definitions, for Typedefs to work nicely
 		allDefs = {},
 	}, Visitor)

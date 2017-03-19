@@ -27,3 +27,4 @@ void handleEnum(visitData *data, CXCursor cursor);
 void handleEnumConstant(visitData *data, CXCursor cursor);
 void handleFunction(visitData *data, CXCursor cursor);
 void handleRecord(visitData *data, CXCursor cursor);
+void handleVar(visitData *data, CXCursor cursor);

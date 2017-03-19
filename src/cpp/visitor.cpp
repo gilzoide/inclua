@@ -53,6 +53,9 @@ CXChildVisitResult visitor(CXCursor cursor, CXCursor, visitData *data) {
 			case CXCursor_EnumConstantDecl: handleEnumConstant(data, cursor); break;
 			case CXCursor_TypedefDecl: handleTypedef(data, cursor); break;
 
+			// All variables are global, as functions bodies are skipped
+			case CXCursor_VarDecl: handleVar(data, cursor); break;
+
 			// default:
 				// std::cout << "Não sei isso: " << kindName << '(' << cursorName << ')'<< std::endl;
 		}

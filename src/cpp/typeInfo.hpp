@@ -33,7 +33,7 @@ using namespace std;
  *     kind = ['void' | 'simple' | 'pointer' | 'array' | 'record' | 'function_pointer'],
  *     spelling = <CXType.spelling>,
  *     (pointer and array) element_type = <type of an element>,
- *     (array) size = <int, with size (if specified)>,
+ *     (array) size = <int with size if specified, nil otherwise>,
  *     (record) fields = <table with fields, name - type pairs>,
  *     (function) result_type = <the return type>,
  *     (function) arguments = <table with argument types>,
@@ -43,7 +43,9 @@ using namespace std;
 void pushType(lua_State *L, CXType type);
 
 /**
- * Get spelling, fixing when it is anonymous
+ * Get spelling, fixing when it is anonymous.
+ *
+ * If anonymous, get a name based on Type location on source code.
  */
 string finalSpelling(CXType type);
 
