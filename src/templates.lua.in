@@ -1,0 +1,52 @@
+--[[
+-- Copyright 2016-2017 Gil Barbosa Reis <gilzoide@gmail.com>
+-- This file is part of Inclua.
+--
+-- Inclua is free software: you can redistribute it and/or modify
+-- it under the terms of the GNU General Public License as published by
+-- the Free Software Foundation, either version 3 of the License, or
+-- (at your option) any later version.
+--
+-- Inclua is distributed in the hope that it will be useful,
+-- but WITHOUT ANY WARRANTY; without even the implied warranty of
+-- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-- GNU General Public License for more details.
+--
+-- You should have received a copy of the GNU General Public License
+-- along with Inclua.  If not, see <http://www.gnu.org/licenses/>.
+--]]
+
+local path = require 'pl.path'
+local molde = require 'molde'
+
+local templates = {}
+
+--- Templates base path
+templates.PATH = "@TEMPLATE_PATH@"
+
+--- Load a language molde template.
+--
+-- The tried paths are, in order:
+-- + ./<language>.molde
+-- + <templates.PATH>/<language>.molde
+--
+-- If template cannot be found, returns nil and error message.
+--
+-- @param language Language to load
+--
+-- @return[1] function to generate output
+-- @return[2] nil
+-- @return[2] error message
+function templates.load(language)
+	local search_paths = {'.', templates.PATH}
+	local file_name = language .. '.molde'
+	for _, prefix in ipairs(search_paths) do
+		local file_path = path.join(prefix, file_name)
+		if path.isfile(file_path) then
+			return molde.loadfile(file_path)
+		end
+	end
+	return nil, string.format("Cannot find template for language %q", language)
+end
+
+return templates

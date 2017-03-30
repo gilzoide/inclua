@@ -21,17 +21,29 @@ local cppVisitHeader = require 'inclua.visitHeader'
 local Visitor = {}
 Visitor.__index = Visitor
 
+--- Visit a header, gathering information on its declarations.
+--
+-- @tparam string header Header file name
+-- @tparam table clang_args Arguments passed to libclang on parsing
+--
+-- @return[1] true If everything went ok
+-- @return[2] nil
+-- @return[2] Error message
 function Visitor:visitHeader(header, clang_args)
-	return cppVisitHeader(self, header, clang_args)
+	if cppVisitHeader(self, header, clang_args) then
+		return true
+	else
+		return nil, 'Error visiting "' .. header .. '"'
+	end
 end
 
-function Visitor:handleTypedef(alias, ty_hash)
+function Visitor:__handleTypedef(alias, ty_hash)
 	if self.allDefs[ty_hash] then
 		self.allDefs[ty_hash].alias = alias
 	end
 end
 
-function Visitor:handleEnum(hash, ty)
+function Visitor:__handleEnum(hash, ty)
 	local name = ty.spelling
 	if self.enums[hash] == nil then
 		local newEnum = {
@@ -45,11 +57,11 @@ function Visitor:handleEnum(hash, ty)
 	end
 end
 
-function Visitor:handleEnumConstant(hash, name, value)
+function Visitor:__handleEnumConstant(hash, name, value)
 	self.enums[hash].values[name] = value
 end
 
-function Visitor:handleFunction(name, ty)
+function Visitor:__handleFunction(name, ty)
 	if self.functions[name] == nil then
 		local newFunction = {
 			name = name,
@@ -60,7 +72,7 @@ function Visitor:handleFunction(name, ty)
 	end
 end
 
-function Visitor:handleRecord(ty)
+function Visitor:__handleRecord(ty)
 	local name = ty.spelling
 	if self.records[name] == nil then
 		local newRecord = {
@@ -73,13 +85,16 @@ function Visitor:handleRecord(ty)
 	end
 end
 
-function Visitor:handleVar(name, ty)
+function Visitor:__handleVar(name, ty)
 	local newGlobalVar = {
 		name = name,
 		type = ty,
 	}
 	self.globals[name] = newGlobalVar
 	table.insert(self.globals, newGlobalVar)
+end
+
+function Visitor:__apply_notes(notes)
 end
 
 return function()

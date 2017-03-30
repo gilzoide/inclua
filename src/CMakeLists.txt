@@ -10,8 +10,22 @@ set_target_properties (visitHeader PROPERTIES
 
 
 # Copy Lua files
-file (GLOB luaSrc *.lua)
-file (COPY ${luaSrc} DESTINATION ${CMAKE_PROJECT_NAME})
+set (luaSrc init.lua info.lua generate.lua visitor.lua)
+file (COPY ${luaSrc} main.lua DESTINATION ${CMAKE_PROJECT_NAME})
+
+# Templates
+if (NOT TEMPLATE_PATH_PREFIX)
+	if (WIN32)
+		message (SEND_ERROR "No template path is configured for Windows")
+	else ()
+		set (TEMPLATE_PATH_PREFIX ${CMAKE_INSTALL_PREFIX}/share)
+	endif ()
+endif ()
+set (TEMPLATE_PATH ${TEMPLATE_PATH_PREFIX}/${CMAKE_PROJECT_NAME}/templates)
+
+configure_file (templates.lua.in templates.lua @ONLY)
+file (GLOB templateSrc templates/*.molde)
+file (COPY ${templateSrc} DESTINATION ${CMAKE_PROJECT_NAME}/templates)
 
 ##  Install  ##
 set (LUA_VER "${LUA_VERSION_MAJOR}.${LUA_VERSION_MINOR}")
@@ -24,8 +38,15 @@ endif ()
 if (NOT LUADIR)
 	set (LUADIR share/lua/${LUA_VER})
 endif ()
+if (NOT BINDIR)
+	set (BINDIR bin)
+endif ()
 
 install (TARGETS visitHeader
 	LIBRARY DESTINATION ${LIBDIR}/${CMAKE_PROJECT_NAME})
-install (FILES ${luaSrc}
+install (PROGRAMS main.lua RENAME inclua
+	DESTINATION ${BINDIR})
+install (FILES ${luaSrc} "${CMAKE_CURRENT_BINARY_DIR}/templates.lua"
 	DESTINATION ${LUADIR}/${CMAKE_PROJECT_NAME})
+install (FILES ${templateSrc}
+	DESTINATION ${TEMPLATE_PATH})

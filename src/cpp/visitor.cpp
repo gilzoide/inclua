@@ -80,7 +80,8 @@ int visitHeader(lua_State *L) {
 	auto tu = clang_parseTranslationUnit(idx, headerName, args.data(),
 			args.size(), NULL, 0, CXTranslationUnit_SkipFunctionBodies);
 	if(!tu) {
-		return 0;
+		lua_pushnil(L);
+		return 1;
 	}
 	visitData data(L, headerName);
 	clang_visitChildren(clang_getTranslationUnitCursor(tu),
@@ -88,6 +89,8 @@ int visitHeader(lua_State *L) {
 
 	clang_disposeTranslationUnit(tu);
 	clang_disposeIndex(idx);
+
+	lua_pushboolean(L, 1);
 	return 1;
 }
 

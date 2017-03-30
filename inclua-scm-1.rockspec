@@ -17,6 +17,7 @@ that that we don't need to worry about C/C++ parsing/preprocessing.
 dependencies = {
 	'lua >= 5.2',
 	'lpeglabel',
+	'penlight',
 	'molde',
 }
 build = {
@@ -25,5 +26,7 @@ build = {
 		CMAKE_INSTALL_PREFIX = '$(PREFIX)',
 		LUADIR = '$(LUADIR)',
 		LIBDIR = '$(LIBDIR)',
+		BINDIR = '$(BINDIR)',
+		TEMPLATE_PATH_PREFIX = '$(CONFDIR)',
 	},
 }

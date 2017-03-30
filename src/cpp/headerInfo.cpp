@@ -48,7 +48,7 @@ void handleTypedef(visitData *data, CXCursor cursor) {
 	auto underlying_hash = clang_hashCursor(clang_getTypeDeclaration(underlying));
 
 	lua_State *L = data->L;
-	pushMethod(data, "handleTypedef");
+	pushMethod(data, "__handleTypedef");
 	lua_pushstring(L, alias);
 	lua_pushinteger(L, underlying_hash);
 	lua_call(L, 3, 0);
@@ -59,7 +59,7 @@ void handleEnum(visitData *data, CXCursor cursor) {
 	auto type = clang_getCursorType(cursor);
 
 	lua_State *L = data->L;
-	pushMethod(data, "handleEnum");
+	pushMethod(data, "__handleEnum");
 	lua_pushinteger(L, cursor_hash);
 	pushType(L, type);
 	lua_call(L, 3, 0);
@@ -71,7 +71,7 @@ void handleEnumConstant(visitData *data, CXCursor cursor) {
 	auto value = clang_getEnumConstantDeclValue(cursor);
 
 	lua_State *L = data->L;
-	pushMethod(data, "handleEnumConstant");
+	pushMethod(data, "__handleEnumConstant");
 	lua_pushinteger(L, cursor_hash);
 	lua_pushstring(L, name);
 	lua_pushinteger(L, value);
@@ -83,7 +83,7 @@ void handleFunction(visitData *data, CXCursor cursor) {
 	auto type = clang_getCursorType(cursor);
 
 	lua_State *L = data->L;
-	pushMethod(data, "handleFunction");
+	pushMethod(data, "__handleFunction");
 	lua_pushstring(L, name);
 	pushType(L, type);
 	lua_call(L, 3, 0);
@@ -93,7 +93,7 @@ void handleRecord(visitData *data, CXCursor cursor) {
 	auto type = clang_getCursorType(cursor);
 
 	lua_State *L = data->L;
-	pushMethod(data, "handleRecord");
+	pushMethod(data, "__handleRecord");
 	pushType(L, type);
 	lua_call(L, 2, 0);
 }
@@ -103,7 +103,7 @@ void handleVar(visitData *data, CXCursor cursor) {
 	auto type = clang_getCursorType(cursor);
 
 	lua_State *L = data->L;
-	pushMethod(data, "handleVar");
+	pushMethod(data, "__handleVar");
 	lua_pushstring(L, name);
 	pushType(L, type);
 	lua_call(L, 3, 0);

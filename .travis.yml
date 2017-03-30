@@ -5,6 +5,7 @@ cache: pip
 addons:
   apt:
     packages:
+      - cmake
       - libclang-dev
 
 env:
