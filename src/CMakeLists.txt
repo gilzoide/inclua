@@ -10,8 +10,9 @@ set_target_properties (visitHeader PROPERTIES
 
 
 # Copy Lua files
-set (luaSrc init.lua info.lua generate.lua visitor.lua)
-file (COPY ${luaSrc} main.lua DESTINATION ${CMAKE_PROJECT_NAME})
+set (luaSrc init.lua info.lua generate.lua visitor.lua note.lua)
+file (COPY ${luaSrc} DESTINATION ${CMAKE_PROJECT_NAME})
+file (COPY main.lua DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
 # Templates
 if (NOT TEMPLATE_PATH_PREFIX)
@@ -23,7 +24,7 @@ if (NOT TEMPLATE_PATH_PREFIX)
 endif ()
 set (TEMPLATE_PATH ${TEMPLATE_PATH_PREFIX}/${CMAKE_PROJECT_NAME}/templates)
 
-configure_file (templates.lua.in templates.lua @ONLY)
+configure_file (templates.lua.in "${CMAKE_PROJECT_NAME}/templates.lua" @ONLY)
 file (GLOB templateSrc templates/*.molde)
 file (COPY ${templateSrc} DESTINATION ${CMAKE_PROJECT_NAME}/templates)
 

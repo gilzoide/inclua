@@ -41,12 +41,15 @@ local function generate(module_name, language, headers, clang_args, notes)
 	end
 	-- apply notes
 	V:__apply_notes(notes)
+	V:__apply_ignores()
 
 	return language_template{
 		module_name = module_name,
+		headers = headers,
 		enums = V.enums,
 		records = V.records,
 		functions = V.functions,
+		constants = V.constants,
 		globals = V.globals,
 		info = info,
 	}

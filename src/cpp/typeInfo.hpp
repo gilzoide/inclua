@@ -31,10 +31,10 @@ using namespace std;
  *
  * type = {
  *     kind = ['void' | 'simple' | 'pointer' | 'array' | 'record' | 'function_pointer'],
- *     spelling = <CXType.spelling>,
+ *     name = <CXType.spelling>,
  *     (pointer and array) element_type = <type of an element>,
  *     (array) size = <int with size if specified, nil otherwise>,
- *     (record) fields = <table with fields, name - type pairs>,
+ *     (record) fields = <table with fields, which are tables { [1] = name, [2] = type }>,
  *     (function) result_type = <the return type>,
  *     (function) arguments = <table with argument types>,
  *     (function) variadic = <bool: is function variadic?>

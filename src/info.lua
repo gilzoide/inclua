@@ -36,8 +36,11 @@ local notice_lines = {
     "This file is distributed without any warranty.",
     "Fell free to change and distribute it, just be careful.",
 }
-local notice_template = molde.load[[{{ opening or '' }}{{ table.concat(notice_lines, '\n' .. (middle or '')) }}
-{{ closing or '' }}]]
+local notice_template = molde.load[[
+{{ opening or '' }}
+{{ table.concat(notice_lines, '\n' .. (middle or '')) }}
+{{ closing or '' }}
+]]
 
 --- Generates the notice to be used in generated source files.
 --
@@ -61,5 +64,8 @@ info.NOTICE = info.gen_notice()
 
 --- Notice for generated source files, C/C++ comment block version.
 info.C_NOTICE = info.gen_notice('/* ', ' * ', '\n */')
+
+--- Notice for generated source files, shell/python comments version.
+info.SHELL_NOTICE = info.gen_notice('# ', '# ')
 
 return info

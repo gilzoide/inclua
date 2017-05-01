@@ -21,10 +21,28 @@ local inclua = {}
 inclua.Visitor = require 'inclua.visitor'
 inclua.generate = require 'inclua.generate'
 inclua.templates = require 'inclua.templates'
+inclua.note = require 'inclua.note'
 
 function inclua._test()
 	print(inclua.INFO)
-	print(inclua.generate('teste', 'lua', {"../../example/teste.h"}, {"-I/usr/lib/clang/3.9.1/include/"}, {}))
+	local notes = {
+		ignore_pattern = '^_.+',
+		ignore = {'somaVet'},
+		rename = {
+			nome_feio = 'nome_bonito',
+			COMO_VAI = 'como_vai',
+		},
+		constants = {
+			version = '"1.0"',
+		},
+		defs = {
+			nao_quero = 'ignore',
+			native_func = 'native',
+			swap = {'inout', 'inout'},
+		}
+	}
+	local wrapper = inclua.generate('teste', 'lua', {"../../example/teste.h"}, {"-I/usr/lib/clang/3.9.1/include/"}, notes)
+	print(wrapper)
 end
 
 for k, v in pairs(require 'inclua.info') do

@@ -6,6 +6,7 @@ addons:
   apt:
     packages:
       - cmake
+      - clang
       - libclang-dev
 
 env:

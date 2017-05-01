@@ -1,21 +1,21 @@
 #[[.rst:
-UseInclua
-=========
-
-Generate wrappers with inclua.
-Defines the following macros
-
-- INCLUA_ADD_MODULE(name language input_file [ flags ])
-- INCLUA_LINK_LIBRARIES(name [ libraries ])
-
-Configuration variables are:
-
-- INCLUA_OUTPUT_EXTENSION: generated wrapper file extension. The default is "cpp"
-- INCLUA_OUTPUT_DIRECTORY: built library output directory, created at runtime
-- INCLUA_INCLUDE_DIRECTORIES: include directories for compiling the resulting library
-- INCLUA_COMPILE_DEFINITIONS: preprocessor definitions using the syntax ``VAR`` or ``VAR=value``
-- INCLUA_COMPILE_OPTIONS: extra compile options, passed to libclang on parse
-  phase, and to the compiler on compilation phase
+# UseInclua
+# =========
+# 
+# Generate wrappers with inclua.
+# Defines the following macros
+# 
+# - INCLUA_ADD_MODULE(name language input_file [ flags ])
+# - INCLUA_LINK_LIBRARIES(name [ libraries ])
+# 
+# Configuration variables are:
+# 
+# - INCLUA_OUTPUT_EXTENSION: generated wrapper file extension. The default is "cpp"
+# - INCLUA_OUTPUT_DIRECTORY: built library output directory, created at runtime
+# - INCLUA_INCLUDE_DIRECTORIES: include directories for compiling the resulting library
+# - INCLUA_COMPILE_DEFINITIONS: preprocessor definitions using the syntax ``VAR`` or ``VAR=value``
+# - INCLUA_COMPILE_OPTIONS: extra compile options, passed to libclang on parse
+#   phase, and to the compiler on compilation phase
 #]]
 
 macro (INCLUA_ADD_MODULE name language input_file)

@@ -1,17 +1,17 @@
 #[[.rst:
-FindClang
-==========
-
-Find clang.
-
-Defines the following variables:
-
-- CLANG_FOUND - if clang was found
-- CLANG_VERSION - clang version
-- CLANG_INCLUDE_DIR - libclang include directory
-- CLANG_C_INCLUDE_DIR - libclang C include directory
-- CLANG_LIBRARY - libclang library
-- CLANG_EXECUTABLE - clang executable path
+# FindClang
+# ==========
+# 
+# Find clang.
+# 
+# Defines the following variables:
+# 
+# - CLANG_FOUND - if clang was found
+# - CLANG_VERSION - clang version
+# - CLANG_INCLUDE_DIR - libclang include directory
+# - CLANG_C_INCLUDE_DIR - libclang C include directory
+# - CLANG_LIBRARY - libclang library
+# - CLANG_EXECUTABLE - clang executable path
 #]]
 
 set (_clang_names clang clang-4.0 clang-3.9 clang-3.8

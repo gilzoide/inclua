@@ -1,0 +1,14 @@
+{{ info.SHELL_NOTICE }}
+
+#######################################
+# Functions
+#######################################
+functions:
+{% for i, f in ipairs(functions) do %}
+- name: {{ f.name }} 
+  type: "{{ f.type.spelling }}"
+  variadic: {{ f.type.variadic }} 
+{% if f.notes then %}
+  notes: {{ f.notes }} 
+{% end %}
+{% end %}

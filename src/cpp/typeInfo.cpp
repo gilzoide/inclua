@@ -19,12 +19,28 @@
 
 #include <regex>
 
-enum CXVisitorResult fieldVisitor(CXCursor cursor, lua_State *L) {
+/* Custom data for `fieldVisitor` */
+struct _fieldData {
+	lua_State *L;
+	int i {1};
+	_fieldData(lua_State *L) : L(L) {}
+};
+
+enum CXVisitorResult fieldVisitor(CXCursor cursor, _fieldData *data) {
 	clString name = clang_getCursorSpelling(cursor);
 	CXType type = clang_getCursorType(cursor);
 
+	lua_State *L = data->L;
+	lua_newtable(L);
+
+	lua_pushstring(L, name);
+	lua_seti(L, -2, 1);
 	pushType(L, type);
-	lua_setfield(L, -2, name);
+	lua_seti(L, -2, 2);
+
+	lua_seti(L, -2, data->i);
+
+	data->i++;
 
 	return CXVisit_Continue;
 }
@@ -33,7 +49,8 @@ string finalSpelling(CXType type) {
 	clType ty(type);
 	string spelling;
 
-	const regex anonymous_re(R"ANON(.+\(anonymous.*at (.+)\))ANON");
+
+	const regex anonymous_re(R"ANON((\S+) .+\(anonymous.*at (.+)\))ANON");
 	cmatch match;
 
 	if(!regex_match((const char *) ty, match, anonymous_re)) {
@@ -41,8 +58,8 @@ string finalSpelling(CXType type) {
 	}
 	else {
 		const regex c_id("\\W");
-		spelling = "anonymous_at_";
-		regex_replace(back_inserter(spelling), match[1].first, match[1].second, c_id, "_");
+		spelling = match[1].str() + " anonymous_at_";
+		regex_replace(back_inserter(spelling), match[2].first, match[2].second, c_id, "_");
 	}
 
 	return move(spelling);
@@ -52,6 +69,9 @@ void pushType(lua_State *L, CXType type) {
 	if(type.kind == CXType_Invalid) {
 		throw "Invalid CXType!";
 	}
+	// Canonicalize Typedefs
+	type = clang_getCanonicalType(type);
+
 	clType ty(type);
 	auto spelling_str = finalSpelling(type);
 	const char *spelling = spelling_str.data();
@@ -63,7 +83,7 @@ void pushType(lua_State *L, CXType type) {
 
 		lua_newtable(L);
 		lua_pushstring(L, spelling);
-		lua_setfield(L, -2, "spelling");
+		lua_setfield(L, -2, "name");
 		switch(type.kind) {
 			case CXType_Void:
 				lua_pushliteral(L, "void");
@@ -120,8 +140,11 @@ void pushType(lua_State *L, CXType type) {
 				lua_pushinteger(L, ty.get_hash());
 				lua_setfield(L, -2, "hash");
 				lua_newtable(L);
-				clang_Type_visitFields(type, (CXFieldVisitor) fieldVisitor, L);
-				lua_setfield(L, -2, "fields");
+				{
+					_fieldData data(L);
+					clang_Type_visitFields(type, (CXFieldVisitor) fieldVisitor, &data);
+					lua_setfield(L, -2, "fields");
+				}
 				break;
 
 			case CXType_Enum:
