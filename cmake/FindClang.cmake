@@ -14,7 +14,7 @@
 # - CLANG_EXECUTABLE - clang executable path
 #]]
 
-set (_clang_names clang clang-4.0 clang-3.9 clang-3.8
+set (_clang_names clang clang-5.0 clang-4.0 clang-3.9 clang-3.8
 	clang-3.7 clang-3.6 clang-3.5)
 
 # headers
