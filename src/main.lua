@@ -24,7 +24,7 @@ local pretty = require 'pl.pretty'
 local inclua = require 'inclua'
 
 local args = lapp [[
-Inclua Copyright (c) 2016 Gil Barbosa Reis.
+Inclua Copyright (c) 2016-2017 Gil Barbosa Reis.
 Inclua is a binding code generator, that binds (for now, only) C to Lua.
 
 Generating wrappers:

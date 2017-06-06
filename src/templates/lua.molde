@@ -1,9 +1,15 @@
 {{ info.C_NOTICE }}
 {%
+local tablex = require "pl.tablex"
 -- Transform ' ' to '_', for things such as "struct Name" to "struct_Name"
 local function space2_(s)
 	res, _ = s:gsub(' ', '_')
 	return res
+end
+
+-- Trim "struct", "enum" and "union" prefixes
+local function trim_prefix(s)
+	return string.match(s, " (.+)") or s
 end
 
 -- Is record/enum anonymous?
@@ -11,11 +17,43 @@ local function is_anonymous(n)
 	return string.match(n.name, "%w+ anonymous")
 end
 
--- Is recod opaque?
+-- Is record opaque?
 local function is_opaque(r)
 	return r.notes == "opaque" or #r.type.fields == 0
 end
+
+-- Construct a `inclua_push`
+local function make_push(name)
+	return string.format("inclua_push(L, %s);", name)
+end
+-- Construct a `inclua_push_array`
+local function make_push_array(name, size)
+	local s
+	if type(size) == "table" then
+		s = table.concat(sizes, ", ")
+	else
+		s = size
+	end
+	return string.format("inclua_push_array(L, %s, %s);", name, s)
+end
+-- Get the Array dims
+local function get_array_dims_check(sizes)
+	return table.concat(tablex.imap(function(s)
+		return (s == "_" or s == "NULL") and "(size_t *) NULL" or ("&" .. s)
+	end, sizes), ", ")
+end
+local function get_array_dims_new(sizes)
+	return table.concat(tablex.imap(function(s)
+		return (s == "_" or s == "NULL") and "(size_t *) NULL" or s
+	end, sizes), ", ")
+end
+local function get_delete_array_args(argname, sizes)
+	return argname .. table.concat(tablex.imap(function(s)
+		return ", " .. (s == "_" and "NULL" or s)
+	end, tablex.sub(sizes, 2)))
+end
 %}
+
 /* Inclua Lua wrapper generator
  * ============================
  * What you should know:
@@ -280,31 +318,6 @@ void inclua_push_array(lua_State *L, char *arr, size_t size) {
 
 
 #define remove_cv_from_ptr(T) typename std::remove_cv<typename std::remove_pointer<T>::type>::type
-template<typename T, typename = std::enable_if<std::is_pointer<T>::value>>
-T inclua_check_array(lua_State *L, int arg, size_t * size) {
-	typedef remove_cv_from_ptr(T) pointeeType;
-	// check for NULL array
-	if(lua_isnoneornil(L, arg)) {
-		if(size) {
-			*size = 0;
-		}
-		return NULL;
-	}
-
-	int len = luaL_len(L, arg);
-	luaL_argcheck(L, len >= 0, arg, "Array length should be a positive integer");
-	if(size) {
-		*size = len;
-	}
-	pointeeType * ret = new pointeeType[len];
-	arg = lua_absindex(L, arg);
-	for(int i = 0; i < len; i++) {
-		lua_geti(L, arg, i + 1);
-		ret[i] = inclua_check<pointeeType>(L, -1);
-	}
-	lua_pop(L, len);
-	return ret;
-}
 template<typename T, typename = std::enable_if<std::is_pointer<T>::value>, typename... Sizes>
 T inclua_check_array(lua_State *L, int arg, size_t * size, Sizes... tail) {
 	typedef remove_cv_from_ptr(T) pointeeType;
@@ -326,6 +339,31 @@ T inclua_check_array(lua_State *L, int arg, size_t * size, Sizes... tail) {
 	for(int i = 0; i < len; i++) {
 		lua_geti(L, arg, i + 1);
 		ret[i] = inclua_check_array<pointeeType>(L, -1, tail...);
+	}
+	lua_pop(L, len);
+	return ret;
+}
+template<typename T, typename = std::enable_if<std::is_pointer<T>::value>>
+T inclua_check_array(lua_State *L, int arg, size_t * size) {
+	typedef remove_cv_from_ptr(T) pointeeType;
+	// check for NULL array
+	if(lua_isnoneornil(L, arg)) {
+		if(size) {
+			*size = 0;
+		}
+		return NULL;
+	}
+
+	int len = luaL_len(L, arg);
+	luaL_argcheck(L, len >= 0, arg, "Array length should be a positive integer");
+	if(size) {
+		*size = len;
+	}
+	pointeeType * ret = new pointeeType[len];
+	arg = lua_absindex(L, arg);
+	for(int i = 0; i < len; i++) {
+		lua_geti(L, arg, i + 1);
+		ret[i] = inclua_check<pointeeType>(L, -1);
 	}
 	lua_pop(L, len);
 	return ret;
@@ -390,15 +428,16 @@ void inclua_delete_array(const char * arr) {
 {%   if is_anonymous(r) then %}
 {{ r.name }} {
 {%     for _, field in ipairs(r.type.fields) do %}
-	{{ field[2].spelling }} {{ field[1] }};
+	{{ field[2].name }} {{ field[1] }};
 {%     end %}
 };
-{%   elseif not is_opaque(r) then %}
-INCLUA_PUSH_NON_OPAQUE({{ r.name }});
-INCLUA_CHECK_NON_OPAQUE({{ r.name }});
 {%   end %}
 INCLUA_PUSH({{ r.name }});
 INCLUA_CHECK({{ r.name }});
+{%   if not is_opaque(r) then %}
+INCLUA_PUSH_NON_OPAQUE({{ r.name }});
+INCLUA_CHECK_NON_OPAQUE({{ r.name }});
+{%   end %}
 {% end %}
 
 {% for _, e in ipairs(enums) do %}
@@ -409,11 +448,12 @@ INCLUA_CHECK({{ r.name }});
 INCLUA_PUSH_ENUM({{ e.name }});
 INCLUA_CHECK_ENUM({{ e.name }});
 {%   else %}
-// Anonymous
+// Anonymous enum
 {%   end %}
 void inclua_register_{{ space2_(e.name) }}(lua_State *L) {
-{%   for _, v in ipairs(e.values) do %}
-	inclua_push<int>(L, {{ v.name }}); lua_setfield(L, -2, "{{ v.alias or v.name }}");
+{%   local scope = e.parent and trim_prefix(e.parent.name) .. "::" or ""
+	 for _, v in ipairs(e.values) do %}
+	inclua_push<int>(L, {{ scope }}{{ v.name }}); lua_setfield(L, -2, "{{ v.alias or v.name }}");
 {%   end %}
 }
 {% end %}
@@ -435,17 +475,51 @@ int inclua_push_new_{{ normalized }}(lua_State *L) {
 }
 {%     end %}
 int inclua_index_{{ normalized }}(lua_State *L) {
-	{{ r.name }} *obj = inclua_check<{{ r.name }}>(L, 1);
+	auto obj = inclua_check<{{ r.name }} *>(L, 1);
 	const char *key = inclua_check<const char *>(L, 2);
 
 {%     for i, f in ipairs(r.type.fields) do
          local els = i == 1 and "" or "else "
 		 local field, ty = f[1], f[2]
 		 local ref = ty.kind == "record" and (is_anonymous(ty) and "(" .. ty.name .. " *) &" or "&") or ""
+		 if ty.kind ~= "enum" then
 %}
 	{{ els }}if(strcmp(key, "{{ field }}") == 0) inclua_push(L, {{ ref }}obj->{{ field }});
+{%       else %}
+	{{ els }}if(strcmp(key, "{{ field }}") == 0) inclua_push(L, (int)obj->{{ field }});
+{%       end %}
 {%     end %}
+{%     if not is_anonymous(r) then %}
+	else {  // Index metatable, may return nil
+		luaL_getmetatable(L, "{{ r.name }}");
+		lua_getfield(L, -1, key);
+		lua_rotate(L, -2, 1);
+		lua_pop(L, 1);
+	}
+{%     else %}
 	else return luaL_error (L, "{{ r.alias or r.name }} doesn't have a \"%s\" field", key);
+{%     end %}
+	return 1;
+}
+
+int inclua_new_index_{{ normalized }}(lua_State *L) {
+	auto obj = inclua_check<{{ r.name }} *>(L, 1);
+	const char *key = inclua_check<const char *>(L, 2);
+
+{%     for i, f in ipairs(r.type.fields) do
+         local els = i == 1 and "" or "else "
+		 local field, ty = f[1], f[2]
+		 if not is_anonymous(ty) then
+		   if ty.kind ~= "enum" then
+%}
+	{{ els }}if(strcmp(key, "{{ field }}") == 0) obj->{{ field }} = inclua_check<{{ ty.name }}>(L, 3);
+{%         else %}
+	{{ els }}if(strcmp(key, "{{ field }}") == 0) obj->{{ field }} = ({{ ty.name }}) inclua_check<int>(L, 3);
+{%         end %}
+{%       end %}
+{%     end %}
+	else return luaL_error(L, "{{ r.alias or r.name }} doesn't have a \"%s\" field", key);
+	return 0;
 }
 {%   end %}
 
@@ -470,6 +544,124 @@ void inclua_register_{{ normalized }}(lua_State *L) {
 	}
 }
 {% end %}
+////////////////////////////////////////////////////////////////////////////////
+//  Functions
+////////////////////////////////////////////////////////////////////////////////
+{% for _, f in ipairs(functions) do %}
+int wrap_{{ f.name }}(lua_State *L) {
+{%   if f.notes == "native" then -- just tail call %}
+	return {{ f.name }}(L);
+{%   else
+       -- Declare arguments
+	   local array_decl, arg_call = {}, {}
+	   local frees, returns = {}, {}
+	   local i_stack, i_size = 1, 1
+	   local default_note = {kind = "in"}
+	   for i, ty in ipairs(f.type.arguments) do
+		 local argname = "arg" .. i
+         local note = f.notes and f.notes[i] or default_note
+		 local kind = note.kind
+		 -- Argument call: 
+		 if kind == "out" or kind == "inout" or kind == "size out" then
+			 table.insert(arg_call, "&" .. argname)
+		 else
+			 table.insert(arg_call, argname)
+		 end
+		 -- Argument declaration
+		 if kind == "in" then %}
+	{{ ty.name }} {{ argname }} = inclua_check<{{ ty.name }}>(L, {{ i_stack }});
+{%         i_stack = i_stack + 1
+         elseif kind == "out" then %}
+	{{ ty.element_type.name }} {{ argname }}{{ ty.element_type.kind == "pointer" and " = nullptr" or "" }};
+{%		   table.insert(returns, argname)
+           if note.free then
+			 table.insert(frees, {note.free, argname})
+		   end
+         elseif kind == "inout" then %}
+	{{ ty.element_type.name }} {{ argname }} = inclua_check<{{ ty.element_type.name }}>(L, {{ i_stack }});
+{%         i_stack = i_stack + 1
+		   table.insert(returns, argname)
+           if note.free then
+			 table.insert(frees, {note.free, argname})
+		   end
+		 elseif kind == "array in" then
+		   local size = get_array_dims_check(note.dims)
+		   table.insert(array_decl, {
+		     ty = ty.name,
+			 argname = argname,
+			 i_stack = i_stack,
+			 size = size
+		   })
+ 		   table.insert(frees, {"inclua_delete_array", get_delete_array_args(argname, note.dims)})
+		   i_stack = i_stack + 1
+	     elseif kind == "array out" then
+		   local size = get_array_dims_new(note.dims)
+		   table.insert(array_decl, {
+		     ty = ty.name,
+			 argname = argname,
+			 out = true,
+			 size = size
+		   })
+ 		   table.insert(frees, {"inclua_delete_array", get_delete_array_args(argname, note.dims)})
+		   table.insert(returns, {name = argname, size = size})
+		 elseif kind == "size in" then %}
+	size_t {{ argname }};
+{%       elseif kind == "size out" then %}
+	{{ ty.element_type.name }} {{ argname }};
+{%
+	     else
+			 print("Nota não encontrada:\"" .. kind .. "\"")
+		 end
+       end
+
+	   for _, arr in ipairs(array_decl) do %}
+	{{ arr.ty }} {{ arr.argname }} = inclua_{{ arr.out and "new" or "check" }}_array<{{ arr.ty }}>({%
+	     if not arr.out then %}
+L, {{ arr.i_stack }}, {%
+         end %}
+{{ arr.size }});
+{%     end
+	   -- Call the function
+       local maybe_return
+       if f.type.result_type.kind == "void" then
+		 maybe_return = ""
+	   else
+		 maybe_return = f.type.result_type.name .. " ret = "
+		 -- check for return notes
+		 local return_note = f.notes and f.notes[#f.type.arguments + 1]
+		 if return_note == nil then
+		   table.insert(returns, 1, "ret")
+	     elseif return_note.kind == "out" then
+		   table.insert(returns, 1, "ret")
+		   if return_note.free then
+			 table.insert(frees, {return_note.free, "ret"})
+		   end
+		 elseif return_note.kind == "array out" then
+		   local size = get_array_dims_new(return_note.dims)
+ 		   table.insert(frees, {"inclua_delete_array", get_delete_array_args("ret", return_note.dims)})
+		   table.insert(returns, {name = "ret", size = size})
+	     else
+		   error(string.format('Invalid note for the return of function "%s": "%s"', f.name, return_note.kind))
+		 end
+	   end
+%}
+	{{ maybe_return }}{{ f.name }}({{ table.concat(arg_call, ", ") }});
+{%     -- Return stuff
+       for _, r in ipairs(returns) do
+	     if type(r) == "string" then %}
+	{{ make_push(r) }} 
+{%       else %}
+	{{ make_push_array(r.name, r.size) }} 
+{%       end %}
+{%     end %}
+{%     -- Free stuff
+       for _, pair in ipairs(frees) do %}
+	{{ pair[1] }}({{ pair[2] }});
+{%     end %}
+	return {{ #returns }};
+{%   end %}
+}
+{% end %}
 
 ////////////////////////////////////////////////////////////////////////////////
 //  Module initialization
@@ -487,7 +679,7 @@ extern "C" int luaopen_{{ module_name }}(lua_State *L) {
 {%   local name = r.alias or r.name %}
 	// {{ name }} 
 	inclua_register_{{ space2_(r.name) }}(L);
-	lua_setfield(L, -2, "{{ name }}");
+	lua_setfield(L, -2, "{{ trim_prefix(name) }}");
 
 {% end %}
 {% for _, e in ipairs(enums) do %}

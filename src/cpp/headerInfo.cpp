@@ -57,12 +57,19 @@ void handleTypedef(visitData *data, CXCursor cursor) {
 void handleEnum(visitData *data, CXCursor cursor) {
 	auto cursor_hash = clang_hashCursor(cursor);
 	auto type = clang_getCursorType(cursor);
+	auto parent = clang_getCursorSemanticParent(cursor);
 
 	lua_State *L = data->L;
 	pushMethod(data, "__handleEnum");
 	lua_pushinteger(L, cursor_hash);
 	pushType(L, type);
-	lua_call(L, 3, 0);
+	if(clang_isTranslationUnit(clang_getCursorKind(parent))) {
+		lua_pushnil(L);
+	}
+	else {
+		lua_pushinteger(L, clang_hashCursor(parent));
+	}
+	lua_call(L, 4, 0);
 }
 
 void handleEnumConstant(visitData *data, CXCursor cursor) {

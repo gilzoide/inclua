@@ -24,24 +24,26 @@ inclua.templates = require 'inclua.templates'
 inclua.note = require 'inclua.note'
 
 function inclua._test()
-	print(inclua.INFO)
+	-- print(inclua.INFO)
 	local notes = {
-		ignore_pattern = '^_.+',
-		ignore = {'somaVet'},
-		rename = {
-			nome_feio = 'nome_bonito',
-			COMO_VAI = 'como_vai',
-		},
-		constants = {
-			version = '"1.0"',
+		ignore = {
+			-- "somaVet", "somaVetAte0", "range", "rangeAlloc", "printaMatriz", "printaMatrizQuadrada",
+			-- "geraAleatorios",
+			"printaResult",
 		},
 		defs = {
-			nao_quero = 'ignore',
-			native_func = 'native',
+			getAB = {"in", "out", "out"},
+			somaVet = {'array[arg2] in', 'size'},
+			somaVetAte0 = {'array[_] in'},
+			range = {'array[arg3 - arg2] out', 'in', 'in'},
+			rangeAlloc = {'in', 'in', 'array[arg2 - arg1] out'},
+			printaMatriz = {'array[arg2][arg3] in', 'size', 'size'},
+			printaMatrizQuadrada = {'array[arg2][arg2] in', 'size'},
+			geraAleatorios = {'size out', 'array[arg1] out'},
 			swap = {'inout', 'inout'},
 		}
 	}
-	local wrapper = inclua.generate('teste', 'lua', {"../../example/teste.h"}, {"-I/usr/lib/clang/3.9.1/include/"}, notes)
+	local wrapper = inclua.generate('teste', 'lua', {"teste.h"}, {"-I/usr/lib/clang/4.0.0/include/", "-I../../example"}, notes)
 	print(wrapper)
 end
 

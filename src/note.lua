@@ -40,7 +40,7 @@ S <- { 'ignore' / 'opaque' / 'scope' / 'native' } !. / %{InvalidTopLevel}
 ]]
 
 note.arguments_grammar = re.compile[=[
-S <- {| Array / Inout |} !. / %{InvalidArgument}
+S <- {| Array / Size / Inout |} !. / %{InvalidArgument}
 
 Inout <- {:kind: { In Out } :}
        / {:kind: In :} Default?
@@ -51,8 +51,10 @@ Free <- %s+ "free" %s* "=" %s* {:free: Identifier :}
 Default <- %s* "=" %s* {:default: .+ :}
 Identifier <- { .+ }
 
+Size <- {:kind: {~ "size" (" " In / " " Out / "" -> " in" ) ~} :}
+
 Array <- "array" {:dims: {| Dimension+ |} :} " " {:kind: (In / Out) -> 'array %1' :}
-Dimension <- "[" [^]]+ "]"
+Dimension <- "[" { [^]]+ } "]"
 ]=]
 
 local function parse(grammar, n)
@@ -62,7 +64,7 @@ local function parse(grammar, n)
 	else
 		local whereErr = #n - #suf
 		local lin, col = re.calcline(n, whereErr)
-		return nil, string.format("%s at %d:%d", parseErrors[label], lin, col)
+		return nil, string.format("%s at %d:%d (%s)", parseErrors[label], lin, col, n)
 	end
 end
 
