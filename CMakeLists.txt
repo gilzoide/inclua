@@ -8,7 +8,7 @@ option(TEMPLATE_PATH_PREFIX "Prefix of path to store wrapper templates")
 
 find_package (Lua QUIET)
 if(NOT Lua_FOUND)
-	message(STATUS "Couldn't find systemwide Lua installation, using Luarocks defined variables")
+	message(STATUS "Couldn't find systemwide Lua installation, using Luarocks defined variables (\"${LUALIB}\", \"${LUA_INCDIR}\")")
 	set(LUA_LIBRARIES ${LUALIB})
 	set(LUA_INCLUDE_DIR ${LUA_INCDIR})
 endif()
