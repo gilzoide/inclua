@@ -1,7 +1,7 @@
 # C++ visitor
 file (GLOB cppSrc cpp/*.cpp)
 add_library (visitHeader SHARED ${cppSrc})
-target_include_directories (visitHeader PUBLIC ${CLANG_C_INCLUDE_DIR} ${LUA_INCLUDE_DIR})
+include_directories (${CLANG_C_INCLUDE_DIR} ${LUA_INCLUDE_DIR})
 target_link_libraries (visitHeader ${CLANG_LIBRARY} ${LUA_LIBRARIES})
 set_target_properties (visitHeader PROPERTIES
 	PREFIX ""

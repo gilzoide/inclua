@@ -1,5 +1,4 @@
 ## Inclua CMake build script ##
-
 project (inclua)
 
 cmake_minimum_required (VERSION 2.6)
