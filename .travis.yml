@@ -1,11 +1,11 @@
 language: python
 
 cache: pip
+sudo: false
 
 addons:
   apt:
     packages:
-      - cmake
       - clang
       - libclang-dev
 
