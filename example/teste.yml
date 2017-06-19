@@ -21,9 +21,9 @@ getAB:
   rename: AB
   notes: [in, out, out]
 
-somaVet: ['array [arg2] in', 'size']
+somaVet: ['array[arg2] in', 'size']
 
-somaVetAte0: ['array [_] in']
+somaVetAte0: ['array[_] in']
 
 range: ['array[arg3 - arg2] out', 'in', 'in']
 

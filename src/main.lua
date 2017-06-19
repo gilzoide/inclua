@@ -17,28 +17,57 @@
 -- along with Inclua.  If not, see <http://www.gnu.org/licenses/>.
 --]]
 
-local lapp = require 'pl.lapp'
-lapp.slack = true
-local pretty = require 'pl.pretty'
-
 local inclua = require 'inclua'
 
-local args = lapp [[
-Inclua Copyright (c) 2016-2017 Gil Barbosa Reis.
+-- CLI arguments stuff
+local argmatcher = require 'argmatcher'
+local parser = argmatcher.new()
+
+local opts = {
+	LANGUAGE = "lua",
+}
+parser:on{
+	"-o", "--output",
+	arg = "OUTPUT",
+	description = "output wrapper file (default: stdout)",
+	store = opts,
+}
+parser:on{
+	"-l", "--language",
+	arg = "LANGUAGE",
+	description = "binding target language (default: lua)",
+	store = opts,
+}
+parser:stop_on{
+	"-v", "--version",
+	description = "prints program version and exit",
+	callback = function() print("Inclua version " .. inclua.VERSION); os.exit() end,
+}
+parser:stop_on{
+	"-h", "--help",
+	description = "show this help message and exit",
+	callback = function() parser:show_help([[
+Usage: inclua [-h] [-v] [-o OUTPUT] [-l LANGUAGE] input [clang-args...]
+
 Inclua is a binding code generator, that binds (for now, only) C to Lua.
 
-Generating wrappers:
-  -h,--help              show this help message and exit
-  -v,--version           prints program version
-  -o,--output (default stdout)    output wrapper file
-  -l,--language (string)  binding target language
-  <input> (string)                input YAML configuration file
-  <clang_arg...> (string default '')           arguments to clang parser, useful for
-                          "-Dname"/"-Dname=val" macros and "-Iinclude_directory"
-                          flags (which will be used by inclua to look for the
-                          headers)
+Arguments:
+  input         input YAML configuration file
+  clang-args    arguments to clang parser, useful for
+                "-Dname"/"-Dname=val" macros and "-Iinclude_directory"
+                flags (which will be used by inclua to look for the
+                headers)]],
+"Any bugs should be reported to <gilzoide@gmail.com>"); os.exit() end,
+}
 
-Any bugs should be reported to <gilzoide@gmail.com>
-]]
+local args = parser:parse()
+assert(#args > 0, "Missing input argument is required")
 
-pretty.dump(args)
+if opts.OUTPUT then
+	opts.OUTPUT = assert(io.open(opts.OUTPUT, "w"))
+else
+	opts.OUTPUT = io.stdout
+end
+
+local input = table.remove(args, 1)
+opts.OUTPUT:write(inclua.generate.from_yaml(input, opts.LANGUAGE, args))

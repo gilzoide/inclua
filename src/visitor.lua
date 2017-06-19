@@ -17,27 +17,15 @@
 --]]
 
 local path = require 'pl.path'
-local tablex = require "pl.tablex"
+local tablex = require 'pl.tablex'
 local filter = tablex.filter
+local find_file = require 'inclua.find_file'
 
 local cppVisitHeader = require 'inclua.visitHeader'
 local note = require 'inclua.note'
 
 local Visitor = {}
 Visitor.__index = Visitor
-
-local function find_header(filename, clang_args)
-	local search_paths = filter(clang_args, function(p) return p:sub(1, 2) == "-I" end)
-	search_paths = tablex.imap(function(p) return p:sub(3) end, search_paths)
-	table.insert(search_paths, 1, ".")
-	for _, prefix in ipairs(search_paths) do
-		local file_path = path.join(prefix, filename)
-		if path.isfile(file_path) then
-			return file_path
-		end
-	end
-	return nil, table.concat(search_paths, "\", \"")
-end
 
 --- Visit a header, gathering information on its declarations.
 --
@@ -48,7 +36,7 @@ end
 -- @return[2] nil
 -- @return[2] Error message
 function Visitor:visitHeader(header, clang_args)
-	local header_path, err = find_header(header, clang_args)
+	local header_path, err = find_file(header, clang_args)
 	if not header_path then
 		return nil, "Couldn't find header \"" .. header .. '". Tried in ("' .. err .. '")'
 	elseif cppVisitHeader(self, header_path, clang_args) then

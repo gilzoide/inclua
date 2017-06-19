@@ -50,7 +50,7 @@ string finalSpelling(CXType type) {
 	string spelling;
 
 
-	const regex anonymous_re(R"ANON((\S+) .+\(anonymous.*at (.+)\))ANON");
+	const regex anonymous_re(R"ANON((\S+) .*\(anonymous.*at (.+)\))ANON");
 	cmatch match;
 
 	if(!regex_match((const char *) ty, match, anonymous_re)) {

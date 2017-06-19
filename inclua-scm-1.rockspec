@@ -18,6 +18,8 @@ dependencies = {
 	'lua >= 5.2',
 	'lpeglabel',
 	'penlight',
+	'argmatcher',
+	'lyaml',
 	'molde',
 }
 build = {

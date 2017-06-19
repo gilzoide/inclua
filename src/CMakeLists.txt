@@ -10,7 +10,7 @@ set_target_properties (visitHeader PROPERTIES
 
 
 # Copy Lua files
-set (luaSrc init.lua info.lua generate.lua visitor.lua note.lua)
+set (luaSrc init.lua info.lua generate.lua visitor.lua note.lua find_file.lua)
 file (COPY ${luaSrc} DESTINATION ${CMAKE_PROJECT_NAME})
 file (COPY main.lua DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
@@ -24,7 +24,8 @@ if (NOT TEMPLATE_PATH_PREFIX)
 endif ()
 set (TEMPLATE_PATH ${TEMPLATE_PATH_PREFIX}/${CMAKE_PROJECT_NAME}/templates)
 
-configure_file (templates.lua.in "${CMAKE_PROJECT_NAME}/templates.lua" @ONLY)
+set (TEMPLATES_LUA "${CMAKE_PROJECT_NAME}/templates.lua")
+configure_file (templates.lua.in ${TEMPLATES_LUA} @ONLY)
 file (GLOB templateSrc templates/*.molde)
 file (COPY ${templateSrc} DESTINATION ${CMAKE_PROJECT_NAME}/templates)
 
@@ -44,10 +45,10 @@ if (NOT BINDIR)
 endif ()
 
 install (TARGETS visitHeader
-	LIBRARY DESTINATION ${LIBDIR}/${CMAKE_PROJECT_NAME})
+	LIBRARY DESTINATION "${LIBDIR}/${CMAKE_PROJECT_NAME}")
 install (PROGRAMS main.lua RENAME inclua
 	DESTINATION ${BINDIR})
-install (FILES ${luaSrc} "${CMAKE_CURRENT_BINARY_DIR}/templates.lua"
-	DESTINATION ${LUADIR}/${CMAKE_PROJECT_NAME})
+install (FILES ${luaSrc} "${CMAKE_CURRENT_BINARY_DIR}/${TEMPLATES_LUA}"
+	DESTINATION "${LUADIR}/${CMAKE_PROJECT_NAME}")
 install (FILES ${templateSrc}
 	DESTINATION ${TEMPLATE_PATH})

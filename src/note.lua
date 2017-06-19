@@ -110,4 +110,18 @@ function note.process(notes)
 	return result
 end
 
+--- Creates a empty notes table.
+--
+-- @return Empty notes table
+function note.empty()
+	return {
+		ignore = {},
+		ignore_pattern = {},
+		rename = {},
+		rename_pattern = {},
+		constants = {},
+		defs = {},
+	}
+end
+
 return note
