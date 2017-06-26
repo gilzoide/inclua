@@ -21,8 +21,8 @@ local templates = require 'inclua.templates'
 
 local info = {}
 
---- Module version 0.0.2
-info.VERSION = '0.0.2'
+--- Module version 0.0.3
+info.VERSION = '0.0.3'
 
 --- Executable info string
 info.INFO = string.format([[inclua version %s

@@ -51,7 +51,8 @@ void handleTypedef(visitData *data, CXCursor cursor) {
 	pushMethod(data, "__handleTypedef");
 	lua_pushstring(L, alias);
 	lua_pushinteger(L, underlying_hash);
-	lua_call(L, 3, 0);
+	pushType(L, underlying);
+	lua_call(L, 4, 0);
 }
 
 void handleEnum(visitData *data, CXCursor cursor) {

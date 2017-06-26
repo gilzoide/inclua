@@ -101,6 +101,7 @@ extern "C" {
 		lua_setfield(L, LUA_REGISTRYINDEX, INCLUA_KNOWN_TYPES);
 
 		lua_pushcfunction(L, visitHeader);
+
 		return 1;
 	}
 }

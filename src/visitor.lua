@@ -46,9 +46,11 @@ function Visitor:visitHeader(header, clang_args)
 	end
 end
 
-function Visitor:__handleTypedef(alias, ty_hash)
+function Visitor:__handleTypedef(alias, ty_hash, underlying)
 	if self.allDefs[ty_hash] then
-		self.allDefs[ty_hash].alias = alias
+		self.allDefs[ty_hash].name = alias
+	else
+		underlying.name = alias
 	end
 end
 

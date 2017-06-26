@@ -84,14 +84,14 @@ local function _include_yaml(result, filename, clang_args)
 		result.module = assert(header_conf.module, "Toplevel YAML document should have a 'module' field")
 	end
 
+	if header_conf.clang_args then tablex.insertvalues(clang_args, header_conf.clang_args) end
+	if header_conf.headers then tablex.insertvalues(result.headers, header_conf.headers) end
 	-- recurse YAML configurations
 	if header_conf.include then
 		for _, f in ipairs(header_conf.include) do
 			_include_yaml(result, f, clang_args)
 		end
 	end
-	if header_conf.clang_args then tablex.insertvalues(clang_args, header_conf.clang_args) end
-	if header_conf.headers then tablex.insertvalues(result.headers, header_conf.headers) end
 	if header_conf.ignore then tablex.insertvalues(result.notes.ignore, header_conf.ignore) end
 	if header_conf.ignore_pattern then tablex.insertvalues(result.notes.ignore_pattern, header_conf.ignore_pattern) end
 	if header_conf.rename then tablex.update(result.notes.rename, header_conf.rename) end
