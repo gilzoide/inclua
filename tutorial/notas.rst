@@ -103,7 +103,7 @@ Notas Para Argumentos
     .. code:: ebnf
 
          Output = 'out', [ espaço, libera ] ;
-         libera = 'free[', identificador, ']' ;
+         libera = 'free', [ espaço ], '=', [ espaço ], identificador;
          identificador = (letra | '_'), { (letra | numero | '_') } ;
 
 .. _inout:

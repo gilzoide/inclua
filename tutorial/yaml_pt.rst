@@ -1,6 +1,6 @@
 Gerando wrappers usando YAML
 ============================
-Uma alternativa a criar um script em python pra gerar código é descrever seu
+Uma alternativa a criar um script em lua para gerar código é descrever seu
 módulo usando YAML_ e usar o comando **inclua**. Para ajuda sobre como usar
 o comando, rode em seu shell::
 
@@ -30,13 +30,14 @@ Passo a passo:
       - meu_header.h
 
     # 3. informações gerais
-    ignore_regex :
+    ignore_pattern :
       - _.+
 
-    rename_regex :
+    rename_pattern :
       '^modulo_' : ''
 
     # é uma boa ideia incluir o caminho dos headers do clang, pra ele sacar `size_t`
+    # se você estiver usando inclua através do CMake, isso já estará garantido
     clang_args :
       - "-I/usr/lib/clang/3.9.0/include"
 
@@ -50,9 +51,7 @@ Passo a passo:
     # excluídos da memória, dentre outros.
     modulo_malloc : ignore
 
-    modulo_getXY :
-      rename: get_xy
-      notes: [in, out, out]
+    modulo_getXY : [in, out, out]
 
     modulo_somaVetor :
       - array[arg2] in

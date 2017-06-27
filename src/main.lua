@@ -43,11 +43,17 @@ parser:stop_on{
 	description = "prints program version and exit",
 	callback = function() print("Inclua version " .. inclua.VERSION); os.exit() end,
 }
+local usage = "Usage: inclua [-h|-v|-u] [-o OUTPUT] [-l LANGUAGE] input [clang-args...]"
+parser:stop_on{
+	"-u", "--usage",
+	description = "prints program usage and exit",
+	callback = function() print(usage); os.exit() end,
+}
 parser:stop_on{
 	"-h", "--help",
 	description = "show this help message and exit",
-	callback = function() parser:show_help([[
-Usage: inclua [-h] [-v] [-o OUTPUT] [-l LANGUAGE] input [clang-args...]
+	callback = function() parser:show_help(usage .. [[
+
 
 Inclua is a binding code generator, that binds (for now, only) C to Lua.
 

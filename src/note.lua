@@ -110,7 +110,7 @@ function note.process(notes)
 	return result
 end
 
---- Creates a empty notes table.
+--- Creates an empty notes table.
 --
 -- @return Empty notes table
 function note.empty()

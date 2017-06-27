@@ -1,29 +1,46 @@
 Inclua
 ======
 Wrapper generator for programming languages, INitially for binding C to LUA.
-Implemented as a Python library for portability, dinamicity and flexibility, as
+Implemented as a Lua library for portability, dinamicity and flexibility, as
 new language binders can be easily added. Using libclang so that that we don't
 need to worry about C/C++ parsing/preprocessing.
 
 
-Using directly from python
+Installing
+----------
+Using LuaRocks_ (preferred way)::
+
+    $ luarocks make
+
+Or directly with CMake_::
+
+    $ mkdir build
+    $ cd build
+    $ cmake ..
+    $ make
+    $ make install
+
+.. _LuaRocks: https://luarocks.org/
+.. _CMake: http://cmake.org/
+
+Using directly from Lua
 --------------------------
-Import, setup, generate!
+Require, generate!
 
-.. code:: python
+.. code:: lua
 
-    # File wrapper_generator.py
-    from inclua import *
-    import inclua.lua # register Lua generator
-
-    my_module = Generator ('module_name')
-    my_module.add_header ('module.h') # at least one. It can be a '.c' file as well
-    # anotate your arrays, output arguments, ignore symbols, rename stuff...
-    my_module.generate ('lua')
+    -- File wrapper_generator.lua
+    local inclua = require 'inclua'
+    local code = inclua.generate("module_name",  -- Module name
+                                 "lua",          -- Target language
+                                 {"module.h"},   -- Header files to process
+                                 {},             -- Arguments to libclang parser
+                                 {})             -- Notes about your API
+    print(code)
 
 On your shell::
 
-    $ python wrapper_generator.py
+    $ lua wrapper_generator.lua > wrapper.cpp
 
 
 Using the standalone
@@ -47,8 +64,7 @@ On your shell::
 
 Tutorial
 --------
-Tutorials on creating wrappers, either using the python lib or the standalone
-YAML version, and for creating **Generators** yourself, are available in the
-tutorial_.
+Tutorials on creating wrappers, either using the lua lib or the standalone
+YAML version, are available in the tutorial_.
 
 .. _tutorial: https://github.com/gilzoide/inclua/blob/master/tutorial/index.rst

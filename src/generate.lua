@@ -39,7 +39,7 @@ local generate = {}
 -- @tparam table notes Extra notes on the information gathered on the headers
 --
 -- @treturn string Wrapper code
-function generate.generate(module_name, language, headers, clang_args, notes)
+function generate:__call(module_name, language, headers, clang_args, notes)
 	local language_template = assert(templates.load(language))
 
 	-- visit the wanted headers
@@ -120,7 +120,7 @@ function generate.from_yaml(filename, language, clang_args)
 	local result = {headers = {}, notes = note.empty()}
 	_include_yaml(result, filename, clang_args)
 
-	return generate.generate(result.module, language, result.headers, clang_args, result.notes)
+	return generate(result.module, language, result.headers, clang_args, result.notes)
 end
 
-return generate
+return setmetatable(generate, generate)

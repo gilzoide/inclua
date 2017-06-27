@@ -1,6 +1,6 @@
 Como Inclua funciona?
 =====================
-Inclua é uma biblioteca escrita em Python para geração automática de código
+Inclua é uma biblioteca escrita em Lua e C++ para geração automática de código
 *wrapper* ligando C/C++ a alguma outra linguagem, geralmente de *script* como
 Lua, Python ou Ruby.
 
@@ -12,8 +12,8 @@ Python fáceis de manipular e com a informação necessária para criar
 .. _libclang: http://clang.llvm.org/
 
 
-Classes e conceitos importantes
--------------------------------
+Conceitos importantes
+---------------------
 **Generator (Gerador)**
     *Generator* é a classe que gerencia a geração de código. Ela mantém as
     informações coletadas sobre declarações importantes do código C processado
