@@ -42,6 +42,11 @@ macro (INCLUA_ADD_MODULE name language input_file)
 		list (APPEND _inclua_compile_definitions "-D${def}")
 	endforeach ()
 
+	execute_process (COMMAND ${INCLUA_EXECUTABLE} -d ${_inclua_input} ${_inclua_include_flags}
+		OUTPUT_VARIABLE _inclua_dependencies
+		OUTPUT_STRIP_TRAILING_WHITESPACE)
+	string (REGEX REPLACE "\n" ";" _inclua_dependencies "${_inclua_dependencies}")
+
 	# Other flags
 	set (_inclua_compile_options ${INCLUA_COMPILE_OPTIONS} ${ARGN})
 
@@ -54,7 +59,7 @@ macro (INCLUA_ADD_MODULE name language input_file)
 			${_inclua_include_flags}
 			${_inclua_compile_definitions}
 			${_inclua_compile_options}
-		DEPENDS ${_inclua_input}
+		DEPENDS ${_inclua_dependencies}
 		COMMENT "Inclua module definition")
 	# proxy name for target
 	set (INCLUA_${name}_WRAPPER ${name})

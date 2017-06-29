@@ -71,9 +71,10 @@ local header_conf_keys = Set{'module', 'clang_args', 'headers', 'include',
 --- Process a single YAML configuration file.
 --
 -- @local
-local function _include_yaml(result, filename, clang_args)
+local function _include_yaml(result, filename, clang_args, find_dependencies_only)
 	local filepath, err = find_file(filename, clang_args)
 	assert(filepath, string.format("Couldn't find YAML file %q. Tried in %s", filename, err))
+	if find_dependencies_only then table.insert(result, filepath) end
 
 	local contents = assert(io.open(filepath, "r")):read('*a')
 	contents, err = yaml.load(contents, {all = true})
@@ -89,23 +90,27 @@ local function _include_yaml(result, filename, clang_args)
 	-- recurse YAML configurations
 	if header_conf.include then
 		for _, f in ipairs(header_conf.include) do
-			_include_yaml(result, f, clang_args)
+			_include_yaml(result, f, clang_args, find_dependencies_only)
 		end
 	end
-	if header_conf.ignore then tablex.insertvalues(result.notes.ignore, header_conf.ignore) end
-	if header_conf.ignore_pattern then tablex.insertvalues(result.notes.ignore_pattern, header_conf.ignore_pattern) end
-	if header_conf.rename then tablex.update(result.notes.rename, header_conf.rename) end
-	if header_conf.rename_pattern then tablex.update(result.notes.rename_pattern, header_conf.rename_pattern) end
-	if header_conf.constants then tablex.update(result.notes.constants, header_conf.constants) end
 
-	local definitions_conf
-	if contents[2] then
-		definitions_conf = contents[2]
-	else
-		definitions_conf = tablex.difference(header_conf, header_conf_keys)
-	end
-	for k, v in pairs(definitions_conf) do
-		result.notes.defs[k] = v
+	-- only read definitions if not looking for dependencies
+	if not find_dependencies_only then
+		if header_conf.ignore then tablex.insertvalues(result.notes.ignore, header_conf.ignore) end
+		if header_conf.ignore_pattern then tablex.insertvalues(result.notes.ignore_pattern, header_conf.ignore_pattern) end
+		if header_conf.rename then tablex.update(result.notes.rename, header_conf.rename) end
+		if header_conf.rename_pattern then tablex.update(result.notes.rename_pattern, header_conf.rename_pattern) end
+		if header_conf.constants then tablex.update(result.notes.constants, header_conf.constants) end
+
+		local definitions_conf
+		if contents[2] then
+			definitions_conf = contents[2]
+		else
+			definitions_conf = tablex.difference(header_conf, header_conf_keys)
+		end
+		for k, v in pairs(definitions_conf) do
+			result.notes.defs[k] = v
+		end
 	end
 end
 
@@ -116,11 +121,30 @@ end
 -- @tparam table clang_args Arguments passed to libclang on parsing
 --
 -- @treturn string Wrapper code
-function generate.from_yaml(filename, language, clang_args)
+function generate.from_yaml(filename, clang_args, language)
 	local result = {headers = {}, notes = note.empty()}
 	_include_yaml(result, filename, clang_args)
 
 	return generate(result.module, language, result.headers, clang_args, result.notes)
+end
+
+--- Find which files the input depends on.
+--
+-- This is very useful for build systems dependency management.
+--
+-- @tparam string filename  Root YAML file name
+-- @tparam table clang_args Arguments passed to libclang on parsing
+--
+-- @treturn table List of dependency files
+function generate.dependencies_from_yaml(filename, clang_args)
+	local result = {headers = {}}
+	_include_yaml(result, filename, clang_args, true)
+	for _, h in ipairs(result.headers) do
+		local filepath, err = find_file(h, clang_args)
+		assert(filepath, string.format("Couldn't find header file %q. Tried in %s", h, err))
+		table.insert(result, filepath)
+	end
+	return table.concat(result, '\n')
 end
 
 return setmetatable(generate, generate)

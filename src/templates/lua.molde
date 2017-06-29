@@ -277,6 +277,13 @@ template<> void *inclua_check(lua_State *L, int arg) {
 		return *(inclua_check<record_name *>(L, arg)); \
 	}
 
+int inclua_record_eq(lua_State *L) {
+	void *obj1 = inclua_check<void *>(L, 1);
+	void *obj2 = inclua_check<void *>(L, 2);
+	lua_pushboolean(L, obj1 == obj2);
+	return 1;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 //  Enums
 ////////////////////////////////////////////////////////////////////////////////
@@ -528,10 +535,13 @@ void inclua_register_{{ normalized }}(lua_State *L) {
 {%   if is_opaque(r) then %}
 		lua_pushvalue (L, -1);
 		lua_setfield(L, -2, "__index");
+		lua_pushcfunction(L, inclua_record_eq);
+		lua_setfield(L, -2, "__eq");
 {%   else %}
 		const luaL_Reg metamethods[] = {
 			{ "__index", inclua_index_{{ normalized }} },
 			{ "__newindex", inclua_new_index_{{ normalized }} },
+			{ "__eq", inclua_record_eq },
 {%     if not is_anonymous(r) then %}
 			{ "new", inclua_push_new_{{ normalized }} },
 {%     end %}

@@ -29,7 +29,7 @@ local opts = {
 parser:on{
 	"-o", "--output",
 	arg = "OUTPUT",
-	description = "output wrapper file (default: stdout)",
+	description = "output file (default: stdout)",
 	store = opts,
 }
 parser:on{
@@ -38,12 +38,20 @@ parser:on{
 	description = "binding target language (default: lua)",
 	store = opts,
 }
+parser:on{
+	"-d", "--dependencies",
+	description = "find which files the input depends on, useful for build systems dependency management",
+	store = opts,
+}
 parser:stop_on{
 	"-v", "--version",
 	description = "prints program version and exit",
 	callback = function() print("Inclua version " .. inclua.VERSION); os.exit() end,
 }
-local usage = "Usage: inclua [-h|-v|-u] [-o OUTPUT] [-l LANGUAGE] input [clang-args...]"
+local usage = [[
+Usage: inclua [-o OUTPUT] [-l LANGUAGE] input [clang-args...]
+       inclua [-o OUTPUT] [-d] input [clang-args...]
+       inclua (-h|-v|-u)]]
 parser:stop_on{
 	"-u", "--usage",
 	description = "prints program usage and exit",
@@ -76,4 +84,5 @@ else
 end
 
 local input = table.remove(args, 1)
-opts.OUTPUT:write(inclua.generate.from_yaml(input, opts.LANGUAGE, args))
+local operation = inclua.generate[opts['-d'] and 'dependencies_from_yaml' or 'from_yaml']
+opts.OUTPUT:write(operation(input, args, opts.LANGUAGE))

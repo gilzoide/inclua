@@ -38,7 +38,7 @@ Visitor.__index = Visitor
 function Visitor:visitHeader(header, clang_args)
 	local header_path, err = find_file(header, clang_args)
 	if not header_path then
-		return nil, "Couldn't find header \"" .. header .. '". Tried in ("' .. err .. '")'
+		return nil, string.format("Couldn't find header file %q. Tried in %s", header, err)
 	elseif cppVisitHeader(self, header_path, clang_args) then
 		return true
 	else
