@@ -1,39 +1,34 @@
-## Inclua build/install script ##
-
 from setuptools import setup, find_packages
 from codecs import open
 
-# get Inclua version
-from inclua.GeneralInfo import version
+with open('README.rst', encoding='utf-8') as readme:
+    long_description = readme.read()
 
-with open ('README.rst', encoding = 'utf-8') as readme:
-    long_description = readme.read ()
+setup(
+    name='inclua',
+    version='0.1.3',
+    description='C/C++ to scripting languages wrapper generator, INitialy for binding C to LUA',
+    long_description=long_description,
 
-setup (
-    name = 'inclua',
-    version = version,
-    description = 'C/C++ to scripting languages wrapper generator, INitialy for binding C to LUA',
-    long_description = long_description,
+    url='https://github.com/gilzoide/inclua',
+    author='gilzoide',
+    author_email='gilzoide@gmail.com',
 
-    url = 'https://github.com/gilzoide/inclua',
-    author = 'gilzoide',
-    author_email = 'gilzoide@gmail.com',
-
-    license = 'GPLv3',
-    classifiers = [
+    license='GPLv3',
+    classifiers=[
         'Development Status :: 3 - Alpha',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)',
         'Programming Language :: Python :: 2',
         'Programming Language :: Python :: 3',
     ],
-    keywords = 'language bindings development',
-    install_requires = ['libclang-py3', 'PyYAML'],
+    keywords='language bindings development',
+    install_requires=['c_api_extract', 'docopt'],
 
-    packages = find_packages (),
-    entry_points = {
-        'console_scripts' : [
-            'inclua = inclua:main',
+    packages=find_packages(),
+    entry_points={
+        'console_scripts': [
+            'inclua = inclua.__main__:main',
         ]
     },
 )
