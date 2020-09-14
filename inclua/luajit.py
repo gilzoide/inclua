@@ -7,6 +7,7 @@ import re
 import c_api_extract
 
 from inclua.notice import lua_notice
+from inclua.metatype import Metatype
 
 
 def _c_code_from_def(d):
@@ -65,51 +66,28 @@ return {return_value}
 def _cdef(definitions):
     return '\n'.join(_c_code_from_def(d) for d in definitions)
 
-def _gen_metatype(definition):
-    return {
-        'typename': definition.get('typedef') or '{kind} {name}'.format(**definition),
-        'opaque': not definition.get('fields'),
-        'name': definition.get('typedef') or t.get('name'),
-        'methods': [],
-    }
-
 def _stringify_metatype(metatype):
-    name = metatype['name']
-    definitions = ['  __name = {},'.format(name)]
-    if metatype.get('__gc'):
-        definitions.append('  __gc = {},'.format(metatype['__gc']))
-    if metatype.get('methods'):
-        replace_method_name_re = re.compile(r'_?{}'.format(name))
+    definitions = ['  __name = {!r},'.format(metatype.name)]
+    if metatype.destructor:
+        definitions.append('  __gc = c_lib.{},'.format(metatype.destructor['name']))
+    if metatype.methods:
+        replace_method_name_re = re.compile(r'_?{}'.format(metatype.name))
         methods = '\n'.join('    {new_method_name} = c_lib.{method_name},'.format(
-                method_name=method_name,
-                new_method_name=replace_method_name_re.sub('', method_name)
+                method_name=method['name'],
+                new_method_name=replace_method_name_re.sub('', method['name'], count=1).lstrip('_')
             )
-            for method_name in metatype['methods'])
+            for method in metatype.methods)
         definitions.append('  __index = {{\n{}\n  }},'.format(methods))
     return 'lua_lib.{name} = ffi.metatype({record_name!r}, {{\n{definitions}\n}})'.format(
-        name=name,
-        record_name=metatype['typename'],
+        name=metatype.name,
+        record_name=metatype.spelling,
         definitions='\n'.join(definitions),
     )
 
 def _metatypes(definitions):
-    record_types = {(t.get('typedef') or t.get('name')): _gen_metatype(t)
-                    for t in definitions if t['kind'] in ('struct', 'union') }
-    gc_re = re.compile(r'release|destroy|unload|deinit|finalize', flags=re.I)
-    for f in definitions:
-        try:
-            metatype = record_types[f['arguments'][0][0]]
-            if metatype['name'] not in f['name']:
-                continue
-            if len(f['arguments']) == 1 and gc_re.search(f['name']):
-                metatype['__gc'] = f['name']
-            else:
-                metatype['methods'].append(f['name'])
-        except (KeyError, IndexError):
-            pass
-
+    metatypes = Metatype.from_definitions(definitions)
     return "\nlocal lua_lib = setmetatable({{ c_lib = c_lib }}, {{ __index = c_lib }})\n{metatypes}\n".format(
-        metatypes='\n'.join(_stringify_metatype(metatype) for metatype in record_types.values()),
+        metatypes='\n'.join(_stringify_metatype(metatype) for metatype in metatypes),
     )
 
 def generate(definitions, module_name, import_global=False, generate_metatypes=False):

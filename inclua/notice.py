@@ -5,7 +5,7 @@ notice_lines = [
     "",
     "The Inclua team hopes this file was accurately generated, that it will be useful",
     "and will never give SEGFAULTs, throw exceptions, or panic in a similar way.",
-    "This file is distributed without any warranty.",
+    "This software is provided 'as-is', without any warranty.",
     "Feel free to change and redistribute it.",
 ]
 
