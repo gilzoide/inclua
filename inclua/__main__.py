@@ -1,6 +1,6 @@
 """
 Usage:
-  inclua <input> [-m <module_name>] [-g] [-t] [-p <pattern>...] [-- <clang_args>...]
+  inclua <input> [-m <module_name>] [-g] [-t] [-n <namespace>...] [-p <pattern>...] [-- <clang_args>...]
   inclua -h
 
 Options:
@@ -11,6 +11,8 @@ Options:
   -g, --global                                Import C definitions into the global table.
   -t, --metatypes                             Create metatypes for struct definitions and try to populate __index and __gc
                                               based on functions name and arguments.
+  -n <namespace>, --namespace=<namespace>     Namespace prefixes used in C declarations, used to remove the redundant prefix
+                                              in languages that support namespacing.
 """
 
 from pathlib import PurePath
@@ -32,6 +34,7 @@ def main():
         module_name,
         import_global=opts.get('--global'),
         generate_metatypes=opts.get('--metatypes'),
+        namespace_prefixes=opts.get('--namespace'),
     )
     signal(SIGPIPE, SIG_DFL)
     print(code)

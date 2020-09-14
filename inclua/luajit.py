@@ -59,8 +59,10 @@ ffi.cdef[=[
 ]=]
 
 local c_lib = ffi.load({lib_name!r}, {import_global})
+local lua_lib = setmetatable({{ c_lib = c_lib }}, {{ __index = c_lib }})
 {metatypes}
-return {return_value}
+{namespaced_defs}
+return lua_lib
 """
 
 def _cdef(definitions):
@@ -86,18 +88,37 @@ def _stringify_metatype(metatype):
 
 def _metatypes(definitions):
     metatypes = Metatype.from_definitions(definitions)
-    return "\nlocal lua_lib = setmetatable({{ c_lib = c_lib }}, {{ __index = c_lib }})\n{metatypes}\n".format(
-        metatypes='\n'.join(_stringify_metatype(metatype) for metatype in metatypes),
-    )
+    return '\n'.join(_stringify_metatype(metatype) for metatype in metatypes)
 
-def generate(definitions, module_name, import_global=False, generate_metatypes=False):
+def _namespaced_defs(definitions, namespace_prefixes):
+    if not namespace_prefixes:
+        return ''
+
+    prefixed = {}
+    for d in definitions:
+        name = d.get('typedef') or d['name']
+        if d['kind'] in ('typedef', 'enum') or name in prefixed:
+            continue
+        try:
+            namespace = next(prefix for prefix in namespace_prefixes if name.startswith(prefix))
+            prefixed[name] = name[len(namespace):]
+        except StopIteration:
+            pass
+    return '\n'.join('lua_lib.{unprefixed} = lua_lib.{name}'.format(
+            name=name,
+            unprefixed=unprefixed
+        ) for name, unprefixed in prefixed.items())
+
+def generate(definitions, module_name, import_global=False, generate_metatypes=False, namespace_prefixes=[]):
     lib_name = module_name
     cdef = _cdef(definitions)
     metatypes = _metatypes(definitions) if generate_metatypes else ''
+    namespaced_defs = _namespaced_defs(definitions, namespace_prefixes)
     return template.format(
         cdef=cdef,
         lib_name=lib_name,
         import_global='true' if import_global else 'false',
         metatypes=metatypes,
+        namespaced_defs=namespaced_defs,
         return_value='lua_lib' if generate_metatypes else 'c_lib',
     )
