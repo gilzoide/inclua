@@ -9,9 +9,6 @@ import c_api_extract
 from inclua.notice import lua_notice
 
 
-def _remove_prefix(s, prefix):
-    return s[s.startswith(prefix) and len(prefix):]
-
 def _c_code_from_def(d):
     """Generate standardized C definitions code"""
     kind = d['kind']
@@ -23,7 +20,7 @@ def _c_code_from_def(d):
         return '{maybe_typedef}{kind} {name}{open_braces}{fields}{close_braces}{maybe_alias};'.format(
             maybe_typedef='typedef ' if typedef else '',
             kind=kind,
-            name=_remove_prefix(d['name'], kind),
+            name=d['name'],
             open_braces=' {\n' if fields else '',
             fields='\n'.join('  {};'.format(c_api_extract.typed_declaration(*f)) for f in fields),
             close_braces='\n}' if fields else '',
@@ -34,7 +31,7 @@ def _c_code_from_def(d):
         return '{maybe_typedef}{kind} {name} {{\n{values}\n}}{maybe_alias};'.format(
             maybe_typedef='typedef ' if typedef else '',
             kind=kind,
-            name=_remove_prefix(d['name'], kind),
+            name=d['name'],
             values='\n'.join('  {0} = {1},'.format(*v) for v in d['values']),
             maybe_alias=' ' + typedef if typedef else '',
         )
@@ -60,43 +57,69 @@ ffi.cdef[=[
 {cdef}
 ]=]
 
-return ffi.load({lib_name!r}, {import_global})
+local c_lib = ffi.load({lib_name!r}, {import_global})
+{metatypes}
+return {return_value}
 """
-
-def _module_name(module_name):
-    return re.sub('[^_a-zA-Z]', '_', module_name)
-
-def _raw_module_name(module_name):
-    return 'c_' + module_name
 
 def _cdef(definitions):
     return '\n'.join(_c_code_from_def(d) for d in definitions)
 
-def _include_in_metatypes(definition):
-    return definition['kind'] in ('struct', 'union')
+def _gen_metatype(definition):
+    return {
+        'typename': definition.get('typedef') or '{kind} {name}'.format(**definition),
+        'opaque': not definition.get('fields'),
+        'name': definition.get('typedef') or t.get('name'),
+        'methods': [],
+    }
 
-def _metatypes(definitions, module_name):
-    included_definitions = []
-    for d in definitions:
-        if _include_in_metatypes(d):
-            typename = d.get('typedef') or d.get('name')
-            symbol = _remove_prefix(typename, d['kind'] + ' ')
-            code = r"{module_name}.{symbol} = ffi.metatype({typename!r}, {{}})".format(
-                module_name=module_name,
-                typename=typename,
-                symbol=symbol,
+def _stringify_metatype(metatype):
+    name = metatype['name']
+    definitions = ['  __name = {},'.format(name)]
+    if metatype.get('__gc'):
+        definitions.append('  __gc = {},'.format(metatype['__gc']))
+    if metatype.get('methods'):
+        replace_method_name_re = re.compile(r'_?{}'.format(name))
+        methods = '\n'.join('    {new_method_name} = c_lib.{method_name},'.format(
+                method_name=method_name,
+                new_method_name=replace_method_name_re.sub('', method_name)
             )
-            included_definitions.append(code)
-    return '\n'.join(included_definitions)
+            for method_name in metatype['methods'])
+        definitions.append('  __index = {{\n{}\n  }},'.format(methods))
+    return 'lua_lib.{name} = ffi.metatype({record_name!r}, {{\n{definitions}\n}})'.format(
+        name=name,
+        record_name=metatype['typename'],
+        definitions='\n'.join(definitions),
+    )
 
-def generate(definitions, module_name, import_global):
+def _metatypes(definitions):
+    record_types = {(t.get('typedef') or t.get('name')): _gen_metatype(t)
+                    for t in definitions if t['kind'] in ('struct', 'union') }
+    gc_re = re.compile(r'release|destroy|unload|deinit|finalize', flags=re.I)
+    for f in definitions:
+        try:
+            metatype = record_types[f['arguments'][0][0]]
+            if metatype['name'] not in f['name']:
+                continue
+            if len(f['arguments']) == 1 and gc_re.search(f['name']):
+                metatype['__gc'] = f['name']
+            else:
+                metatype['methods'].append(f['name'])
+        except (KeyError, IndexError):
+            pass
+
+    return "\nlocal lua_lib = setmetatable({{ c_lib = c_lib }}, {{ __index = c_lib }})\n{metatypes}\n".format(
+        metatypes='\n'.join(_stringify_metatype(metatype) for metatype in record_types.values()),
+    )
+
+def generate(definitions, module_name, import_global=False, generate_metatypes=False):
     lib_name = module_name
-    module_name = _module_name(module_name)
     cdef = _cdef(definitions)
-    raw_module_name = _raw_module_name(module_name)
-    metatypes = _metatypes(definitions, module_name)
+    metatypes = _metatypes(definitions) if generate_metatypes else ''
     return template.format(
         cdef=cdef,
         lib_name=lib_name,
         import_global='true' if import_global else 'false',
+        metatypes=metatypes,
+        return_value='lua_lib' if generate_metatypes else 'c_lib',
     )
