@@ -4,32 +4,27 @@ Binding generation for LuaJIT FFI.
 
 import re
 
+import c_api_extract
+
 
 def _remove_prefix(s, prefix):
     return s[s.startswith(prefix) and len(prefix):]
-
-type_pointer_array_re = re.compile(r'([^[]+)?(\[.*\])?')
-def _type_name(type, name):
-    m = type_pointer_array_re.match(type)
-    return '{non_array}{maybe_space}{name}{maybe_array}'.format(
-        non_array=m.group(1),
-        maybe_space='' if m.group(2) else ' ',
-        name=name,
-        maybe_array=m.group(2) or '',
-    )
 
 def _c_code_from_def(d):
     """Generate standardized C definitions code"""
     kind = d['kind']
     if kind == 'var':
-        return '{type} {name};'.format(**d)
+        return c_api_extract.typed_declaration(d['type'], d['name']) + ';'
     elif kind in ('struct', 'union'):
         typedef = d.get('typedef')
-        return '{maybe_typedef}{kind} {name} {{\n{fields}\n}}{maybe_alias};'.format(
+        fields = d.get('fields')
+        return '{maybe_typedef}{kind} {name}{open_braces}{fields}{close_braces}{maybe_alias};'.format(
             maybe_typedef='typedef ' if typedef else '',
             kind=kind,
             name=_remove_prefix(d['name'], kind),
-            fields='\n'.join('  {};'.format(_type_name(*f)) for f in d['fields']),
+            open_braces=' {\n' if fields else '',
+            fields='\n'.join('  {};'.format(c_api_extract.typed_declaration(*f)) for f in fields),
+            close_braces='\n}' if fields else '',
             maybe_alias=' ' + typedef if typedef else '',
         )
     elif kind == 'enum':
@@ -45,7 +40,7 @@ def _c_code_from_def(d):
         return '{return_type} {name}({arguments});'.format(
             return_type=d['return_type'],
             name=d['name'],
-            arguments=', '.join(_type_name(*a) for a in d['arguments']),
+            arguments=', '.join(c_api_extract.typed_declaration(*a) for a in d['arguments']),
         )
     elif kind == 'typedef':
         type = d['type']

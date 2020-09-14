@@ -23,7 +23,7 @@ setup(
         'Programming Language :: Python :: 3',
     ],
     keywords='language bindings development',
-    install_requires=['c_api_extract', 'docopt'],
+    install_requires=['c_api_extract >= 0.3', 'docopt'],
 
     packages=find_packages(),
     entry_points={
