@@ -2,10 +2,12 @@
 Binding generation for LuaJIT FFI.
 """
 
+import itertools
 import re
 
 import c_api_extract
 
+from inclua.namespace import canonicalize
 from inclua.notice import lua_notice
 from inclua.metatype import Metatype
 
@@ -68,27 +70,33 @@ return lua_lib
 def _cdef(definitions):
     return '\n'.join(_c_code_from_def(d) for d in definitions)
 
-def _stringify_metatype(metatype):
+def _stringify_metatype(metatype, namespace_prefixes):
     definitions = ['  __name = {!r},'.format(metatype.name)]
     if metatype.destructor:
         definitions.append('  __gc = c_lib.{},'.format(metatype.destructor['name']))
-    if metatype.methods:
-        replace_method_name_re = re.compile(r'_?{}'.format(metatype.name))
-        methods = '\n'.join('    {new_method_name} = c_lib.{method_name},'.format(
-                method_name=method['name'],
-                new_method_name=replace_method_name_re.sub('', method['name'], count=1).lstrip('_')
-            )
-            for method in metatype.methods)
-        definitions.append('  __index = {{\n{}\n  }},'.format(methods))
+    __index = []
+    processed_names = set()
+    replace_method_name_re = re.compile(r'_?{0}'.format(metatype.unprefixed))
+    for method in itertools.chain(metatype.constructors, metatype.methods):
+        name = canonicalize(method['name'], namespace_prefixes)
+        if name in processed_names:
+            continue
+        processed_names.add(name)
+        __index.append('    {new_method_name} = c_lib.{method_name},'.format(
+            method_name=method['name'],
+            new_method_name=replace_method_name_re.sub('', name, count=1).lstrip('_')
+        ))
+    if __index:
+        definitions.append('  __index = {{\n{}\n}}'.format('\n'.join(__index)))
     return 'lua_lib.{name} = ffi.metatype({record_name!r}, {{\n{definitions}\n}})'.format(
-        name=metatype.name,
+        name=metatype.unprefixed,
         record_name=metatype.spelling,
         definitions='\n'.join(definitions),
     )
 
-def _metatypes(definitions):
-    metatypes = Metatype.from_definitions(definitions)
-    return '\n'.join(_stringify_metatype(metatype) for metatype in metatypes)
+def _metatypes(definitions, namespace_prefixes):
+    metatypes = Metatype.from_definitions(definitions, namespace_prefixes)
+    return '\n'.join(_stringify_metatype(metatype, namespace_prefixes) for metatype in metatypes)
 
 def _namespaced_defs(definitions, namespace_prefixes):
     if not namespace_prefixes:
@@ -97,13 +105,11 @@ def _namespaced_defs(definitions, namespace_prefixes):
     prefixed = {}
     for d in definitions:
         name = d.get('typedef') or d['name']
-        if d['kind'] in ('typedef', 'enum') or name in prefixed:
+        if d['kind'] in ('typedef', 'enum', 'struct', 'union') or name in prefixed:
             continue
-        try:
-            namespace = next(prefix for prefix in namespace_prefixes if name.startswith(prefix))
-            prefixed[name] = name[len(namespace):]
-        except StopIteration:
-            pass
+        canonicalized = canonicalize(name, namespace_prefixes)
+        if name != canonicalized:
+            prefixed[name] = canonicalized
     return '\n'.join('lua_lib.{unprefixed} = lua_lib.{name}'.format(
             name=name,
             unprefixed=unprefixed
@@ -112,7 +118,7 @@ def _namespaced_defs(definitions, namespace_prefixes):
 def generate(definitions, module_name, import_global=False, generate_metatypes=False, namespace_prefixes=[]):
     lib_name = module_name
     cdef = _cdef(definitions)
-    metatypes = _metatypes(definitions) if generate_metatypes else ''
+    metatypes = _metatypes(definitions, namespace_prefixes) if generate_metatypes else ''
     namespaced_defs = _namespaced_defs(definitions, namespace_prefixes)
     return template.format(
         cdef=cdef,
