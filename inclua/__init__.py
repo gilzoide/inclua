@@ -1,2 +1,2 @@
 __version__ = '0.1.3'
-__all__ = ['luajit']
+__all__ = ['luajit', 'notice']

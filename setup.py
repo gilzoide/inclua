@@ -1,5 +1,5 @@
-from setuptools import setup, find_packages
 from codecs import open
+from setuptools import setup, find_packages
 
 with open('README.rst', encoding='utf-8') as readme:
     long_description = readme.read()
