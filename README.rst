@@ -18,3 +18,6 @@ Check out the help for more information on arguments::
     $ inclua -h
 
 
+It is recommended to pass `-I <path to clang headers>` to *clang* to correctly
+include some standard headers like **stddef.h** and **stdbool.h**.
+
