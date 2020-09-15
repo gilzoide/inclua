@@ -74,20 +74,16 @@ def _stringify_metatype(metatype, namespace_prefixes):
     definitions = ['  __name = {!r},'.format(metatype.name)]
     if metatype.destructor:
         definitions.append('  __gc = c_lib.{},'.format(metatype.destructor['name']))
-    __index = []
-    processed_names = set()
-    replace_method_name_re = re.compile(r'_?{0}'.format(metatype.unprefixed))
-    for method in itertools.chain(metatype.constructors, metatype.methods):
-        name = canonicalize(method['name'], namespace_prefixes)
-        if name in processed_names:
-            continue
-        processed_names.add(name)
-        __index.append('    {new_method_name} = c_lib.{method_name},'.format(
-            method_name=method['name'],
-            new_method_name=replace_method_name_re.sub('', name, count=1).lstrip('_')
-        ))
-    if __index:
-        definitions.append('  __index = {{\n{}\n}}'.format('\n'.join(__index)))
+    if metatype.methods:
+        definitions.append('  __index = {')
+        replace_method_name_re = re.compile(r'_?{0}'.format(metatype.unprefixed))
+        for method in metatype.methods:
+            canonicalized_name = canonicalize(method['name'], namespace_prefixes)
+            definitions.append('    {new_method_name} = c_lib.{method_name},'.format(
+                method_name=method['name'],
+                new_method_name=replace_method_name_re.sub('', canonicalized_name, count=1).lstrip('_')
+            ))
+        definitions.append('  },')
     return 'lua_lib.{name} = ffi.metatype({record_name!r}, {{\n{definitions}\n}})'.format(
         name=metatype.unprefixed,
         record_name=metatype.spelling,

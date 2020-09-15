@@ -17,7 +17,6 @@ class Metatype:
         self.name = definition.get('typedef') or t.get('name')
         self.unprefixed = canonicalize(self.name, namespace_prefixes)
         self.methods = []
-        self.constructors = []
         self.destructor = None
 
     @classmethod
@@ -26,14 +25,6 @@ class Metatype:
         metatype_by_name = { t.name: t for t in metatypes }
         destructor_re = re.compile(r'release|destroy|unload|deinit|finalize', flags=re.I)
         for f in definitions:
-            try:
-                return_type = c_api_extract.base_type(f['return_type'])
-                metatype = metatype_by_name[return_type]
-                if metatype.unprefixed in f['name']:
-                    metatype.constructors.append(f)
-            except KeyError:
-                pass
-
             try:
                 first_argument_base = c_api_extract.base_type(f['arguments'][0][0])
                 metatype = metatype_by_name[first_argument_base]
