@@ -14,7 +14,7 @@ class Metatype:
         self.definition = definition
         self.spelling = definition.get('typedef') or '{kind} {name}'.format(**definition)
         self.opaque = not definition.get('fields')
-        self.name = definition.get('typedef') or t.get('name')
+        self.name = definition.get('typedef') or definition.get('name')
         self.unprefixed = canonicalize(self.name, namespace_prefixes)
         self.methods = []
         self.destructor = None
@@ -23,7 +23,7 @@ class Metatype:
     def from_definitions(cls, definitions, namespace_prefixes):
         metatypes = [cls(t, namespace_prefixes) for t in definitions if t['kind'] in ('struct', 'union')]
         metatype_by_name = { t.name: t for t in metatypes }
-        destructor_re = re.compile(r'release|destroy|unload|deinit|finalize', flags=re.I)
+        destructor_re = re.compile(r'release|destroy|unload|deinit|finalize|dispose', flags=re.I)
         for f in definitions:
             try:
                 first_argument_base = c_api_extract.base_type(f['arguments'][0][0])

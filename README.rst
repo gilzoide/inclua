@@ -1,7 +1,7 @@
 Inclua
 ======
 Wrapper generator from C to scripting languages, currently supporting LuaJIT_ FFI only.
-This uses clang_ via c_api_extract_ for parsing and understanding C header files.
+It uses clang_ via c_api_extract_ for parsing and understanding C header files.
 
 .. _LuaJIT: https://luajit.org/
 .. _clang: https://pypi.org/project/clang/

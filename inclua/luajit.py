@@ -45,8 +45,8 @@ def _c_code_from_def(d):
             arguments=', '.join(c_api_extract.typed_declaration(*a) for a in d['arguments']),
         )
     elif kind == 'typedef':
-        type = d['type']
-        if type.startswith('struct') or type.startswith('union') or type.startswith('enum'):
+        # pure enum/struct/union typedefs are already handled by their declarations
+        if re.match(r'(struct|union|enum)\s+\S+$', d['type']):
             return ''
         else:
             return d['source'] + ';'
