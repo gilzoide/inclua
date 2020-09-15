@@ -1,54 +1,20 @@
 Inclua
 ======
-Wrapper generator for scripting languages, INitially for binding C to LUA.
-Implemented as a Python library for portability, dinamicity and flexibility, as
-new language binders can be easily added. Using libclang so that that we don't
-need to worry about C/C++ parsing/preprocessing.
+Wrapper generator from C to scripting languages, currently supporting LuaJIT_ FFI only.
+This uses clang_ via c_api_extract_ for parsing and understanding C header files.
 
+.. _LuaJIT: https://luajit.org/
+.. _clang: https://pypi.org/project/clang/
+.. _c_api_extract: https://pypi.org/project/c-api-extract/
 
-Using directly from python
---------------------------
-Import, setup, generate!
-
-.. code:: python
-
-    # File wrapper_generator.py
-    from inclua import *
-    import inclua.lua # register Lua generator
-
-    my_module = Generator ('module_name')
-    my_module.add_header ('module.h') # at least one. It can be a '.c' file as well
-    # anotate your arrays, output arguments, ignore symbols, rename stuff...
-    my_module.generate ('lua')
-
+Usage
+-----
 On your shell::
 
-    $ python wrapper_generator.py
+    $ inclua <input> [-m <module_name>] [-p <pattern>...] [-n <namespace>...] [-g] [--no-metatypes] [-- <clang_args>...]
+
+Check out the help for more information on arguments::
+
+    $ inclua -h
 
 
-Using the standalone
---------------------
-Define, generate!
-
-.. code:: yaml
-
-    # File wrapper_generator.yml
-    module : module_name
-    headers :
-      - module.h
-
-    --- # optional YAML document separation, to avoid name clashes with predefined fields
-    # anotate your arrays, output arguments, ignore symbols, rename stuff...
-
-On your shell::
-
-    $ inclua -o wrapper.cpp -l lua wrapper_generator.yml
-
-
-Tutorial
---------
-Tutorials on creating wrappers, either using the python lib or the standalone
-YAML version, and for creating **Generators** yourself, are available in the
-tutorial_.
-
-.. _tutorial: https://github.com/gilzoide/inclua/blob/master/tutorial/index.rst
