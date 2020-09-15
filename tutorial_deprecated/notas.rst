@@ -172,7 +172,7 @@ Notas Para Argumentos
         // Notas:
         //   matriz - array[arg2][arg2] in
         //   tamanho - size in
-        double determinate (double ** matrix, size_t tamanho);
+        double determinante (double ** matrix, size_t tamanho);
 
 
     Formato, em EBNF:
