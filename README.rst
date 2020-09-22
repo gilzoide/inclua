@@ -31,4 +31,6 @@ Check out the help for more information on arguments::
 It is recommended to pass ``-I <path to clang headers>`` to *clang* to correctly
 include some standard headers like **stddef.h** and **stdbool.h**.
 
-Check out the ``examples`` folder for an example of usage.
+Check out the ``examples`` folder and csfml-luajit_ for examples of usage.
+
+.. _csfml-luajit: https://github.com/gilzoide/csfml-luajit
