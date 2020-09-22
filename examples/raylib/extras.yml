@@ -1,0 +1,65 @@
+Vector2:
+  __tostring: |
+    function(self)
+      return string.format('Vector2(%g, %g)', self.x, self.y)
+    end
+  __add: |
+    function(a, b)
+      return lua_lib.Vector2(a.x + b.x, a.y + b.y)
+    end
+  __sub: |
+    function(a, b)
+      return lua_lib.Vector2(a.x - b.x, a.y - b.y)
+    end
+  __unm: |
+    function(self)
+      return lua_lib.Vector2(-self.x, -self.y)
+    end
+
+Vector3:
+  __tostring: |
+    function(self)
+      return string.format('Vector3(%g, %g, %g)', self.x, self.y, self.z)
+    end
+  __add: |
+    function(a, b)
+      return lua_lib.Vector3(a.x + b.x, a.y + b.y, a.z + b.z)
+    end
+  __sub: |
+    function(a, b)
+      return lua_lib.Vector3(a.x - b.x, a.y - b.y, a.z - b.z)
+    end
+  __unm: |
+    function(self)
+      return lua_lib.Vector3(-self.x, -self.y, -self.z)
+    end
+
+Vector4:
+  __tostring: |
+    function(self)
+      return string.format('Vector4(%g, %g, %g, %g)', self.x, self.y, self.z, self.w)
+    end
+  __add: |
+    function(a, b)
+      return lua_lib.Vector4(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w)
+    end
+  __sub: |
+    function(a, b)
+      return lua_lib.Vector4(a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w)
+    end
+  __unm: |
+    function(self)
+      return lua_lib.Vector4(-self.x, -self.y, -self.z, -self.w)
+    end
+
+Color:
+  __tostring: |
+    function(self)
+      return string.format('Color(%d, %d, %d, %d)', self.r, self.g, self.b, self.a)
+    end
+
+Rectangle:
+  __tostring: |
+    function(self)
+      return string.format('Rectangle{ x = %g, y = %g, width = %g, height = %g }', self.x, self.y, self.width, self.height)
+    end
