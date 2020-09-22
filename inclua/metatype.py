@@ -17,12 +17,28 @@ class Metatype:
         self.name = definition.get('typedef') or definition.get('name')
         self.unprefixed = canonicalize(self.name, namespace_prefixes)
         self.methods = []
+        self.native_methods = []
+        self.metamethods = []
         self.destructor = None
 
+    def add_native_definition(self, key, value):
+        if key.startswith('__'):
+            self.metamethods.append([key, value])
+        else:
+            self.native_methods.append([key, value])
+
     @classmethod
-    def from_definitions(cls, definitions, namespace_prefixes):
+    def from_definitions(cls, definitions, namespace_prefixes, native_definitions):
         metatypes = [cls(t, namespace_prefixes) for t in definitions if t['kind'] in ('struct', 'union')]
         metatype_by_name = { t.name: t for t in metatypes }
+        if native_definitions:
+            for name, d in native_definitions.items():
+                try:
+                    metatype = metatype_by_name[name]
+                    for key, value in d.items():
+                        metatype.add_native_definition(key, value)
+                except KeyError:
+                    pass
         destructor_re = re.compile(r'release|destroy|unload|deinit|finalize|dispose', flags=re.I)
         for f in definitions:
             try:

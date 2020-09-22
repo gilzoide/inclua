@@ -1517,13 +1517,12 @@ local lua_lib = setmetatable({ c_lib = c_lib }, { __index = c_lib })
 lua_lib.String = ffi.metatype('CXString', {
   __name = 'CXString',
   __gc = c_lib.clang_disposeString,
+  __tostring = function(cxString)
+    return ffi.string(cxString:getC())
+  end,
   __index = {
     getC = c_lib.clang_getCString,
   },
-  -- This was manually added and will disappear on a new call to generate.sh ; TODO: make it possible to define custom methods
-  __tostring = function(cxString)
-      return ffi.string(cxString:getC())
-  end,
 })
 lua_lib.StringSet = ffi.metatype('CXStringSet', {
   __name = 'CXStringSet',
