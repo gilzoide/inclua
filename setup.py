@@ -6,7 +6,7 @@ with open('README.rst', encoding='utf-8') as readme:
 
 setup(
     name='inclua',
-    description='C/C++ to scripting languages wrapper generator, INitialy for binding C to LUA',
+    description='C to scripting languages wrapper generator, INitialy for binding C to LUA',
     long_description=long_description,
 
     url='https://github.com/gilzoide/inclua',

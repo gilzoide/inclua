@@ -7,6 +7,16 @@ It uses clang_ via c_api_extract_ for parsing and understanding C header files.
 .. _clang: https://pypi.org/project/clang/
 .. _c_api_extract: https://github.com/gilzoide/c_api_extract-py
 
+
+Installing
+----------
+**inclua** is available on PyPI_ and may be installed using ``pip``::
+
+  $ pip install inclua
+
+.. _PyPI: https://pypi.org/project/inclua/
+
+
 Usage
 -----
 On your shell::
