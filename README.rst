@@ -4,7 +4,7 @@ Wrapper generator from C to scripting languages, currently supporting LuaJIT_ FF
 It uses clang_ via c_api_extract_ for parsing and understanding C header files.
 
 By deafult generates metatypes_ for struct and union definitions and deduces ``__gc``
-and other methods from C functions names and paramenters, included in the ``__index`` table.
+and other methods from C functions names and parameters, included in the ``__index`` table.
 **inclua** also supports adding native Lua definitions for any metamethods and other definitions
 for metatypes, reading them verbatim from a YAML or JSON file.
 

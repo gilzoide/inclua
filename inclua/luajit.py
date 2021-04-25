@@ -17,7 +17,7 @@ def _c_code_from_def(d):
     if kind == 'var':
         return c_api_extract.typed_declaration(d['type'], d['name']) + ';'
     elif kind in ('struct', 'union'):
-        typedef = d.get('typedef')
+        typedef = d['name'] if not d['spelling'].startswith(kind) else ''
         fields = d.get('fields')
         return '{maybe_typedef}{kind} {name}{open_braces}{fields}{close_braces}{maybe_alias};'.format(
             maybe_typedef='typedef ' if typedef else '',
@@ -29,7 +29,7 @@ def _c_code_from_def(d):
             maybe_alias=' ' + typedef if typedef else '',
         )
     elif kind == 'enum':
-        typedef = d.get('typedef')
+        typedef = d['name'] if not d['spelling'].startswith(kind) else ''
         return '{maybe_typedef}{kind} {name} {{\n{values}\n}}{maybe_alias};'.format(
             maybe_typedef='typedef ' if typedef else '',
             kind=kind,
@@ -45,9 +45,9 @@ def _c_code_from_def(d):
         )
     elif kind == 'typedef':
         # pure enum/struct/union typedefs are already handled by their declarations
-        if re.match(r'(struct|union|enum)\s+\S+$', d['type']):
-            return ''
-        return d['source'] + ';'
+        # if re.match(r'(struct|union|enum)\s+\S+$', d['type']):
+            # return ''
+        return 'typedef {};'.format(c_api_extract.typed_declaration(d['type'], d['name']))
     else:
         return ''
 
@@ -93,7 +93,7 @@ def _stringify_metatype(metatype, namespace_prefixes):
                 new_method_name=replace_method_name_re.sub('', canonicalized_name, count=1).lstrip('_')
             ))
         for method in metatype.native_methods:
-            definitions.append(_method_to_string(metamethod, '    '))
+            definitions.append(_method_to_string(method, '    '))
         definitions.append('  },')
     return 'lua_lib.{name} = ffi.metatype({record_name!r}, {{\n{definitions}\n}})'.format(
         name=metatype.unprefixed,
