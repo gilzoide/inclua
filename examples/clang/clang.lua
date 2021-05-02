@@ -16,22 +16,22 @@ enum CXErrorCode {
   CXError_InvalidArguments = 3,
   CXError_ASTReadError = 4,
 };
-typedef struct  {
+typedef struct CXString {
   const void * data;
   unsigned int private_flags;
 } CXString;
-
-typedef struct  {
+typedef CXString CXString;
+typedef struct CXStringSet {
   CXString * Strings;
   unsigned int Count;
 } CXStringSet;
-
+typedef CXStringSet CXStringSet;
 const char * clang_getCString(CXString string);
 void clang_disposeString(CXString string);
 void clang_disposeStringSet(CXStringSet * set);
 unsigned long long clang_getBuildSessionTimestamp();
 struct CXVirtualFileOverlayImpl;
-typedef struct CXVirtualFileOverlayImpl *CXVirtualFileOverlay;
+typedef struct CXVirtualFileOverlayImpl * CXVirtualFileOverlay;
 CXVirtualFileOverlay clang_VirtualFileOverlay_create(unsigned int options);
 enum CXErrorCode clang_VirtualFileOverlay_addFileMapping(CXVirtualFileOverlay , const char * virtualPath, const char * realPath);
 enum CXErrorCode clang_VirtualFileOverlay_setCaseSensitivity(CXVirtualFileOverlay , int caseSensitive);
@@ -39,7 +39,7 @@ enum CXErrorCode clang_VirtualFileOverlay_writeToBuffer(CXVirtualFileOverlay , u
 void clang_free(void * buffer);
 void clang_VirtualFileOverlay_dispose(CXVirtualFileOverlay );
 struct CXModuleMapDescriptorImpl;
-typedef struct CXModuleMapDescriptorImpl *CXModuleMapDescriptor;
+typedef struct CXModuleMapDescriptorImpl * CXModuleMapDescriptor;
 CXModuleMapDescriptor clang_ModuleMapDescriptor_create(unsigned int options);
 enum CXErrorCode clang_ModuleMapDescriptor_setFrameworkModuleName(CXModuleMapDescriptor , const char * name);
 enum CXErrorCode clang_ModuleMapDescriptor_setUmbrellaHeader(CXModuleMapDescriptor , const char * name);
@@ -48,11 +48,11 @@ void clang_ModuleMapDescriptor_dispose(CXModuleMapDescriptor );
 typedef void * CXCompilationDatabase;
 typedef void * CXCompileCommands;
 typedef void * CXCompileCommand;
-typedef enum  {
+typedef enum CXCompilationDatabase_Error {
   CXCompilationDatabase_NoError = 0,
   CXCompilationDatabase_CanNotLoadDatabase = 1,
 } CXCompilationDatabase_Error;
-
+typedef CXCompilationDatabase_Error CXCompilationDatabase_Error;
 CXCompilationDatabase clang_CompilationDatabase_fromDirectory(const char * BuildDir, CXCompilationDatabase_Error * ErrorCode);
 void clang_CompilationDatabase_dispose(CXCompilationDatabase );
 CXCompileCommands clang_CompilationDatabase_getCompileCommands(CXCompilationDatabase , const char * CompleteFileName);
@@ -64,16 +64,14 @@ CXString clang_CompileCommand_getDirectory(CXCompileCommand );
 CXString clang_CompileCommand_getFilename(CXCompileCommand );
 unsigned int clang_CompileCommand_getNumArgs(CXCompileCommand );
 CXString clang_CompileCommand_getArg(CXCompileCommand , unsigned int I);
-// For some reason, clang_CompileCommand_getNumMappedSources is not defined in my libclang installation
-// unsigned int clang_CompileCommand_getNumMappedSources(CXCompileCommand );
 CXString clang_CompileCommand_getMappedSourcePath(CXCompileCommand , unsigned int I);
 CXString clang_CompileCommand_getMappedSourceContent(CXCompileCommand , unsigned int I);
-typedef void *CXIndex;
+typedef void * CXIndex;
 struct CXTargetInfoImpl;
-typedef struct CXTargetInfoImpl *CXTargetInfo;
+typedef struct CXTargetInfoImpl * CXTargetInfo;
 struct CXTranslationUnitImpl;
-typedef struct CXTranslationUnitImpl *CXTranslationUnit;
-typedef void *CXClientData;
+typedef struct CXTranslationUnitImpl * CXTranslationUnit;
+typedef void * CXClientData;
 struct CXUnsavedFile {
   const char * Filename;
   const char * Contents;
@@ -85,12 +83,12 @@ enum CXAvailabilityKind {
   CXAvailability_NotAvailable = 2,
   CXAvailability_NotAccessible = 3,
 };
-typedef struct CXVersion {
+struct CXVersion {
   int Major;
   int Minor;
   int Subminor;
-} CXVersion;
-
+};
+typedef struct CXVersion CXVersion;
 enum CXCursor_ExceptionSpecificationKind {
   CXCursor_ExceptionSpecificationKind_None = 0,
   CXCursor_ExceptionSpecificationKind_DynamicNone = 1,
@@ -105,40 +103,41 @@ enum CXCursor_ExceptionSpecificationKind {
 };
 CXIndex clang_createIndex(int excludeDeclarationsFromPCH, int displayDiagnostics);
 void clang_disposeIndex(CXIndex index);
-typedef enum  {
+typedef enum CXGlobalOptFlags {
   CXGlobalOpt_None = 0,
   CXGlobalOpt_ThreadBackgroundPriorityForIndexing = 1,
   CXGlobalOpt_ThreadBackgroundPriorityForEditing = 2,
   CXGlobalOpt_ThreadBackgroundPriorityForAll = 3,
 } CXGlobalOptFlags;
-
+typedef CXGlobalOptFlags CXGlobalOptFlags;
 void clang_CXIndex_setGlobalOptions(CXIndex , unsigned int options);
 unsigned int clang_CXIndex_getGlobalOptions(CXIndex );
 void clang_CXIndex_setInvocationEmissionPathOption(CXIndex , const char * Path);
-typedef void *CXFile;
+typedef void * CXFile;
 CXString clang_getFileName(CXFile SFile);
 unsigned long clang_getFileTime(CXFile SFile);
-typedef struct  {
+typedef struct CXFileUniqueID {
   unsigned long long data[3];
 } CXFileUniqueID;
-
+typedef CXFileUniqueID CXFileUniqueID;
 int clang_getFileUniqueID(CXFile file, CXFileUniqueID * outID);
 unsigned int clang_isFileMultipleIncludeGuarded(CXTranslationUnit tu, CXFile file);
 CXFile clang_getFile(CXTranslationUnit tu, const char * file_name);
+typedef unsigned long size_t;
 const char * clang_getFileContents(CXTranslationUnit tu, CXFile file, size_t * size);
 int clang_File_isEqual(CXFile file1, CXFile file2);
 CXString clang_File_tryGetRealPathName(CXFile file);
-typedef struct  {
+typedef struct CXSourceLocation {
   const void *ptr_data[2];
   unsigned int int_data;
 } CXSourceLocation;
-
-typedef struct  {
+typedef CXSourceLocation CXSourceLocation;
+typedef struct CXSourceRange {
   const void *ptr_data[2];
   unsigned int begin_int_data;
   unsigned int end_int_data;
 } CXSourceRange;
-
+typedef CXSourceRange CXSourceRange;
 CXSourceLocation clang_getNullLocation();
 unsigned int clang_equalLocations(CXSourceLocation loc1, CXSourceLocation loc2);
 CXSourceLocation clang_getLocation(CXTranslationUnit tu, CXFile file, unsigned int line, unsigned int column);
@@ -156,11 +155,11 @@ void clang_getSpellingLocation(CXSourceLocation location, CXFile * file, unsigne
 void clang_getFileLocation(CXSourceLocation location, CXFile * file, unsigned int * line, unsigned int * column, unsigned int * offset);
 CXSourceLocation clang_getRangeStart(CXSourceRange range);
 CXSourceLocation clang_getRangeEnd(CXSourceRange range);
-typedef struct  {
+typedef struct CXSourceRangeList {
   unsigned int count;
   CXSourceRange * ranges;
 } CXSourceRangeList;
-
+typedef CXSourceRangeList CXSourceRangeList;
 CXSourceRangeList * clang_getSkippedRanges(CXTranslationUnit tu, CXFile file);
 CXSourceRangeList * clang_getAllSkippedRanges(CXTranslationUnit tu);
 void clang_disposeSourceRangeList(CXSourceRangeList * ranges);
@@ -171,8 +170,8 @@ enum CXDiagnosticSeverity {
   CXDiagnostic_Error = 3,
   CXDiagnostic_Fatal = 4,
 };
-typedef void *CXDiagnostic;
-typedef void *CXDiagnosticSet;
+typedef void * CXDiagnostic;
+typedef void * CXDiagnosticSet;
 unsigned int clang_getNumDiagnosticsInSet(CXDiagnosticSet Diags);
 CXDiagnostic clang_getDiagnosticInSet(CXDiagnosticSet Diags, unsigned int Index);
 enum CXLoadDiag_Error {
@@ -275,17 +274,17 @@ enum CXTUResourceUsageKind {
   CXTUResourceUsage_Last = 14,
 };
 const char * clang_getTUResourceUsageName(enum CXTUResourceUsageKind kind);
-typedef struct CXTUResourceUsageEntry {
+struct CXTUResourceUsageEntry {
   enum CXTUResourceUsageKind kind;
   unsigned long amount;
-} CXTUResourceUsageEntry;
-
-typedef struct CXTUResourceUsage {
+};
+typedef struct CXTUResourceUsageEntry CXTUResourceUsageEntry;
+struct CXTUResourceUsage {
   void * data;
   unsigned int numEntries;
   CXTUResourceUsageEntry * entries;
-} CXTUResourceUsage;
-
+};
+typedef struct CXTUResourceUsage CXTUResourceUsage;
 CXTUResourceUsage clang_getCXTUResourceUsage(CXTranslationUnit TU);
 void clang_disposeCXTUResourceUsage(CXTUResourceUsage usage);
 CXTargetInfo clang_getTranslationUnitTargetInfo(CXTranslationUnit CTUnit);
@@ -404,7 +403,10 @@ enum CXCursorKind {
   CXCursor_OMPArraySectionExpr = 147,
   CXCursor_ObjCAvailabilityCheckExpr = 148,
   CXCursor_FixedPointLiteral = 149,
-  CXCursor_LastExpr = 149,
+  CXCursor_OMPArrayShapingExpr = 150,
+  CXCursor_OMPIteratorExpr = 151,
+  CXCursor_CXXAddrspaceCastExpr = 152,
+  CXCursor_LastExpr = 152,
   CXCursor_FirstStmt = 200,
   CXCursor_UnexposedStmt = 200,
   CXCursor_LabelStmt = 201,
@@ -493,7 +495,9 @@ enum CXCursorKind {
   CXCursor_OMPMasterTaskLoopSimdDirective = 283,
   CXCursor_OMPParallelMasterTaskLoopSimdDirective = 284,
   CXCursor_OMPParallelMasterDirective = 285,
-  CXCursor_LastStmt = 285,
+  CXCursor_OMPDepobjDirective = 286,
+  CXCursor_OMPScanDirective = 287,
+  CXCursor_LastStmt = 287,
   CXCursor_TranslationUnit = 300,
   CXCursor_FirstAttr = 400,
   CXCursor_UnexposedAttr = 400,
@@ -554,12 +558,12 @@ enum CXCursorKind {
   CXCursor_LastExtraDecl = 603,
   CXCursor_OverloadCandidate = 700,
 };
-typedef struct  {
+typedef struct CXCursor {
   enum CXCursorKind kind;
   int xdata;
   const void *data[3];
 } CXCursor;
-
+typedef CXCursor CXCursor;
 CXCursor clang_getNullCursor();
 CXCursor clang_getTranslationUnitCursor(CXTranslationUnit );
 unsigned int clang_equalCursors(CXCursor , CXCursor );
@@ -593,15 +597,15 @@ enum CXVisibilityKind {
 };
 enum CXVisibilityKind clang_getCursorVisibility(CXCursor cursor);
 enum CXAvailabilityKind clang_getCursorAvailability(CXCursor cursor);
-typedef struct CXPlatformAvailability {
+struct CXPlatformAvailability {
   CXString Platform;
   CXVersion Introduced;
   CXVersion Deprecated;
   CXVersion Obsoleted;
   int Unavailable;
   CXString Message;
-} CXPlatformAvailability;
-
+};
+typedef struct CXPlatformAvailability CXPlatformAvailability;
 int clang_getCursorPlatformAvailability(CXCursor cursor, int * always_deprecated, CXString * deprecated_message, int * always_unavailable, CXString * unavailable_message, CXPlatformAvailability * availability, int availability_size);
 void clang_disposeCXPlatformAvailability(CXPlatformAvailability * availability);
 enum CXLanguageKind {
@@ -619,7 +623,7 @@ enum CXTLSKind {
 enum CXTLSKind clang_getCursorTLSKind(CXCursor cursor);
 CXTranslationUnit clang_Cursor_getTranslationUnit(CXCursor );
 struct CXCursorSetImpl;
-typedef struct CXCursorSetImpl *CXCursorSet;
+typedef struct CXCursorSetImpl * CXCursorSet;
 CXCursorSet clang_createCXCursorSet();
 void clang_disposeCXCursorSet(CXCursorSet cset);
 unsigned int clang_CXCursorSet_contains(CXCursorSet cset, CXCursor cursor);
@@ -672,8 +676,9 @@ enum CXTypeKind {
   CXType_UShortAccum = 36,
   CXType_UAccum = 37,
   CXType_ULongAccum = 38,
+  CXType_BFloat16 = 39,
   CXType_FirstBuiltin = 2,
-  CXType_LastBuiltin = 38,
+  CXType_LastBuiltin = 39,
   CXType_Complex = 100,
   CXType_Pointer = 101,
   CXType_BlockPointer = 102,
@@ -751,6 +756,7 @@ enum CXTypeKind {
   CXType_OCLIntelSubgroupAVCImeSingleRefStreamin = 174,
   CXType_OCLIntelSubgroupAVCImeDualRefStreamin = 175,
   CXType_ExtVector = 176,
+  CXType_Atomic = 177,
 };
 enum CXCallingConv {
   CXCallingConv_Default = 0,
@@ -774,11 +780,11 @@ enum CXCallingConv {
   CXCallingConv_Invalid = 100,
   CXCallingConv_Unexposed = 200,
 };
-typedef struct  {
+typedef struct CXType {
   enum CXTypeKind kind;
   void *data[2];
 } CXType;
-
+typedef CXType CXType;
 CXType clang_getCursorType(CXCursor C);
 CXString clang_getTypeSpelling(CXType CT);
 CXType clang_getTypedefDeclUnderlyingType(CXCursor C);
@@ -860,6 +866,7 @@ CXType clang_Type_getClassType(CXType T);
 long long clang_Type_getSizeOf(CXType T);
 long long clang_Type_getOffsetOf(CXType T, const char * S);
 CXType clang_Type_getModifiedType(CXType T);
+CXType clang_Type_getValueType(CXType CT);
 long long clang_Cursor_getOffsetOfField(CXCursor C);
 unsigned int clang_Cursor_isAnonymous(CXCursor C);
 unsigned int clang_Cursor_isAnonymousRecordDecl(CXCursor C);
@@ -900,9 +907,7 @@ enum CXChildVisitResult {
   CXChildVisit_Continue = 1,
   CXChildVisit_Recurse = 2,
 };
-typedef enum CXChildVisitResult (*CXCursorVisitor)(CXCursor cursor,
-                                                   CXCursor parent,
-                                                   CXClientData client_data);
+typedef enum CXChildVisitResult (*CXCursorVisitor)(CXCursor, CXCursor, CXClientData);
 unsigned int clang_visitChildren(CXCursor parent, CXCursorVisitor visitor, CXClientData client_data);
 CXString clang_getCursorUSR(CXCursor );
 CXString clang_constructUSR_ObjCClass(const char * class_name);
@@ -913,7 +918,7 @@ CXString clang_constructUSR_ObjCMethod(const char * name, unsigned int isInstanc
 CXString clang_constructUSR_ObjCProperty(const char * property, CXString classUSR);
 CXString clang_getCursorSpelling(CXCursor );
 CXSourceRange clang_Cursor_getSpellingNameRange(CXCursor , unsigned int pieceIndex, unsigned int options);
-typedef void *CXPrintingPolicy;
+typedef void * CXPrintingPolicy;
 enum CXPrintingPolicyProperty {
   CXPrintingPolicy_Indentation = 0,
   CXPrintingPolicy_SuppressSpecifiers = 1,
@@ -956,7 +961,7 @@ CXCursor clang_getCanonicalCursor(CXCursor );
 int clang_Cursor_getObjCSelectorIndex(CXCursor );
 int clang_Cursor_isDynamicCall(CXCursor C);
 CXType clang_Cursor_getReceiverType(CXCursor C);
-typedef enum  {
+typedef enum CXObjCPropertyAttrKind {
   CXObjCPropertyAttr_noattr = 0,
   CXObjCPropertyAttr_readonly = 1,
   CXObjCPropertyAttr_getter = 2,
@@ -972,11 +977,11 @@ typedef enum  {
   CXObjCPropertyAttr_unsafe_unretained = 2048,
   CXObjCPropertyAttr_class = 4096,
 } CXObjCPropertyAttrKind;
-
+typedef CXObjCPropertyAttrKind CXObjCPropertyAttrKind;
 unsigned int clang_Cursor_getObjCPropertyAttributes(CXCursor C, unsigned int reserved);
 CXString clang_Cursor_getObjCPropertyGetterName(CXCursor C);
 CXString clang_Cursor_getObjCPropertySetterName(CXCursor C);
-typedef enum  {
+typedef enum CXObjCDeclQualifierKind {
   CXObjCDeclQualifier_None = 0,
   CXObjCDeclQualifier_In = 1,
   CXObjCDeclQualifier_Inout = 2,
@@ -985,7 +990,7 @@ typedef enum  {
   CXObjCDeclQualifier_Byref = 16,
   CXObjCDeclQualifier_Oneway = 32,
 } CXObjCDeclQualifierKind;
-
+typedef CXObjCDeclQualifierKind CXObjCDeclQualifierKind;
 unsigned int clang_Cursor_getObjCDeclQualifiers(CXCursor C);
 unsigned int clang_Cursor_isObjCOptional(CXCursor C);
 unsigned int clang_Cursor_isVariadic(CXCursor C);
@@ -996,7 +1001,7 @@ CXString clang_Cursor_getBriefCommentText(CXCursor C);
 CXString clang_Cursor_getMangling(CXCursor );
 CXStringSet * clang_Cursor_getCXXManglings(CXCursor );
 CXStringSet * clang_Cursor_getObjCManglings(CXCursor );
-typedef void *CXModule;
+typedef void * CXModule;
 CXModule clang_Cursor_getModule(CXCursor C);
 CXModule clang_getModuleForFile(CXTranslationUnit , CXFile );
 CXFile clang_Module_getASTFile(CXModule Module);
@@ -1026,19 +1031,19 @@ enum CXNameRefFlags {
   CXNameRange_WantTemplateArgs = 2,
   CXNameRange_WantSinglePiece = 4,
 };
-typedef enum CXTokenKind {
+enum CXTokenKind {
   CXToken_Punctuation = 0,
   CXToken_Keyword = 1,
   CXToken_Identifier = 2,
   CXToken_Literal = 3,
   CXToken_Comment = 4,
-} CXTokenKind;
-
-typedef struct  {
+};
+typedef enum CXTokenKind CXTokenKind;
+typedef struct CXToken {
   unsigned int int_data[4];
   void * ptr_data;
 } CXToken;
-
+typedef CXToken CXToken;
 CXToken * clang_getToken(CXTranslationUnit TU, CXSourceLocation Location);
 CXTokenKind clang_getTokenKind(CXToken );
 CXString clang_getTokenSpelling(CXTranslationUnit , CXToken );
@@ -1051,12 +1056,12 @@ CXString clang_getCursorKindSpelling(enum CXCursorKind Kind);
 void clang_getDefinitionSpellingAndExtent(CXCursor , const char ** startBuf, const char ** endBuf, unsigned int * startLine, unsigned int * startColumn, unsigned int * endLine, unsigned int * endColumn);
 void clang_enableStackTraces();
 void clang_executeOnThread(void (*fn)(void *), void * user_data, unsigned int stack_size);
-typedef void *CXCompletionString;
-typedef struct  {
+typedef void * CXCompletionString;
+typedef struct CXCompletionResult {
   enum CXCursorKind CursorKind;
   CXCompletionString CompletionString;
 } CXCompletionResult;
-
+typedef CXCompletionResult CXCompletionResult;
 enum CXCompletionChunkKind {
   CXCompletionChunk_Optional = 0,
   CXCompletionChunk_TypedText = 1,
@@ -1091,11 +1096,11 @@ CXString clang_getCompletionAnnotation(CXCompletionString completion_string, uns
 CXString clang_getCompletionParent(CXCompletionString completion_string, enum CXCursorKind * kind);
 CXString clang_getCompletionBriefComment(CXCompletionString completion_string);
 CXCompletionString clang_getCursorCompletionString(CXCursor cursor);
-typedef struct  {
+typedef struct CXCodeCompleteResults {
   CXCompletionResult * Results;
   unsigned int NumResults;
 } CXCodeCompleteResults;
-
+typedef CXCodeCompleteResults CXCodeCompleteResults;
 unsigned int clang_getCompletionNumFixIts(CXCodeCompleteResults * results, unsigned int completion_index);
 CXString clang_getCompletionFixIt(CXCodeCompleteResults * results, unsigned int completion_index, unsigned int fixit_index, CXSourceRange * replacement_range);
 enum CXCodeComplete_Flags {
@@ -1144,12 +1149,9 @@ CXString clang_codeCompleteGetContainerUSR(CXCodeCompleteResults * Results);
 CXString clang_codeCompleteGetObjCSelector(CXCodeCompleteResults * Results);
 CXString clang_getClangVersion();
 void clang_toggleCrashRecovery(unsigned int isEnabled);
-typedef void (*CXInclusionVisitor)(CXFile included_file,
-                                   CXSourceLocation* inclusion_stack,
-                                   unsigned include_len,
-                                   CXClientData client_data);
+typedef void (*CXInclusionVisitor)(CXFile, CXSourceLocation *, unsigned int, CXClientData);
 void clang_getInclusions(CXTranslationUnit tu, CXInclusionVisitor visitor, CXClientData client_data);
-typedef enum  {
+typedef enum CXEvalResultKind {
   CXEval_Int = 1,
   CXEval_Float = 2,
   CXEval_ObjCStrLiteral = 3,
@@ -1158,7 +1160,7 @@ typedef enum  {
   CXEval_Other = 6,
   CXEval_UnExposed = 0,
 } CXEvalResultKind;
-
+typedef CXEvalResultKind CXEvalResultKind;
 typedef void * CXEvalResult;
 CXEvalResult clang_Cursor_Evaluate(CXCursor C);
 CXEvalResultKind clang_EvalResult_getKind(CXEvalResult E);
@@ -1169,7 +1171,7 @@ unsigned long long clang_EvalResult_getAsUnsigned(CXEvalResult E);
 double clang_EvalResult_getAsDouble(CXEvalResult E);
 const char * clang_EvalResult_getAsStr(CXEvalResult E);
 void clang_EvalResult_dispose(CXEvalResult E);
-typedef void *CXRemapping;
+typedef void * CXRemapping;
 CXRemapping clang_getRemappings(const char * path);
 CXRemapping clang_getRemappingsFromFileList(const char ** filePaths, unsigned int numFiles);
 unsigned int clang_remap_getNumFiles(CXRemapping );
@@ -1179,29 +1181,29 @@ enum CXVisitorResult {
   CXVisit_Break = 0,
   CXVisit_Continue = 1,
 };
-typedef struct CXCursorAndRangeVisitor {
+struct CXCursorAndRangeVisitor {
   void * context;
   enum CXVisitorResult (*visit)(void *, CXCursor, CXSourceRange);
-} CXCursorAndRangeVisitor;
-
-typedef enum  {
+};
+typedef struct CXCursorAndRangeVisitor CXCursorAndRangeVisitor;
+typedef enum CXResult {
   CXResult_Success = 0,
   CXResult_Invalid = 1,
   CXResult_VisitBreak = 2,
 } CXResult;
-
+typedef CXResult CXResult;
 CXResult clang_findReferencesInFile(CXCursor cursor, CXFile file, CXCursorAndRangeVisitor visitor);
 CXResult clang_findIncludesInFile(CXTranslationUnit TU, CXFile file, CXCursorAndRangeVisitor visitor);
-typedef void *CXIdxClientFile;
-typedef void *CXIdxClientEntity;
-typedef void *CXIdxClientContainer;
-typedef void *CXIdxClientASTFile;
-typedef struct  {
+typedef void * CXIdxClientFile;
+typedef void * CXIdxClientEntity;
+typedef void * CXIdxClientContainer;
+typedef void * CXIdxClientASTFile;
+typedef struct CXIdxLoc {
   void *ptr_data[2];
   unsigned int int_data;
 } CXIdxLoc;
-
-typedef struct  {
+typedef CXIdxLoc CXIdxLoc;
+typedef struct CXIdxIncludedFileInfo {
   CXIdxLoc hashLoc;
   const char * filename;
   CXFile file;
@@ -1209,15 +1211,15 @@ typedef struct  {
   int isAngled;
   int isModuleImport;
 } CXIdxIncludedFileInfo;
-
-typedef struct  {
+typedef CXIdxIncludedFileInfo CXIdxIncludedFileInfo;
+typedef struct CXIdxImportedASTFileInfo {
   CXFile file;
   CXModule module;
   CXIdxLoc loc;
   int isImplicit;
 } CXIdxImportedASTFileInfo;
-
-typedef enum  {
+typedef CXIdxImportedASTFileInfo CXIdxImportedASTFileInfo;
+typedef enum CXIdxEntityKind {
   CXIdxEntity_Unexposed = 0,
   CXIdxEntity_Typedef = 1,
   CXIdxEntity_Function = 2,
@@ -1246,36 +1248,36 @@ typedef enum  {
   CXIdxEntity_CXXTypeAlias = 25,
   CXIdxEntity_CXXInterface = 26,
 } CXIdxEntityKind;
-
-typedef enum  {
+typedef CXIdxEntityKind CXIdxEntityKind;
+typedef enum CXIdxEntityLanguage {
   CXIdxEntityLang_None = 0,
   CXIdxEntityLang_C = 1,
   CXIdxEntityLang_ObjC = 2,
   CXIdxEntityLang_CXX = 3,
   CXIdxEntityLang_Swift = 4,
 } CXIdxEntityLanguage;
-
-typedef enum  {
+typedef CXIdxEntityLanguage CXIdxEntityLanguage;
+typedef enum CXIdxEntityCXXTemplateKind {
   CXIdxEntity_NonTemplate = 0,
   CXIdxEntity_Template = 1,
   CXIdxEntity_TemplatePartialSpecialization = 2,
   CXIdxEntity_TemplateSpecialization = 3,
 } CXIdxEntityCXXTemplateKind;
-
-typedef enum  {
+typedef CXIdxEntityCXXTemplateKind CXIdxEntityCXXTemplateKind;
+typedef enum CXIdxAttrKind {
   CXIdxAttr_Unexposed = 0,
   CXIdxAttr_IBAction = 1,
   CXIdxAttr_IBOutlet = 2,
   CXIdxAttr_IBOutletCollection = 3,
 } CXIdxAttrKind;
-
-typedef struct  {
+typedef CXIdxAttrKind CXIdxAttrKind;
+typedef struct CXIdxAttrInfo {
   CXIdxAttrKind kind;
   CXCursor cursor;
   CXIdxLoc loc;
 } CXIdxAttrInfo;
-
-typedef struct  {
+typedef CXIdxAttrInfo CXIdxAttrInfo;
+typedef struct CXIdxEntityInfo {
   CXIdxEntityKind kind;
   CXIdxEntityCXXTemplateKind templateKind;
   CXIdxEntityLanguage lang;
@@ -1285,23 +1287,23 @@ typedef struct  {
   const CXIdxAttrInfo *const * attributes;
   unsigned int numAttributes;
 } CXIdxEntityInfo;
-
-typedef struct  {
+typedef CXIdxEntityInfo CXIdxEntityInfo;
+typedef struct CXIdxContainerInfo {
   CXCursor cursor;
 } CXIdxContainerInfo;
-
-typedef struct  {
+typedef CXIdxContainerInfo CXIdxContainerInfo;
+typedef struct CXIdxIBOutletCollectionAttrInfo {
   const CXIdxAttrInfo * attrInfo;
   const CXIdxEntityInfo * objcClass;
   CXCursor classCursor;
   CXIdxLoc classLoc;
 } CXIdxIBOutletCollectionAttrInfo;
-
-typedef enum  {
+typedef CXIdxIBOutletCollectionAttrInfo CXIdxIBOutletCollectionAttrInfo;
+typedef enum CXIdxDeclInfoFlags {
   CXIdxDeclFlag_Skipped = 1,
 } CXIdxDeclInfoFlags;
-
-typedef struct  {
+typedef CXIdxDeclInfoFlags CXIdxDeclInfoFlags;
+typedef struct CXIdxDeclInfo {
   const CXIdxEntityInfo * entityInfo;
   CXCursor cursor;
   CXIdxLoc loc;
@@ -1316,67 +1318,67 @@ typedef struct  {
   unsigned int numAttributes;
   unsigned int flags;
 } CXIdxDeclInfo;
-
-typedef enum  {
+typedef CXIdxDeclInfo CXIdxDeclInfo;
+typedef enum CXIdxObjCContainerKind {
   CXIdxObjCContainer_ForwardRef = 0,
   CXIdxObjCContainer_Interface = 1,
   CXIdxObjCContainer_Implementation = 2,
 } CXIdxObjCContainerKind;
-
-typedef struct  {
+typedef CXIdxObjCContainerKind CXIdxObjCContainerKind;
+typedef struct CXIdxObjCContainerDeclInfo {
   const CXIdxDeclInfo * declInfo;
   CXIdxObjCContainerKind kind;
 } CXIdxObjCContainerDeclInfo;
-
-typedef struct  {
+typedef CXIdxObjCContainerDeclInfo CXIdxObjCContainerDeclInfo;
+typedef struct CXIdxBaseClassInfo {
   const CXIdxEntityInfo * base;
   CXCursor cursor;
   CXIdxLoc loc;
 } CXIdxBaseClassInfo;
-
-typedef struct  {
+typedef CXIdxBaseClassInfo CXIdxBaseClassInfo;
+typedef struct CXIdxObjCProtocolRefInfo {
   const CXIdxEntityInfo * protocol;
   CXCursor cursor;
   CXIdxLoc loc;
 } CXIdxObjCProtocolRefInfo;
-
-typedef struct  {
+typedef CXIdxObjCProtocolRefInfo CXIdxObjCProtocolRefInfo;
+typedef struct CXIdxObjCProtocolRefListInfo {
   const CXIdxObjCProtocolRefInfo *const * protocols;
   unsigned int numProtocols;
 } CXIdxObjCProtocolRefListInfo;
-
-typedef struct  {
+typedef CXIdxObjCProtocolRefListInfo CXIdxObjCProtocolRefListInfo;
+typedef struct CXIdxObjCInterfaceDeclInfo {
   const CXIdxObjCContainerDeclInfo * containerInfo;
   const CXIdxBaseClassInfo * superInfo;
   const CXIdxObjCProtocolRefListInfo * protocols;
 } CXIdxObjCInterfaceDeclInfo;
-
-typedef struct  {
+typedef CXIdxObjCInterfaceDeclInfo CXIdxObjCInterfaceDeclInfo;
+typedef struct CXIdxObjCCategoryDeclInfo {
   const CXIdxObjCContainerDeclInfo * containerInfo;
   const CXIdxEntityInfo * objcClass;
   CXCursor classCursor;
   CXIdxLoc classLoc;
   const CXIdxObjCProtocolRefListInfo * protocols;
 } CXIdxObjCCategoryDeclInfo;
-
-typedef struct  {
+typedef CXIdxObjCCategoryDeclInfo CXIdxObjCCategoryDeclInfo;
+typedef struct CXIdxObjCPropertyDeclInfo {
   const CXIdxDeclInfo * declInfo;
   const CXIdxEntityInfo * getter;
   const CXIdxEntityInfo * setter;
 } CXIdxObjCPropertyDeclInfo;
-
-typedef struct  {
+typedef CXIdxObjCPropertyDeclInfo CXIdxObjCPropertyDeclInfo;
+typedef struct CXIdxCXXClassDeclInfo {
   const CXIdxDeclInfo * declInfo;
   const CXIdxBaseClassInfo *const * bases;
   unsigned int numBases;
 } CXIdxCXXClassDeclInfo;
-
-typedef enum  {
+typedef CXIdxCXXClassDeclInfo CXIdxCXXClassDeclInfo;
+typedef enum CXIdxEntityRefKind {
   CXIdxEntityRef_Direct = 1,
   CXIdxEntityRef_Implicit = 2,
 } CXIdxEntityRefKind;
-
-typedef enum  {
+typedef CXIdxEntityRefKind CXIdxEntityRefKind;
+typedef enum CXSymbolRole {
   CXSymbolRole_None = 0,
   CXSymbolRole_Declaration = 1,
   CXSymbolRole_Definition = 2,
@@ -1388,8 +1390,8 @@ typedef enum  {
   CXSymbolRole_AddressOf = 128,
   CXSymbolRole_Implicit = 256,
 } CXSymbolRole;
-
-typedef struct  {
+typedef CXSymbolRole CXSymbolRole;
+typedef struct CXIdxEntityRefInfo {
   CXIdxEntityRefKind kind;
   CXCursor cursor;
   CXIdxLoc loc;
@@ -1398,8 +1400,8 @@ typedef struct  {
   const CXIdxContainerInfo * container;
   CXSymbolRole role;
 } CXIdxEntityRefInfo;
-
-typedef struct  {
+typedef CXIdxEntityRefInfo CXIdxEntityRefInfo;
+typedef struct IndexerCallbacks {
   int (*abortQuery)(CXClientData, void *);
   void (*diagnostic)(CXClientData, CXDiagnosticSet, void *);
   CXIdxClientFile (*enteredMainFile)(CXClientData, CXFile, void *);
@@ -1409,7 +1411,7 @@ typedef struct  {
   void (*indexDeclaration)(CXClientData, const CXIdxDeclInfo *);
   void (*indexEntityReference)(CXClientData, const CXIdxEntityRefInfo *);
 } IndexerCallbacks;
-
+typedef IndexerCallbacks IndexerCallbacks;
 int clang_index_isEntityObjCContainerKind(CXIdxEntityKind );
 const CXIdxObjCContainerDeclInfo * clang_index_getObjCContainerDeclInfo(const CXIdxDeclInfo * );
 const CXIdxObjCInterfaceDeclInfo * clang_index_getObjCInterfaceDeclInfo(const CXIdxDeclInfo * );
@@ -1422,10 +1424,10 @@ CXIdxClientContainer clang_index_getClientContainer(const CXIdxContainerInfo * )
 void clang_index_setClientContainer(const CXIdxContainerInfo * , CXIdxClientContainer );
 CXIdxClientEntity clang_index_getClientEntity(const CXIdxEntityInfo * );
 void clang_index_setClientEntity(const CXIdxEntityInfo * , CXIdxClientEntity );
-typedef void *CXIndexAction;
+typedef void * CXIndexAction;
 CXIndexAction clang_IndexAction_create(CXIndex CIdx);
 void clang_IndexAction_dispose(CXIndexAction );
-typedef enum  {
+typedef enum CXIndexOptFlags {
   CXIndexOpt_None = 0,
   CXIndexOpt_SuppressRedundantRefs = 1,
   CXIndexOpt_IndexFunctionLocalSymbols = 2,
@@ -1433,20 +1435,19 @@ typedef enum  {
   CXIndexOpt_SuppressWarnings = 8,
   CXIndexOpt_SkipParsedBodiesInSession = 16,
 } CXIndexOptFlags;
-
+typedef CXIndexOptFlags CXIndexOptFlags;
 int clang_indexSourceFile(CXIndexAction , CXClientData client_data, IndexerCallbacks * index_callbacks, unsigned int index_callbacks_size, unsigned int index_options, const char * source_filename, const char *const * command_line_args, int num_command_line_args, struct CXUnsavedFile * unsaved_files, unsigned int num_unsaved_files, CXTranslationUnit * out_TU, unsigned int TU_options);
 int clang_indexSourceFileFullArgv(CXIndexAction , CXClientData client_data, IndexerCallbacks * index_callbacks, unsigned int index_callbacks_size, unsigned int index_options, const char * source_filename, const char *const * command_line_args, int num_command_line_args, struct CXUnsavedFile * unsaved_files, unsigned int num_unsaved_files, CXTranslationUnit * out_TU, unsigned int TU_options);
 int clang_indexTranslationUnit(CXIndexAction , CXClientData client_data, IndexerCallbacks * index_callbacks, unsigned int index_callbacks_size, unsigned int index_options, CXTranslationUnit );
 void clang_indexLoc_getFileLocation(CXIdxLoc loc, CXIdxClientFile * indexFile, CXFile * file, unsigned int * line, unsigned int * column, unsigned int * offset);
 CXSourceLocation clang_indexLoc_getCXSourceLocation(CXIdxLoc loc);
-typedef enum CXVisitorResult (*CXFieldVisitor)(CXCursor C,
-                                               CXClientData client_data);
+typedef enum CXVisitorResult (*CXFieldVisitor)(CXCursor, CXClientData);
 unsigned int clang_Type_visitFields(CXType T, CXFieldVisitor visitor, CXClientData client_data);
-typedef struct  {
+typedef struct CXComment {
   const void * ASTNode;
   CXTranslationUnit TranslationUnit;
 } CXComment;
-
+typedef CXComment CXComment;
 CXComment clang_Cursor_getParsedComment(CXCursor C);
 enum CXCommentKind {
   CXComment_Null = 0,
@@ -1512,7 +1513,7 @@ void clang_install_aborting_llvm_fatal_error_handler();
 void clang_uninstall_llvm_fatal_error_handler();
 ]=]
 
-local c_lib = ffi.load('clang', true)
+local c_lib = ffi.load('clang')
 local lua_lib = setmetatable({ c_lib = c_lib }, { __index = c_lib })
 lua_lib.String = ffi.metatype('CXString', {
   __name = 'CXString',
@@ -1543,7 +1544,7 @@ lua_lib.TranslationUnitImpl = ffi.metatype('struct CXTranslationUnitImpl', {
 lua_lib.UnsavedFile = ffi.metatype('struct CXUnsavedFile', {
   __name = 'CXUnsavedFile',
 })
-lua_lib.Version = ffi.metatype('CXVersion', {
+lua_lib.Version = ffi.metatype('struct CXVersion', {
   __name = 'CXVersion',
 })
 lua_lib.FileUniqueID = ffi.metatype('CXFileUniqueID', {
@@ -1551,18 +1552,35 @@ lua_lib.FileUniqueID = ffi.metatype('CXFileUniqueID', {
 })
 lua_lib.SourceLocation = ffi.metatype('CXSourceLocation', {
   __name = 'CXSourceLocation',
+  __index = {
+    equalLocations = c_lib.clang_equalLocations,
+    Location_isInSystemHeader = c_lib.clang_Location_isInSystemHeader,
+    Location_isFromMainFile = c_lib.clang_Location_isFromMainFile,
+    getRange = c_lib.clang_getRange,
+    getExpansionLocation = c_lib.clang_getExpansionLocation,
+    getPresumedLocation = c_lib.clang_getPresumedLocation,
+    getInstantiationLocation = c_lib.clang_getInstantiationLocation,
+    getSpellingLocation = c_lib.clang_getSpellingLocation,
+    getFileLocation = c_lib.clang_getFileLocation,
+  },
 })
 lua_lib.SourceRange = ffi.metatype('CXSourceRange', {
   __name = 'CXSourceRange',
+  __index = {
+    equalRanges = c_lib.clang_equalRanges,
+    Range_isNull = c_lib.clang_Range_isNull,
+    getRangeStart = c_lib.clang_getRangeStart,
+    getRangeEnd = c_lib.clang_getRangeEnd,
+  },
 })
 lua_lib.SourceRangeList = ffi.metatype('CXSourceRangeList', {
   __name = 'CXSourceRangeList',
   __gc = c_lib.clang_disposeSourceRangeList,
 })
-lua_lib.TUResourceUsageEntry = ffi.metatype('CXTUResourceUsageEntry', {
+lua_lib.TUResourceUsageEntry = ffi.metatype('struct CXTUResourceUsageEntry', {
   __name = 'CXTUResourceUsageEntry',
 })
-lua_lib.TUResourceUsage = ffi.metatype('CXTUResourceUsage', {
+lua_lib.TUResourceUsage = ffi.metatype('struct CXTUResourceUsage', {
   __name = 'CXTUResourceUsage',
   __gc = c_lib.clang_disposeCXTUResourceUsage,
 })
@@ -1574,6 +1592,7 @@ lua_lib.Cursor = ffi.metatype('CXCursor', {
     isNull = c_lib.clang_Cursor_isNull,
     hash = c_lib.clang_hashCursor,
     getKind = c_lib.clang_getCursorKind,
+    isInvalidDeclaration = c_lib.clang_isInvalidDeclaration,
     hasAttrs = c_lib.clang_Cursor_hasAttrs,
     getLinkage = c_lib.clang_getCursorLinkage,
     getVisibility = c_lib.clang_getCursorVisibility,
@@ -1585,9 +1604,15 @@ lua_lib.Cursor = ffi.metatype('CXCursor', {
     getSemanticParent = c_lib.clang_getCursorSemanticParent,
     getLexicalParent = c_lib.clang_getCursorLexicalParent,
     getOverriddens = c_lib.clang_getOverriddenCursors,
+    getIncludedFile = c_lib.clang_getIncludedFile,
     getLocation = c_lib.clang_getCursorLocation,
     getExtent = c_lib.clang_getCursorExtent,
     getType = c_lib.clang_getCursorType,
+    getTypedefDeclUnderlyingType = c_lib.clang_getTypedefDeclUnderlyingType,
+    getEnumDeclIntegerType = c_lib.clang_getEnumDeclIntegerType,
+    getEnumConstantDeclValue = c_lib.clang_getEnumConstantDeclValue,
+    getEnumConstantDeclUnsignedValue = c_lib.clang_getEnumConstantDeclUnsignedValue,
+    getFieldDeclBitWidth = c_lib.clang_getFieldDeclBitWidth,
     getNumArguments = c_lib.clang_Cursor_getNumArguments,
     getArgument = c_lib.clang_Cursor_getArgument,
     getNumTemplateArguments = c_lib.clang_Cursor_getNumTemplateArguments,
@@ -1598,6 +1623,7 @@ lua_lib.Cursor = ffi.metatype('CXCursor', {
     isMacroFunctionLike = c_lib.clang_Cursor_isMacroFunctionLike,
     isMacroBuiltin = c_lib.clang_Cursor_isMacroBuiltin,
     isFunctionInlined = c_lib.clang_Cursor_isFunctionInlined,
+    getDeclObjCTypeEncoding = c_lib.clang_getDeclObjCTypeEncoding,
     getResultType = c_lib.clang_getCursorResultType,
     getExceptionSpecificationType = c_lib.clang_getCursorExceptionSpecificationType,
     getOffsetOfField = c_lib.clang_Cursor_getOffsetOfField,
@@ -1605,7 +1631,13 @@ lua_lib.Cursor = ffi.metatype('CXCursor', {
     isAnonymousRecordDecl = c_lib.clang_Cursor_isAnonymousRecordDecl,
     isInlineNamespace = c_lib.clang_Cursor_isInlineNamespace,
     isBitField = c_lib.clang_Cursor_isBitField,
+    isVirtualBase = c_lib.clang_isVirtualBase,
+    getCXXAccessSpecifier = c_lib.clang_getCXXAccessSpecifier,
     getStorageClass = c_lib.clang_Cursor_getStorageClass,
+    getNumOverloadedDecls = c_lib.clang_getNumOverloadedDecls,
+    getOverloadedDecl = c_lib.clang_getOverloadedDecl,
+    getIBOutletCollectionType = c_lib.clang_getIBOutletCollectionType,
+    visitChildren = c_lib.clang_visitChildren,
     getUSR = c_lib.clang_getCursorUSR,
     getSpelling = c_lib.clang_getCursorSpelling,
     getSpellingNameRange = c_lib.clang_Cursor_getSpellingNameRange,
@@ -1633,15 +1665,29 @@ lua_lib.Cursor = ffi.metatype('CXCursor', {
     getCXXManglings = c_lib.clang_Cursor_getCXXManglings,
     getObjCManglings = c_lib.clang_Cursor_getObjCManglings,
     getModule = c_lib.clang_Cursor_getModule,
+    CXXConstructor_isConvertingConstructor = c_lib.clang_CXXConstructor_isConvertingConstructor,
+    CXXConstructor_isCopyConstructor = c_lib.clang_CXXConstructor_isCopyConstructor,
+    CXXConstructor_isDefaultConstructor = c_lib.clang_CXXConstructor_isDefaultConstructor,
+    CXXConstructor_isMoveConstructor = c_lib.clang_CXXConstructor_isMoveConstructor,
+    CXXField_isMutable = c_lib.clang_CXXField_isMutable,
+    CXXMethod_isDefaulted = c_lib.clang_CXXMethod_isDefaulted,
+    CXXMethod_isPureVirtual = c_lib.clang_CXXMethod_isPureVirtual,
+    CXXMethod_isStatic = c_lib.clang_CXXMethod_isStatic,
+    CXXMethod_isVirtual = c_lib.clang_CXXMethod_isVirtual,
+    CXXRecord_isAbstract = c_lib.clang_CXXRecord_isAbstract,
+    EnumDecl_isScoped = c_lib.clang_EnumDecl_isScoped,
+    CXXMethod_isConst = c_lib.clang_CXXMethod_isConst,
     getTemplateKind = c_lib.clang_getTemplateCursorKind,
     getSpecializedTemplate = c_lib.clang_getSpecializedCursorTemplate,
     getReferenceNameRange = c_lib.clang_getCursorReferenceNameRange,
+    getDefinitionSpellingAndExtent = c_lib.clang_getDefinitionSpellingAndExtent,
     getCompletionString = c_lib.clang_getCursorCompletionString,
     Evaluate = c_lib.clang_Cursor_Evaluate,
+    findReferencesInFile = c_lib.clang_findReferencesInFile,
     getParsedComment = c_lib.clang_Cursor_getParsedComment,
   },
 })
-lua_lib.PlatformAvailability = ffi.metatype('CXPlatformAvailability', {
+lua_lib.PlatformAvailability = ffi.metatype('struct CXPlatformAvailability', {
   __name = 'CXPlatformAvailability',
   __gc = c_lib.clang_disposeCXPlatformAvailability,
 })
@@ -1657,6 +1703,7 @@ lua_lib.Type = ffi.metatype('CXType', {
     isConstQualified = c_lib.clang_isConstQualifiedType,
     isVolatileQualified = c_lib.clang_isVolatileQualifiedType,
     isRestrictQualified = c_lib.clang_isRestrictQualifiedType,
+    getAddressSpace = c_lib.clang_getAddressSpace,
     getdefName = c_lib.clang_getTypedefName,
     getPointee = c_lib.clang_getPointeeType,
     getDeclaration = c_lib.clang_getTypeDeclaration,
@@ -1674,7 +1721,9 @@ lua_lib.Type = ffi.metatype('CXType', {
     isFunctionVariadic = c_lib.clang_isFunctionTypeVariadic,
     isPOD = c_lib.clang_isPODType,
     getElement = c_lib.clang_getElementType,
+    getNumElements = c_lib.clang_getNumElements,
     getArrayElement = c_lib.clang_getArrayElementType,
+    getArraySize = c_lib.clang_getArraySize,
     getNamedType = c_lib.clang_Type_getNamedType,
     isTransparentTagTypedef = c_lib.clang_Type_isTransparentTagTypedef,
     getNullability = c_lib.clang_Type_getNullability,
@@ -1683,6 +1732,7 @@ lua_lib.Type = ffi.metatype('CXType', {
     getSizeOf = c_lib.clang_Type_getSizeOf,
     getOffsetOf = c_lib.clang_Type_getOffsetOf,
     getModifiedType = c_lib.clang_Type_getModifiedType,
+    getValueType = c_lib.clang_Type_getValueType,
     getNumTemplateArguments = c_lib.clang_Type_getNumTemplateArguments,
     getTemplateArgumentAsType = c_lib.clang_Type_getTemplateArgumentAsType,
     getCXXRefQualifier = c_lib.clang_Type_getCXXRefQualifier,
@@ -1704,12 +1754,26 @@ lua_lib.CompletionResult = ffi.metatype('CXCompletionResult', {
 lua_lib.CodeCompleteResults = ffi.metatype('CXCodeCompleteResults', {
   __name = 'CXCodeCompleteResults',
   __gc = c_lib.clang_disposeCodeCompleteResults,
+  __index = {
+    getCompletionNumFixIts = c_lib.clang_getCompletionNumFixIts,
+    getCompletionFixIt = c_lib.clang_getCompletionFixIt,
+    codeCompleteGetNumDiagnostics = c_lib.clang_codeCompleteGetNumDiagnostics,
+    codeCompleteGetDiagnostic = c_lib.clang_codeCompleteGetDiagnostic,
+    codeCompleteGetContexts = c_lib.clang_codeCompleteGetContexts,
+    codeCompleteGetContainerKind = c_lib.clang_codeCompleteGetContainerKind,
+    codeCompleteGetContainerUSR = c_lib.clang_codeCompleteGetContainerUSR,
+    codeCompleteGetObjCSelector = c_lib.clang_codeCompleteGetObjCSelector,
+  },
 })
-lua_lib.CursorAndRangeVisitor = ffi.metatype('CXCursorAndRangeVisitor', {
+lua_lib.CursorAndRangeVisitor = ffi.metatype('struct CXCursorAndRangeVisitor', {
   __name = 'CXCursorAndRangeVisitor',
 })
 lua_lib.IdxLoc = ffi.metatype('CXIdxLoc', {
   __name = 'CXIdxLoc',
+  __index = {
+    indexLoc_getFileLocation = c_lib.clang_indexLoc_getFileLocation,
+    indexLoc_getCXSourceLocation = c_lib.clang_indexLoc_getCXSourceLocation,
+  },
 })
 lua_lib.IdxIncludedFileInfo = ffi.metatype('CXIdxIncludedFileInfo', {
   __name = 'CXIdxIncludedFileInfo',
@@ -1719,18 +1783,37 @@ lua_lib.IdxImportedASTFileInfo = ffi.metatype('CXIdxImportedASTFileInfo', {
 })
 lua_lib.IdxAttrInfo = ffi.metatype('CXIdxAttrInfo', {
   __name = 'CXIdxAttrInfo',
+  __index = {
+    index_getIBOutletCollectionAttrInfo = c_lib.clang_index_getIBOutletCollectionAttrInfo,
+  },
 })
 lua_lib.IdxEntityInfo = ffi.metatype('CXIdxEntityInfo', {
   __name = 'CXIdxEntityInfo',
+  __index = {
+    index_getClientEntity = c_lib.clang_index_getClientEntity,
+    index_setClientEntity = c_lib.clang_index_setClientEntity,
+  },
 })
 lua_lib.IdxContainerInfo = ffi.metatype('CXIdxContainerInfo', {
   __name = 'CXIdxContainerInfo',
+  __index = {
+    index_getClientContainer = c_lib.clang_index_getClientContainer,
+    index_setClientContainer = c_lib.clang_index_setClientContainer,
+  },
 })
 lua_lib.IdxIBOutletCollectionAttrInfo = ffi.metatype('CXIdxIBOutletCollectionAttrInfo', {
   __name = 'CXIdxIBOutletCollectionAttrInfo',
 })
 lua_lib.IdxDeclInfo = ffi.metatype('CXIdxDeclInfo', {
   __name = 'CXIdxDeclInfo',
+  __index = {
+    index_getObjCContainerDeclInfo = c_lib.clang_index_getObjCContainerDeclInfo,
+    index_getObjCInterfaceDeclInfo = c_lib.clang_index_getObjCInterfaceDeclInfo,
+    index_getObjCCategoryDeclInfo = c_lib.clang_index_getObjCCategoryDeclInfo,
+    index_getObjCProtocolRefListInfo = c_lib.clang_index_getObjCProtocolRefListInfo,
+    index_getObjCPropertyDeclInfo = c_lib.clang_index_getObjCPropertyDeclInfo,
+    index_getCXXClassDeclInfo = c_lib.clang_index_getCXXClassDeclInfo,
+  },
 })
 lua_lib.IdxObjCContainerDeclInfo = ffi.metatype('CXIdxObjCContainerDeclInfo', {
   __name = 'CXIdxObjCContainerDeclInfo',
@@ -1777,6 +1860,9 @@ lua_lib.Comment = ffi.metatype('CXComment', {
     InlineCommand_getArgText = c_lib.clang_InlineCommandComment_getArgText,
     HTMLTag_getTagName = c_lib.clang_HTMLTagComment_getTagName,
     HTMLStartTag_isSelfClosing = c_lib.clang_HTMLStartTagComment_isSelfClosing,
+    HTMLStartTag_getNumAttrs = c_lib.clang_HTMLStartTag_getNumAttrs,
+    HTMLStartTag_getAttrName = c_lib.clang_HTMLStartTag_getAttrName,
+    HTMLStartTag_getAttrValue = c_lib.clang_HTMLStartTag_getAttrValue,
     BlockCommand_getCommandName = c_lib.clang_BlockCommandComment_getCommandName,
     BlockCommand_getNumArgs = c_lib.clang_BlockCommandComment_getNumArgs,
     BlockCommand_getArgText = c_lib.clang_BlockCommandComment_getArgText,
@@ -1823,8 +1909,6 @@ lua_lib.CompileCommand_getDirectory = lua_lib.clang_CompileCommand_getDirectory
 lua_lib.CompileCommand_getFilename = lua_lib.clang_CompileCommand_getFilename
 lua_lib.CompileCommand_getNumArgs = lua_lib.clang_CompileCommand_getNumArgs
 lua_lib.CompileCommand_getArg = lua_lib.clang_CompileCommand_getArg
--- For some reason, clang_CompileCommand_getNumMappedSources is not defined in my libclang installation
---lua_lib.CompileCommand_getNumMappedSources = lua_lib.clang_CompileCommand_getNumMappedSources
 lua_lib.CompileCommand_getMappedSourcePath = lua_lib.clang_CompileCommand_getMappedSourcePath
 lua_lib.CompileCommand_getMappedSourceContent = lua_lib.clang_CompileCommand_getMappedSourceContent
 lua_lib.createIndex = lua_lib.clang_createIndex
@@ -1995,6 +2079,7 @@ lua_lib.Type_getClassType = lua_lib.clang_Type_getClassType
 lua_lib.Type_getSizeOf = lua_lib.clang_Type_getSizeOf
 lua_lib.Type_getOffsetOf = lua_lib.clang_Type_getOffsetOf
 lua_lib.Type_getModifiedType = lua_lib.clang_Type_getModifiedType
+lua_lib.Type_getValueType = lua_lib.clang_Type_getValueType
 lua_lib.Cursor_getOffsetOfField = lua_lib.clang_Cursor_getOffsetOfField
 lua_lib.Cursor_isAnonymous = lua_lib.clang_Cursor_isAnonymous
 lua_lib.Cursor_isAnonymousRecordDecl = lua_lib.clang_Cursor_isAnonymousRecordDecl
