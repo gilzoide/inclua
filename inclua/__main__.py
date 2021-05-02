@@ -59,7 +59,7 @@ def main():
     module_name = opts.get('--module') or PurePath(opts['<input>']).stem
     if opts.get('--additional-definitions'):
         with open(opts.get('--additional-definitions')) as f:
-            extra_definitions = yaml.safe_load(f)
+            extra_definitions = yaml.safe_load(f) or {}
     else:
         extra_definitions = {}
     metatypes = [] if opts.get('--pod') else Metatype.from_definitions(definitions, opts.get('--namespace'), extra_definitions)
