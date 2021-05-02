@@ -8,42 +8,41 @@ import c_api_extract
 
 from inclua.namespace import canonicalize
 
+IGNORE_TAG = "ignore"
+
 
 class Metatype:
     def __init__(self, definition, namespace_prefixes=[]):
         self.definition = definition
         self.spelling = definition.get('spelling')
-        self.name = definition.get('typedef') or definition.get('name')
+        self.name = definition.get('name')
         self.opaque = not definition.get('fields')
         self.unprefixed = canonicalize(self.name, namespace_prefixes)
         self.aliases = {self.unprefixed}
         self.methods = []
         self.native_methods = []
-        self.metamethods = []
         self.destructor = None
 
     def add_native_definition(self, key, value):
-        if key.startswith('__'):
-            self.metamethods.append([key, value])
-        else:
-            self.native_methods.append([key, value])
+        self.native_methods.append((key, value))
 
     @classmethod
-    def from_definitions(cls, definitions, namespace_prefixes, native_definitions):
+    def from_definitions(cls, definitions, namespace_prefixes, extra_definitions):
         metatypes = [cls(t, namespace_prefixes)
                      for t in definitions
-                     if t['kind'] in ('struct', 'union')]
+                     if t['kind'] in ('struct', 'union')
+                     and extra_definitions.get(t['name'], None) != IGNORE_TAG]
         metatype_by_name = {t.name: t for t in metatypes}
         for t in definitions:
             if t['kind'] == 'typedef':
                 try:
-                    metatype = metatype_by_name[t['type']]
+                    metatype = metatype_by_name[t['type']['base']]
                     metatype.aliases.add(t['name'])
                     metatype_by_name[t['name']] = metatype
                 except KeyError:
                     pass
-        if native_definitions:
-            for name, d in native_definitions.items():
+        if extra_definitions:
+            for name, d in extra_definitions.items():
                 try:
                     metatype = metatype_by_name[name]
                     for key, value in d.items():
@@ -53,11 +52,11 @@ class Metatype:
         destructor_re = re.compile(r'release|destroy|unload|deinit|finalize|dispose|close', flags=re.I)
         for f in definitions:
             try:
-                first_argument_base = c_api_extract.base_type(f['arguments'][0][0])
-                metatype = metatype_by_name[first_argument_base]
-                if metatype.unprefixed not in f['name']:
+                if extra_definitions.get(f['name'], None) == IGNORE_TAG:
                     continue
-                if len(f['arguments']) == 1 and destructor_re.search(f['name']):
+                first_argument_base = f['arguments'][0][0]['base']
+                metatype = metatype_by_name[first_argument_base]
+                if metatype.unprefixed in f['name'] and len(f['arguments']) == 1 and destructor_re.search(f['name']):
                     metatype.destructor = f
                 else:
                     metatype.methods.append(f)

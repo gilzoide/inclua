@@ -16,7 +16,6 @@ Options:
   -n, --namespace=<namespace>
                           Namespace prefixes used in C declarations, used to remove the redundant prefix
                           in languages that support namespacing. 
-  -g, --global            Import definitions into the global C FFI namespace.
   -d, --additional-definitions=<definitions_file>
                           JSON or YAML file with additional definitions for metatypes.
                           For LuaJIT, additional definitions should be Lua functions for metamethods like
@@ -36,34 +35,43 @@ from docopt import docopt
 import yaml
 
 from inclua.error import IncluaError
+from inclua.metatype import Metatype
 
 
 def main():
     opts = docopt(__doc__)
-    definitions = c_api_extract.definitions_from_header(opts['<input>'],
-            clang_args=opts['<clang_args>'], include_patterns=opts['--include'],
-            type_objects=False, include_source=True)
+    language = opts.get('--language')
+    try:
+        generator = importlib.import_module('inclua.{}'.format(language))
+    except ModuleNotFoundError:
+        stderr.write("Error: Invalid target language {!r}. Must be one of 'luajit' or 'd'\n".format(language))
+        return
+
+    definitions = c_api_extract.definitions_from_header(
+        opts['<input>'],
+        clang_args=opts['<clang_args>'],
+        include_patterns=opts['--include'],
+        type_objects=True,
+        include_source=getattr(generator, "INCLUDE_SOURCE", False),
+        include_size=getattr(generator, "INCLUDE_SIZE", False),
+        include_offset=getattr(generator, "INCLUDE_OFFSET", False),
+    )
     module_name = opts.get('--module') or PurePath(opts['<input>']).stem
     if opts.get('--additional-definitions'):
         with open(opts.get('--additional-definitions')) as f:
-            additional_definitions = yaml.safe_load(f)
+            extra_definitions = yaml.safe_load(f)
     else:
-        additional_definitions = None
-    language = opts['--language']
-    try:
-        generator = importlib.import_module('inclua.{}'.format(language))
-        code = generator.generate(
-            definitions,
-            module_name,
-            import_global=opts.get('--global'),
-            generate_metatypes=not opts.get('--no-metatypes'),
-            namespace_prefixes=opts.get('--namespace'),
-            additional_definitions=additional_definitions,
-        )
-        signal(SIGPIPE, SIG_DFL)
-        print(code)
-    except ModuleNotFoundError:
-        stderr.write("Error: Invalid target language {!r}. Must be one of 'luajit' or 'd'\n".format(language))
+        extra_definitions = {}
+    metatypes = [] if opts.get('--pod') else Metatype.from_definitions(definitions, opts.get('--namespace'), extra_definitions)
+
+    code = generator.generate(
+        definitions,
+        module_name,
+        metatypes=metatypes,
+        namespace_prefixes=opts.get('--namespace'),
+    )
+    signal(SIGPIPE, SIG_DFL)
+    print(code)
 
 if __name__ == '__main__':
     main()
