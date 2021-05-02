@@ -1,3 +1,6 @@
+UnloadImageColors: ignore
+UnloadImagePalette: ignore
+
 Vector2:
   __tostring: |
     function(self)

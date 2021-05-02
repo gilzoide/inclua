@@ -9,26 +9,26 @@
 local ffi = require 'ffi'
 
 ffi.cdef[=[
-typedef struct Vector2 {
+struct Vector2 {
   float x;
   float y;
-} Vector2;
-
-typedef struct Vector3 {
+};
+typedef struct Vector2 Vector2;
+struct Vector3 {
   float x;
   float y;
   float z;
-} Vector3;
-
-typedef struct Vector4 {
+};
+typedef struct Vector3 Vector3;
+struct Vector4 {
   float x;
   float y;
   float z;
   float w;
-} Vector4;
-
+};
+typedef struct Vector4 Vector4;
 typedef Vector4 Quaternion;
-typedef struct Matrix {
+struct Matrix {
   float m0;
   float m4;
   float m8;
@@ -45,90 +45,90 @@ typedef struct Matrix {
   float m7;
   float m11;
   float m15;
-} Matrix;
-
-typedef struct Color {
+};
+typedef struct Matrix Matrix;
+struct Color {
   unsigned char r;
   unsigned char g;
   unsigned char b;
   unsigned char a;
-} Color;
-
-typedef struct Rectangle {
+};
+typedef struct Color Color;
+struct Rectangle {
   float x;
   float y;
   float width;
   float height;
-} Rectangle;
-
-typedef struct Image {
+};
+typedef struct Rectangle Rectangle;
+struct Image {
   void * data;
   int width;
   int height;
   int mipmaps;
   int format;
-} Image;
-
-typedef struct Texture2D {
+};
+typedef struct Image Image;
+struct Texture {
   unsigned int id;
   int width;
   int height;
   int mipmaps;
   int format;
-} Texture2D;
-
-typedef Texture2D Texture;
-typedef Texture2D TextureCubemap;
-typedef struct RenderTexture2D {
+};
+typedef struct Texture Texture;
+typedef Texture Texture2D;
+typedef Texture TextureCubemap;
+struct RenderTexture {
   unsigned int id;
-  Texture2D texture;
-  Texture2D depth;
-  _Bool depthTexture;
-} RenderTexture2D;
-
-typedef RenderTexture2D RenderTexture;
-typedef struct NPatchInfo {
-  Rectangle sourceRec;
+  Texture texture;
+  Texture depth;
+};
+typedef struct RenderTexture RenderTexture;
+typedef RenderTexture RenderTexture2D;
+struct NPatchInfo {
+  Rectangle source;
   int left;
   int top;
   int right;
   int bottom;
   int type;
-} NPatchInfo;
-
-typedef struct CharInfo {
+};
+typedef struct NPatchInfo NPatchInfo;
+struct CharInfo {
   int value;
   int offsetX;
   int offsetY;
   int advanceX;
   Image image;
-} CharInfo;
-
-typedef struct Font {
+};
+typedef struct CharInfo CharInfo;
+struct Font {
   int baseSize;
   int charsCount;
+  int charsPadding;
   Texture2D texture;
   Rectangle * recs;
   CharInfo * chars;
-} Font;
-
-typedef struct Camera3D {
+};
+typedef struct Font Font;
+struct Camera3D {
   Vector3 position;
   Vector3 target;
   Vector3 up;
   float fovy;
   int type;
-} Camera3D;
-
+};
+typedef struct Camera3D Camera3D;
 typedef Camera3D Camera;
-typedef struct Camera2D {
+struct Camera2D {
   Vector2 offset;
   Vector2 target;
   float rotation;
   float zoom;
-} Camera2D;
-
-typedef struct Mesh {
+};
+typedef struct Camera2D Camera2D;
+struct Mesh {
   int vertexCount;
   int triangleCount;
   float * vertices;
@@ -144,103 +144,103 @@ typedef struct Mesh {
   float * boneWeights;
   unsigned int vaoId;
   unsigned int * vboId;
-} Mesh;
-
-typedef struct Shader {
+};
+typedef struct Mesh Mesh;
+struct Shader {
   unsigned int id;
   int * locs;
-} Shader;
-
-typedef struct MaterialMap {
+};
+typedef struct Shader Shader;
+struct MaterialMap {
   Texture2D texture;
   Color color;
   float value;
-} MaterialMap;
-
-typedef struct Material {
+};
+typedef struct MaterialMap MaterialMap;
+struct Material {
   Shader shader;
   MaterialMap * maps;
   float * params;
-} Material;
-
-typedef struct Transform {
+};
+typedef struct Material Material;
+struct Transform {
   Vector3 translation;
   Quaternion rotation;
   Vector3 scale;
-} Transform;
-
-typedef struct BoneInfo {
+};
+typedef struct Transform Transform;
+struct BoneInfo {
   char name[32];
   int parent;
-} BoneInfo;
-
-typedef struct Model {
+};
+typedef struct BoneInfo BoneInfo;
+struct Model {
   Matrix transform;
   int meshCount;
-  Mesh * meshes;
   int materialCount;
+  Mesh * meshes;
   Material * materials;
   int * meshMaterial;
   int boneCount;
   BoneInfo * bones;
   Transform * bindPose;
-} Model;
-
-typedef struct ModelAnimation {
+};
+typedef struct Model Model;
+struct ModelAnimation {
   int boneCount;
-  BoneInfo * bones;
   int frameCount;
+  BoneInfo * bones;
   Transform ** framePoses;
-} ModelAnimation;
-
-typedef struct Ray {
+};
+typedef struct ModelAnimation ModelAnimation;
+struct Ray {
   Vector3 position;
   Vector3 direction;
-} Ray;
-
-typedef struct RayHitInfo {
+};
+typedef struct Ray Ray;
+struct RayHitInfo {
   _Bool hit;
   float distance;
   Vector3 position;
   Vector3 normal;
-} RayHitInfo;
-
-typedef struct BoundingBox {
+};
+typedef struct RayHitInfo RayHitInfo;
+struct BoundingBox {
   Vector3 min;
   Vector3 max;
-} BoundingBox;
-
-typedef struct Wave {
+};
+typedef struct BoundingBox BoundingBox;
+struct Wave {
   unsigned int sampleCount;
   unsigned int sampleRate;
   unsigned int sampleSize;
   unsigned int channels;
   void * data;
-} Wave;
-
+};
+typedef struct Wave Wave;
+struct rAudioBuffer;
 typedef struct rAudioBuffer rAudioBuffer;
-
-typedef struct AudioStream {
+struct AudioStream {
+  rAudioBuffer * buffer;
   unsigned int sampleRate;
   unsigned int sampleSize;
   unsigned int channels;
-  rAudioBuffer * buffer;
-} AudioStream;
-
-typedef struct Sound {
-  unsigned int sampleCount;
+};
+typedef struct AudioStream AudioStream;
+struct Sound {
   AudioStream stream;
-} Sound;
-
-typedef struct Music {
+  unsigned int sampleCount;
+};
+typedef struct Sound Sound;
+struct Music {
+  AudioStream stream;
+  unsigned int sampleCount;
+  _Bool looping;
   int ctxType;
   void * ctxData;
-  unsigned int sampleCount;
-  unsigned int loopCount;
-  AudioStream stream;
-} Music;
-
-typedef struct VrDeviceInfo {
+};
+typedef struct Music Music;
+struct VrDeviceInfo {
   int hResolution;
   int vResolution;
   float hScreenSize;
@@ -251,21 +251,26 @@ typedef struct VrDeviceInfo {
   float interpupillaryDistance;
   float lensDistortionValues[4];
   float chromaAbCorrection[4];
-} VrDeviceInfo;
-
-typedef enum  {
-  FLAG_RESERVED = 1,
+};
+typedef struct VrDeviceInfo VrDeviceInfo;
+typedef enum ConfigFlag {
+  FLAG_VSYNC_HINT = 64,
   FLAG_FULLSCREEN_MODE = 2,
   FLAG_WINDOW_RESIZABLE = 4,
   FLAG_WINDOW_UNDECORATED = 8,
-  FLAG_WINDOW_TRANSPARENT = 16,
   FLAG_WINDOW_HIDDEN = 128,
+  FLAG_WINDOW_MINIMIZED = 512,
+  FLAG_WINDOW_MAXIMIZED = 1024,
+  FLAG_WINDOW_UNFOCUSED = 2048,
+  FLAG_WINDOW_TOPMOST = 4096,
   FLAG_WINDOW_ALWAYS_RUN = 256,
+  FLAG_WINDOW_TRANSPARENT = 16,
+  FLAG_WINDOW_HIGHDPI = 8192,
   FLAG_MSAA_4X_HINT = 32,
-  FLAG_VSYNC_HINT = 64,
+  FLAG_INTERLACED_HINT = 65536,
 } ConfigFlag;
-
-typedef enum  {
+typedef ConfigFlag ConfigFlag;
+typedef enum TraceLogType {
   LOG_ALL = 0,
   LOG_TRACE = 1,
   LOG_DEBUG = 2,
@@ -275,8 +280,8 @@ typedef enum  {
   LOG_FATAL = 6,
   LOG_NONE = 7,
 } TraceLogType;
-
-typedef enum  {
+typedef TraceLogType TraceLogType;
+typedef enum KeyboardKey {
   KEY_APOSTROPHE = 39,
   KEY_COMMA = 44,
   KEY_MINUS = 45,
@@ -383,28 +388,42 @@ typedef enum  {
   KEY_KP_ENTER = 335,
   KEY_KP_EQUAL = 336,
 } KeyboardKey;
-
-typedef enum  {
+typedef KeyboardKey KeyboardKey;
+typedef enum AndroidButton {
   KEY_BACK = 4,
   KEY_MENU = 82,
   KEY_VOLUME_UP = 24,
   KEY_VOLUME_DOWN = 25,
 } AndroidButton;
-
-typedef enum  {
+typedef AndroidButton AndroidButton;
+typedef enum MouseButton {
   MOUSE_LEFT_BUTTON = 0,
   MOUSE_RIGHT_BUTTON = 1,
   MOUSE_MIDDLE_BUTTON = 2,
 } MouseButton;
-
-typedef enum  {
+typedef MouseButton MouseButton;
+typedef enum MouseCursor {
+  MOUSE_CURSOR_DEFAULT = 0,
+  MOUSE_CURSOR_ARROW = 1,
+  MOUSE_CURSOR_IBEAM = 2,
+  MOUSE_CURSOR_CROSSHAIR = 3,
+  MOUSE_CURSOR_POINTING_HAND = 4,
+  MOUSE_CURSOR_RESIZE_EW = 5,
+  MOUSE_CURSOR_RESIZE_NS = 6,
+  MOUSE_CURSOR_RESIZE_NWSE = 7,
+  MOUSE_CURSOR_RESIZE_NESW = 8,
+  MOUSE_CURSOR_RESIZE_ALL = 9,
+  MOUSE_CURSOR_NOT_ALLOWED = 10,
+} MouseCursor;
+typedef MouseCursor MouseCursor;
+typedef enum GamepadNumber {
   GAMEPAD_PLAYER1 = 0,
   GAMEPAD_PLAYER2 = 1,
   GAMEPAD_PLAYER3 = 2,
   GAMEPAD_PLAYER4 = 3,
 } GamepadNumber;
-
-typedef enum  {
+typedef GamepadNumber GamepadNumber;
+typedef enum GamepadButton {
   GAMEPAD_BUTTON_UNKNOWN = 0,
   GAMEPAD_BUTTON_LEFT_FACE_UP = 1,
   GAMEPAD_BUTTON_LEFT_FACE_RIGHT = 2,
@@ -424,18 +443,17 @@ typedef enum  {
   GAMEPAD_BUTTON_LEFT_THUMB = 16,
   GAMEPAD_BUTTON_RIGHT_THUMB = 17,
 } GamepadButton;
-
-typedef enum  {
-  GAMEPAD_AXIS_UNKNOWN = 0,
-  GAMEPAD_AXIS_LEFT_X = 1,
-  GAMEPAD_AXIS_LEFT_Y = 2,
-  GAMEPAD_AXIS_RIGHT_X = 3,
-  GAMEPAD_AXIS_RIGHT_Y = 4,
-  GAMEPAD_AXIS_LEFT_TRIGGER = 5,
-  GAMEPAD_AXIS_RIGHT_TRIGGER = 6,
+typedef GamepadButton GamepadButton;
+typedef enum GamepadAxis {
+  GAMEPAD_AXIS_LEFT_X = 0,
+  GAMEPAD_AXIS_LEFT_Y = 1,
+  GAMEPAD_AXIS_RIGHT_X = 2,
+  GAMEPAD_AXIS_RIGHT_Y = 3,
+  GAMEPAD_AXIS_LEFT_TRIGGER = 4,
+  GAMEPAD_AXIS_RIGHT_TRIGGER = 5,
 } GamepadAxis;
-
-typedef enum  {
+typedef GamepadAxis GamepadAxis;
+typedef enum ShaderLocationIndex {
   LOC_VERTEX_POSITION = 0,
   LOC_VERTEX_TEXCOORD01 = 1,
   LOC_VERTEX_TEXCOORD02 = 2,
@@ -462,8 +480,8 @@ typedef enum  {
   LOC_MAP_PREFILTER = 23,
   LOC_MAP_BRDF = 24,
 } ShaderLocationIndex;
-
-typedef enum  {
+typedef ShaderLocationIndex ShaderLocationIndex;
+typedef enum ShaderUniformDataType {
   UNIFORM_FLOAT = 0,
   UNIFORM_VEC2 = 1,
   UNIFORM_VEC3 = 2,
@@ -474,8 +492,8 @@ typedef enum  {
   UNIFORM_IVEC4 = 7,
   UNIFORM_SAMPLER2D = 8,
 } ShaderUniformDataType;
-
-typedef enum  {
+typedef ShaderUniformDataType ShaderUniformDataType;
+typedef enum MaterialMapType {
   MAP_ALBEDO = 0,
   MAP_METALNESS = 1,
   MAP_NORMAL = 2,
@@ -488,8 +506,8 @@ typedef enum  {
   MAP_PREFILTER = 9,
   MAP_BRDF = 10,
 } MaterialMapType;
-
-typedef enum  {
+typedef MaterialMapType MaterialMapType;
+typedef enum PixelFormat {
   UNCOMPRESSED_GRAYSCALE = 1,
   UNCOMPRESSED_GRAY_ALPHA = 2,
   UNCOMPRESSED_R5G6B5 = 3,
@@ -512,8 +530,8 @@ typedef enum  {
   COMPRESSED_ASTC_4x4_RGBA = 20,
   COMPRESSED_ASTC_8x8_RGBA = 21,
 } PixelFormat;
-
-typedef enum  {
+typedef PixelFormat PixelFormat;
+typedef enum TextureFilterMode {
   FILTER_POINT = 0,
   FILTER_BILINEAR = 1,
   FILTER_TRILINEAR = 2,
@@ -521,8 +539,15 @@ typedef enum  {
   FILTER_ANISOTROPIC_8X = 4,
   FILTER_ANISOTROPIC_16X = 5,
 } TextureFilterMode;
-
-typedef enum  {
+typedef TextureFilterMode TextureFilterMode;
+typedef enum TextureWrapMode {
+  WRAP_REPEAT = 0,
+  WRAP_CLAMP = 1,
+  WRAP_MIRROR_REPEAT = 2,
+  WRAP_MIRROR_CLAMP = 3,
+} TextureWrapMode;
+typedef TextureWrapMode TextureWrapMode;
+typedef enum CubemapLayoutType {
   CUBEMAP_AUTO_DETECT = 0,
   CUBEMAP_LINE_VERTICAL = 1,
   CUBEMAP_LINE_HORIZONTAL = 2,
@@ -530,27 +555,23 @@ typedef enum  {
   CUBEMAP_CROSS_FOUR_BY_THREE = 4,
   CUBEMAP_PANORAMA = 5,
 } CubemapLayoutType;
-
-typedef enum  {
-  WRAP_REPEAT = 0,
-  WRAP_CLAMP = 1,
-  WRAP_MIRROR_REPEAT = 2,
-  WRAP_MIRROR_CLAMP = 3,
-} TextureWrapMode;
-
-typedef enum  {
+typedef CubemapLayoutType CubemapLayoutType;
+typedef enum FontType {
   FONT_DEFAULT = 0,
   FONT_BITMAP = 1,
   FONT_SDF = 2,
 } FontType;
-
-typedef enum  {
+typedef FontType FontType;
+typedef enum BlendMode {
   BLEND_ALPHA = 0,
   BLEND_ADDITIVE = 1,
   BLEND_MULTIPLIED = 2,
+  BLEND_ADD_COLORS = 3,
+  BLEND_SUBTRACT_COLORS = 4,
+  BLEND_CUSTOM = 5,
 } BlendMode;
-
-typedef enum  {
+typedef BlendMode BlendMode;
+typedef enum GestureType {
   GESTURE_NONE = 0,
   GESTURE_TAP = 1,
   GESTURE_DOUBLETAP = 2,
@@ -563,38 +584,44 @@ typedef enum  {
   GESTURE_PINCH_IN = 256,
   GESTURE_PINCH_OUT = 512,
 } GestureType;
-
-typedef enum  {
+typedef GestureType GestureType;
+typedef enum CameraMode {
   CAMERA_CUSTOM = 0,
   CAMERA_FREE = 1,
   CAMERA_ORBITAL = 2,
   CAMERA_FIRST_PERSON = 3,
   CAMERA_THIRD_PERSON = 4,
 } CameraMode;
-
-typedef enum  {
+typedef CameraMode CameraMode;
+typedef enum CameraType {
   CAMERA_PERSPECTIVE = 0,
   CAMERA_ORTHOGRAPHIC = 1,
 } CameraType;
-
-typedef enum  {
+typedef CameraType CameraType;
+typedef enum NPatchType {
   NPT_9PATCH = 0,
   NPT_3PATCH_VERTICAL = 1,
   NPT_3PATCH_HORIZONTAL = 2,
 } NPatchType;
-
-typedef void (*TraceLogCallback)(int logType, const char *text, va_list args);
+typedef NPatchType NPatchType;
+typedef void (*TraceLogCallback)(int, const char *, struct __va_list_tag *);
 void InitWindow(int width, int height, const char * title);
 _Bool WindowShouldClose();
 void CloseWindow();
 _Bool IsWindowReady();
-_Bool IsWindowMinimized();
-_Bool IsWindowResized();
-_Bool IsWindowHidden();
 _Bool IsWindowFullscreen();
+_Bool IsWindowHidden();
+_Bool IsWindowMinimized();
+_Bool IsWindowMaximized();
+_Bool IsWindowFocused();
+_Bool IsWindowResized();
+_Bool IsWindowState(unsigned int flag);
+void SetWindowState(unsigned int flags);
+void ClearWindowState(unsigned int flags);
 void ToggleFullscreen();
-void UnhideWindow();
-void HideWindow();
+void MaximizeWindow();
+void MinimizeWindow();
+void RestoreWindow();
 void SetWindowIcon(Image image);
 void SetWindowTitle(const char * title);
 void SetWindowPosition(int x, int y);
@@ -605,19 +632,23 @@ void * GetWindowHandle();
 int GetScreenWidth();
 int GetScreenHeight();
 int GetMonitorCount();
+Vector2 GetMonitorPosition(int monitor);
 int GetMonitorWidth(int monitor);
 int GetMonitorHeight(int monitor);
 int GetMonitorPhysicalWidth(int monitor);
 int GetMonitorPhysicalHeight(int monitor);
+int GetMonitorRefreshRate(int monitor);
 Vector2 GetWindowPosition();
+Vector2 GetWindowScaleDPI();
 const char * GetMonitorName(int monitor);
-const char * GetClipboardText();
 void SetClipboardText(const char * text);
+const char * GetClipboardText();
 void ShowCursor();
 void HideCursor();
 _Bool IsCursorHidden();
 void EnableCursor();
 void DisableCursor();
+_Bool IsCursorOnScreen();
 void ClearBackground(Color color);
 void BeginDrawing();
 void EndDrawing();
@@ -640,28 +671,25 @@ void SetTargetFPS(int fps);
 int GetFPS();
 float GetFrameTime();
 double GetTime();
-int ColorToInt(Color color);
-Vector4 ColorNormalize(Color color);
-Color ColorFromNormalized(Vector4 normalized);
-Vector3 ColorToHSV(Color color);
-Color ColorFromHSV(Vector3 hsv);
-Color GetColor(int hexValue);
-Color Fade(Color color, float alpha);
 void SetConfigFlags(unsigned int flags);
 void SetTraceLogLevel(int logType);
 void SetTraceLogExit(int logType);
 void SetTraceLogCallback(TraceLogCallback callback);
 void TraceLog(int logType, const char * text);
+void * MemAlloc(int size);
+void MemFree(void * ptr);
 void TakeScreenshot(const char * fileName);
 int GetRandomValue(int min, int max);
 unsigned char * LoadFileData(const char * fileName, unsigned int * bytesRead);
-void SaveFileData(const char * fileName, void * data, unsigned int bytesToWrite);
+void UnloadFileData(unsigned char * data);
+_Bool SaveFileData(const char * fileName, void * data, unsigned int bytesToWrite);
 char * LoadFileText(const char * fileName);
-void SaveFileText(const char * fileName, char * text);
+void UnloadFileText(unsigned char * text);
+_Bool SaveFileText(const char * fileName, char * text);
 _Bool FileExists(const char * fileName);
-_Bool IsFileExtension(const char * fileName, const char * ext);
 _Bool DirectoryExists(const char * dirPath);
-const char * GetExtension(const char * fileName);
+_Bool IsFileExtension(const char * fileName, const char * ext);
+const char * GetFileExtension(const char * fileName);
 const char * GetFileName(const char * filePath);
 const char * GetFileNameWithoutExt(const char * filePath);
 const char * GetDirectoryPath(const char * filePath);
@@ -676,7 +704,7 @@ void ClearDroppedFiles();
 long GetFileModTime(const char * fileName);
 unsigned char * CompressData(unsigned char * data, int dataLength, int * compDataLength);
 unsigned char * DecompressData(unsigned char * compData, int compDataLength, int * dataLength);
-void SaveStorageValue(unsigned int position, int value);
+_Bool SaveStorageValue(unsigned int position, int value);
 int LoadStorageValue(unsigned int position);
 void OpenURL(const char * url);
 _Bool IsKeyPressed(int key);
@@ -685,6 +713,7 @@ _Bool IsKeyReleased(int key);
 _Bool IsKeyUp(int key);
 void SetExitKey(int key);
 int GetKeyPressed();
+int GetCharPressed();
 _Bool IsGamepadAvailable(int gamepad);
 _Bool IsGamepadName(int gamepad, const char * name);
 const char * GetGamepadName(int gamepad);
@@ -705,7 +734,9 @@ Vector2 GetMousePosition();
 void SetMousePosition(int x, int y);
 void SetMouseOffset(int offsetX, int offsetY);
 void SetMouseScale(float scaleX, float scaleY);
-int GetMouseWheelMove();
+float GetMouseWheelMove();
+int GetMouseCursor();
+void SetMouseCursor(int cursor);
 int GetTouchX();
 int GetTouchY();
 Vector2 GetTouchPosition(int index);
@@ -720,17 +751,17 @@ Vector2 GetGesturePinchVector();
 float GetGesturePinchAngle();
 void SetCameraMode(Camera camera, int mode);
 void UpdateCamera(Camera * camera);
-void SetCameraPanControl(int panKey);
-void SetCameraAltControl(int altKey);
-void SetCameraSmoothZoomControl(int szKey);
-void SetCameraMoveControls(int frontKey, int backKey, int rightKey, int leftKey, int upKey, int downKey);
+void SetCameraPanControl(int keyPan);
+void SetCameraAltControl(int keyAlt);
+void SetCameraSmoothZoomControl(int keySmoothZoom);
+void SetCameraMoveControls(int keyFront, int keyBack, int keyRight, int keyLeft, int keyUp, int keyDown);
 void DrawPixel(int posX, int posY, Color color);
 void DrawPixelV(Vector2 position, Color color);
 void DrawLine(int startPosX, int startPosY, int endPosX, int endPosY, Color color);
 void DrawLineV(Vector2 startPos, Vector2 endPos, Color color);
 void DrawLineEx(Vector2 startPos, Vector2 endPos, float thick, Color color);
 void DrawLineBezier(Vector2 startPos, Vector2 endPos, float thick, Color color);
-void DrawLineStrip(Vector2 * points, int numPoints, Color color);
+void DrawLineStrip(Vector2 * points, int pointsCount, Color color);
 void DrawCircle(int centerX, int centerY, float radius, Color color);
 void DrawCircleSector(Vector2 center, float radius, int startAngle, int endAngle, int segments, Color color);
 void DrawCircleSectorLines(Vector2 center, float radius, int startAngle, int endAngle, int segments, Color color);
@@ -754,26 +785,25 @@ void DrawRectangleRounded(Rectangle rec, float roundness, int segments, Color co
 void DrawRectangleRoundedLines(Rectangle rec, float roundness, int segments, int lineThick, Color color);
 void DrawTriangle(Vector2 v1, Vector2 v2, Vector2 v3, Color color);
 void DrawTriangleLines(Vector2 v1, Vector2 v2, Vector2 v3, Color color);
-void DrawTriangleFan(Vector2 * points, int numPoints, Color color);
+void DrawTriangleFan(Vector2 * points, int pointsCount, Color color);
 void DrawTriangleStrip(Vector2 * points, int pointsCount, Color color);
 void DrawPoly(Vector2 center, int sides, float radius, float rotation, Color color);
 void DrawPolyLines(Vector2 center, int sides, float radius, float rotation, Color color);
 _Bool CheckCollisionRecs(Rectangle rec1, Rectangle rec2);
 _Bool CheckCollisionCircles(Vector2 center1, float radius1, Vector2 center2, float radius2);
 _Bool CheckCollisionCircleRec(Vector2 center, float radius, Rectangle rec);
-Rectangle GetCollisionRec(Rectangle rec1, Rectangle rec2);
 _Bool CheckCollisionPointRec(Vector2 point, Rectangle rec);
 _Bool CheckCollisionPointCircle(Vector2 point, Vector2 center, float radius);
 _Bool CheckCollisionPointTriangle(Vector2 point, Vector2 p1, Vector2 p2, Vector2 p3);
+_Bool CheckCollisionLines(Vector2 startPos1, Vector2 endPos1, Vector2 startPos2, Vector2 endPos2, Vector2 * collisionPoint);
+Rectangle GetCollisionRec(Rectangle rec1, Rectangle rec2);
 Image LoadImage(const char * fileName);
-Image LoadImageEx(Color * pixels, int width, int height);
-Image LoadImagePro(void * data, int width, int height, int format);
 Image LoadImageRaw(const char * fileName, int width, int height, int format, int headerSize);
+Image LoadImageAnim(const char * fileName, int * frames);
+Image LoadImageFromMemory(const char * fileType, const unsigned char * fileData, int dataSize);
 void UnloadImage(Image image);
-void ExportImage(Image image, const char * fileName);
-void ExportImageAsCode(Image image, const char * fileName);
-Color * GetImageData(Image image);
-Vector4 * GetImageDataNormalized(Image image);
+_Bool ExportImage(Image image, const char * fileName);
+_Bool ExportImageAsCode(Image image, const char * fileName);
 Image GenImageColor(int width, int height, Color color);
 Image GenImageGradientV(int width, int height, Color top, Color bottom);
 Image GenImageGradientH(int width, int height, Color left, Color right);
@@ -786,16 +816,16 @@ Image ImageCopy(Image image);
 Image ImageFromImage(Image image, Rectangle rec);
 Image ImageText(const char * text, int fontSize, Color color);
 Image ImageTextEx(Font font, const char * text, float fontSize, float spacing, Color tint);
-void ImageToPOT(Image * image, Color fillColor);
 void ImageFormat(Image * image, int newFormat);
-void ImageAlphaMask(Image * image, Image alphaMask);
-void ImageAlphaClear(Image * image, Color color, float threshold);
-void ImageAlphaCrop(Image * image, float threshold);
-void ImageAlphaPremultiply(Image * image);
+void ImageToPOT(Image * image, Color fill);
 void ImageCrop(Image * image, Rectangle crop);
+void ImageAlphaCrop(Image * image, float threshold);
+void ImageAlphaClear(Image * image, Color color, float threshold);
+void ImageAlphaMask(Image * image, Image alphaMask);
+void ImageAlphaPremultiply(Image * image);
 void ImageResize(Image * image, int newWidth, int newHeight);
 void ImageResizeNN(Image * image, int newWidth, int newHeight);
-void ImageResizeCanvas(Image * image, int newWidth, int newHeight, int offsetX, int offsetY, Color color);
+void ImageResizeCanvas(Image * image, int newWidth, int newHeight, int offsetX, int offsetY, Color fill);
 void ImageMipmaps(Image * image);
 void ImageDither(Image * image, int rBpp, int gBpp, int bBpp, int aBpp);
 void ImageFlipVertical(Image * image);
@@ -808,7 +838,10 @@ void ImageColorGrayscale(Image * image);
 void ImageColorContrast(Image * image, float contrast);
 void ImageColorBrightness(Image * image, int brightness);
 void ImageColorReplace(Image * image, Color color, Color replace);
-Color * ImageExtractPalette(Image image, int maxPaletteSize, int * extractCount);
+Color * LoadImageColors(Image image);
+Color * LoadImagePalette(Image image, int maxPaletteSize, int * colorsCount);
+void UnloadImageColors(Color * colors);
+void UnloadImagePalette(Color * colors);
 Rectangle GetImageAlphaBorder(Image image, float threshold);
 void ImageClearBackground(Image * dst, Color color);
 void ImageDrawPixel(Image * dst, int posX, int posY, Color color);
@@ -822,8 +855,8 @@ void ImageDrawRectangleV(Image * dst, Vector2 position, Vector2 size, Color colo
 void ImageDrawRectangleRec(Image * dst, Rectangle rec, Color color);
 void ImageDrawRectangleLines(Image * dst, Rectangle rec, int thick, Color color);
 void ImageDraw(Image * dst, Image src, Rectangle srcRec, Rectangle dstRec, Color tint);
-void ImageDrawText(Image * dst, Vector2 position, const char * text, int fontSize, Color color);
-void ImageDrawTextEx(Image * dst, Vector2 position, Font font, const char * text, float fontSize, float spacing, Color color);
+void ImageDrawText(Image * dst, const char * text, int posX, int posY, int fontSize, Color color);
+void ImageDrawTextEx(Image * dst, Font font, const char * text, Vector2 position, float fontSize, float spacing, Color tint);
 Texture2D LoadTexture(const char * fileName);
 Texture2D LoadTextureFromImage(Image image);
 TextureCubemap LoadTextureCubemap(Image image, int layoutType);
@@ -831,6 +864,7 @@ RenderTexture2D LoadRenderTexture(int width, int height);
 void UnloadTexture(Texture2D texture);
 void UnloadRenderTexture(RenderTexture2D target);
 void UpdateTexture(Texture2D texture, const void * pixels);
+void UpdateTextureRec(Texture2D texture, Rectangle rec, const void * pixels);
 Image GetTextureData(Texture2D texture);
 Image GetScreenData();
 void GenTextureMipmaps(Texture2D * texture);
@@ -839,24 +873,38 @@ void SetTextureWrap(Texture2D texture, int wrapMode);
 void DrawTexture(Texture2D texture, int posX, int posY, Color tint);
 void DrawTextureV(Texture2D texture, Vector2 position, Color tint);
 void DrawTextureEx(Texture2D texture, Vector2 position, float rotation, float scale, Color tint);
-void DrawTextureRec(Texture2D texture, Rectangle sourceRec, Vector2 position, Color tint);
+void DrawTextureRec(Texture2D texture, Rectangle source, Vector2 position, Color tint);
 void DrawTextureQuad(Texture2D texture, Vector2 tiling, Vector2 offset, Rectangle quad, Color tint);
-void DrawTexturePro(Texture2D texture, Rectangle sourceRec, Rectangle destRec, Vector2 origin, float rotation, Color tint);
-void DrawTextureNPatch(Texture2D texture, NPatchInfo nPatchInfo, Rectangle destRec, Vector2 origin, float rotation, Color tint);
+void DrawTextureTiled(Texture2D texture, Rectangle source, Rectangle dest, Vector2 origin, float rotation, float scale, Color tint);
+void DrawTexturePro(Texture2D texture, Rectangle source, Rectangle dest, Vector2 origin, float rotation, Color tint);
+void DrawTextureNPatch(Texture2D texture, NPatchInfo nPatchInfo, Rectangle dest, Vector2 origin, float rotation, Color tint);
+Color Fade(Color color, float alpha);
+int ColorToInt(Color color);
+Vector4 ColorNormalize(Color color);
+Color ColorFromNormalized(Vector4 normalized);
+Vector3 ColorToHSV(Color color);
+Color ColorFromHSV(float hue, float saturation, float value);
+Color ColorAlpha(Color color, float alpha);
+Color ColorAlphaBlend(Color dst, Color src, Color tint);
+Color GetColor(int hexValue);
+Color GetPixelColor(void * srcPtr, int format);
+void SetPixelColor(void * dstPtr, Color color, int format);
 int GetPixelDataSize(int width, int height, int format);
 Font GetFontDefault();
 Font LoadFont(const char * fileName);
 Font LoadFontEx(const char * fileName, int fontSize, int * fontChars, int charsCount);
 Font LoadFontFromImage(Image image, Color key, int firstChar);
-CharInfo * LoadFontData(const char * fileName, int fontSize, int * fontChars, int charsCount, int type);
+Font LoadFontFromMemory(const char * fileType, const unsigned char * fileData, int dataSize, int fontSize, int * fontChars, int charsCount);
+CharInfo * LoadFontData(const unsigned char * fileData, int dataSize, int fontSize, int * fontChars, int charsCount, int type);
 Image GenImageFontAtlas(const CharInfo * chars, Rectangle ** recs, int charsCount, int fontSize, int padding, int packMethod);
+void UnloadFontData(CharInfo * chars, int charsCount);
 void UnloadFont(Font font);
 void DrawFPS(int posX, int posY);
 void DrawText(const char * text, int posX, int posY, int fontSize, Color color);
 void DrawTextEx(Font font, const char * text, Vector2 position, float fontSize, float spacing, Color tint);
 void DrawTextRec(Font font, const char * text, Rectangle rec, float fontSize, float spacing, _Bool wordWrap, Color tint);
 void DrawTextRecEx(Font font, const char * text, Rectangle rec, float fontSize, float spacing, _Bool wordWrap, Color tint, int selectStart, int selectLength, Color selectTint, Color selectBackTint);
-void DrawTextCodepoint(Font font, int codepoint, Vector2 position, float scale, Color tint);
+void DrawTextCodepoint(Font font, int codepoint, Vector2 position, float fontSize, Color tint);
 int MeasureText(const char * text, int fontSize);
 Vector2 MeasureTextEx(Font font, const char * text, float fontSize, float spacing);
 int GetGlyphIndex(Font font, int codepoint);
@@ -883,6 +931,8 @@ const char * CodepointToUtf8(int codepoint, int * byteLength);
 void DrawLine3D(Vector3 startPos, Vector3 endPos, Color color);
 void DrawPoint3D(Vector3 position, Color color);
 void DrawCircle3D(Vector3 center, float radius, Vector3 rotationAxis, float rotationAngle, Color color);
+void DrawTriangle3D(Vector3 v1, Vector3 v2, Vector3 v3, Color color);
+void DrawTriangleStrip3D(Vector3 * points, int pointsCount, Color color);
 void DrawCube(Vector3 position, float width, float height, float length, Color color);
 void DrawCubeV(Vector3 position, Vector3 size, Color color);
 void DrawCubeWires(Vector3 position, float width, float height, float length, Color color);
@@ -900,9 +950,10 @@ void DrawGizmo(Vector3 position);
 Model LoadModel(const char * fileName);
 Model LoadModelFromMesh(Mesh mesh);
 void UnloadModel(Model model);
+void UnloadModelKeepMeshes(Model model);
 Mesh * LoadMeshes(const char * fileName, int * meshCount);
-void ExportMesh(Mesh mesh, const char * fileName);
 void UnloadMesh(Mesh mesh);
+_Bool ExportMesh(Mesh mesh, const char * fileName);
 Material * LoadMaterials(const char * fileName, int * materialCount);
 Material LoadMaterialDefault();
 void UnloadMaterial(Material material);
@@ -925,19 +976,21 @@ Mesh GenMeshCubicmap(Image cubicmap, Vector3 cubeSize);
 BoundingBox MeshBoundingBox(Mesh mesh);
 void MeshTangents(Mesh * mesh);
 void MeshBinormals(Mesh * mesh);
+void MeshNormalsSmooth(Mesh * mesh);
 void DrawModel(Model model, Vector3 position, float scale, Color tint);
 void DrawModelEx(Model model, Vector3 position, Vector3 rotationAxis, float rotationAngle, Vector3 scale, Color tint);
 void DrawModelWires(Model model, Vector3 position, float scale, Color tint);
 void DrawModelWiresEx(Model model, Vector3 position, Vector3 rotationAxis, float rotationAngle, Vector3 scale, Color tint);
 void DrawBoundingBox(BoundingBox box, Color color);
 void DrawBillboard(Camera camera, Texture2D texture, Vector3 center, float size, Color tint);
-void DrawBillboardRec(Camera camera, Texture2D texture, Rectangle sourceRec, Vector3 center, float size, Color tint);
-_Bool CheckCollisionSpheres(Vector3 centerA, float radiusA, Vector3 centerB, float radiusB);
+void DrawBillboardRec(Camera camera, Texture2D texture, Rectangle source, Vector3 center, float size, Color tint);
+_Bool CheckCollisionSpheres(Vector3 center1, float radius1, Vector3 center2, float radius2);
 _Bool CheckCollisionBoxes(BoundingBox box1, BoundingBox box2);
 _Bool CheckCollisionBoxSphere(BoundingBox box, Vector3 center, float radius);
 _Bool CheckCollisionRaySphere(Ray ray, Vector3 center, float radius);
 _Bool CheckCollisionRaySphereEx(Ray ray, Vector3 center, float radius, Vector3 * collisionPoint);
 _Bool CheckCollisionRayBox(Ray ray, BoundingBox box);
+RayHitInfo GetCollisionRayMesh(Ray ray, Mesh mesh, Matrix transform);
 RayHitInfo GetCollisionRayModel(Ray ray, Model model);
 RayHitInfo GetCollisionRayTriangle(Ray ray, Vector3 p1, Vector3 p2, Vector3 p3);
 RayHitInfo GetCollisionRayGround(Ray ray, float groundHeight);
@@ -950,6 +1003,7 @@ Texture2D GetShapesTexture();
 Rectangle GetShapesTextureRec();
 void SetShapesTexture(Texture2D texture, Rectangle source);
 int GetShaderLocation(Shader shader, const char * uniformName);
+int GetShaderLocationAttrib(Shader shader, const char * attribName);
 void SetShaderValue(Shader shader, int uniformLoc, const void * value, int uniformType);
 void SetShaderValueV(Shader shader, int uniformLoc, const void * value, int uniformType, int count);
 void SetShaderValueMatrix(Shader shader, int uniformLoc, Matrix mat);
@@ -958,9 +1012,9 @@ void SetMatrixProjection(Matrix proj);
 void SetMatrixModelview(Matrix view);
 Matrix GetMatrixModelview();
 Matrix GetMatrixProjection();
-Texture2D GenTextureCubemap(Shader shader, Texture2D map, int size);
-Texture2D GenTextureIrradiance(Shader shader, Texture2D cubemap, int size);
-Texture2D GenTexturePrefilter(Shader shader, Texture2D cubemap, int size);
+TextureCubemap GenTextureCubemap(Shader shader, Texture2D panorama, int size, int format);
+TextureCubemap GenTextureIrradiance(Shader shader, TextureCubemap cubemap, int size);
+TextureCubemap GenTexturePrefilter(Shader shader, TextureCubemap cubemap, int size);
 Texture2D GenTextureBRDF(Shader shader, int size);
 void BeginShaderMode(Shader shader);
 void EndShaderMode();
@@ -979,13 +1033,14 @@ void CloseAudioDevice();
 _Bool IsAudioDeviceReady();
 void SetMasterVolume(float volume);
 Wave LoadWave(const char * fileName);
+Wave LoadWaveFromMemory(const char * fileType, const unsigned char * fileData, int dataSize);
 Sound LoadSound(const char * fileName);
 Sound LoadSoundFromWave(Wave wave);
 void UpdateSound(Sound sound, const void * data, int samplesCount);
 void UnloadWave(Wave wave);
 void UnloadSound(Sound sound);
-void ExportWave(Wave wave, const char * fileName);
-void ExportWaveAsCode(Wave wave, const char * fileName);
+_Bool ExportWave(Wave wave, const char * fileName);
+_Bool ExportWaveAsCode(Wave wave, const char * fileName);
 void PlaySound(Sound sound);
 void StopSound(Sound sound);
 void PauseSound(Sound sound);
@@ -999,7 +1054,8 @@ void SetSoundPitch(Sound sound, float pitch);
 void WaveFormat(Wave * wave, int sampleRate, int sampleSize, int channels);
 Wave WaveCopy(Wave wave);
 void WaveCrop(Wave * wave, int initSample, int finalSample);
-float * GetWaveData(Wave wave);
+float * LoadWaveSamples(Wave wave);
+void UnloadWaveSamples(float * samples);
 Music LoadMusicStream(const char * fileName);
 void UnloadMusicStream(Music music);
 void PlayMusicStream(Music music);
@@ -1010,7 +1066,6 @@ void ResumeMusicStream(Music music);
 _Bool IsMusicPlaying(Music music);
 void SetMusicVolume(Music music, float volume);
 void SetMusicPitch(Music music, float pitch);
-void SetMusicLoopCount(Music music, int count);
 float GetMusicTimeLength(Music music);
 float GetMusicTimePlayed(Music music);
 AudioStream InitAudioStream(unsigned int sampleRate, unsigned int sampleSize, unsigned int channels);
@@ -1027,9 +1082,9 @@ void SetAudioStreamPitch(AudioStream stream, float pitch);
 void SetAudioStreamBufferSizeDefault(int size);
 ]=]
 
-local c_lib = ffi.load('raylib', false)
+local c_lib = ffi.load('raylib')
 local lua_lib = setmetatable({ c_lib = c_lib }, { __index = c_lib })
-lua_lib.Vector2 = ffi.metatype('Vector2', {
+lua_lib.Vector2 = ffi.metatype('struct Vector2', {
   __name = 'Vector2',
   __tostring = function(self)
     return string.format('Vector2(%g, %g)', self.x, self.y)
@@ -1043,8 +1098,36 @@ lua_lib.Vector2 = ffi.metatype('Vector2', {
   __unm = function(self)
     return lua_lib.Vector2(-self.x, -self.y)
   end,
+  __index = {
+    GetMouseRay = c_lib.GetMouseRay,
+    GetWorldToScreen2D = c_lib.GetWorldToScreen2D,
+    GetScreenToWorld2D = c_lib.GetScreenToWorld2D,
+    DrawPixelV = c_lib.DrawPixelV,
+    DrawLineV = c_lib.DrawLineV,
+    DrawLineEx = c_lib.DrawLineEx,
+    DrawLineBezier = c_lib.DrawLineBezier,
+    DrawLineStrip = c_lib.DrawLineStrip,
+    DrawCircleSector = c_lib.DrawCircleSector,
+    DrawCircleSectorLines = c_lib.DrawCircleSectorLines,
+    DrawCircleV = c_lib.DrawCircleV,
+    DrawRing = c_lib.DrawRing,
+    DrawRingLines = c_lib.DrawRingLines,
+    DrawRectangleV = c_lib.DrawRectangleV,
+    DrawTriangle = c_lib.DrawTriangle,
+    DrawTriangleLines = c_lib.DrawTriangleLines,
+    DrawTriangleFan = c_lib.DrawTriangleFan,
+    DrawTriangleStrip = c_lib.DrawTriangleStrip,
+    DrawPoly = c_lib.DrawPoly,
+    DrawPolyLines = c_lib.DrawPolyLines,
+    CheckCollisionCircles = c_lib.CheckCollisionCircles,
+    CheckCollisionCircleRec = c_lib.CheckCollisionCircleRec,
+    CheckCollisionPointRec = c_lib.CheckCollisionPointRec,
+    CheckCollisionPointCircle = c_lib.CheckCollisionPointCircle,
+    CheckCollisionPointTriangle = c_lib.CheckCollisionPointTriangle,
+    CheckCollisionLines = c_lib.CheckCollisionLines,
+  },
 })
-lua_lib.Vector3 = ffi.metatype('Vector3', {
+lua_lib.Vector3 = ffi.metatype('struct Vector3', {
   __name = 'Vector3',
   __tostring = function(self)
     return string.format('Vector3(%g, %g, %g)', self.x, self.y, self.z)
@@ -1058,8 +1141,29 @@ lua_lib.Vector3 = ffi.metatype('Vector3', {
   __unm = function(self)
     return lua_lib.Vector3(-self.x, -self.y, -self.z)
   end,
+  __index = {
+    GetWorldToScreen = c_lib.GetWorldToScreen,
+    GetWorldToScreenEx = c_lib.GetWorldToScreenEx,
+    DrawLine3D = c_lib.DrawLine3D,
+    DrawPoint3D = c_lib.DrawPoint3D,
+    DrawCircle3D = c_lib.DrawCircle3D,
+    DrawTriangle3D = c_lib.DrawTriangle3D,
+    DrawTriangleStrip3D = c_lib.DrawTriangleStrip3D,
+    DrawCube = c_lib.DrawCube,
+    DrawCubeV = c_lib.DrawCubeV,
+    DrawCubeWires = c_lib.DrawCubeWires,
+    DrawCubeWiresV = c_lib.DrawCubeWiresV,
+    DrawSphere = c_lib.DrawSphere,
+    DrawSphereEx = c_lib.DrawSphereEx,
+    DrawSphereWires = c_lib.DrawSphereWires,
+    DrawCylinder = c_lib.DrawCylinder,
+    DrawCylinderWires = c_lib.DrawCylinderWires,
+    DrawPlane = c_lib.DrawPlane,
+    DrawGizmo = c_lib.DrawGizmo,
+    CheckCollisionSpheres = c_lib.CheckCollisionSpheres,
+  },
 })
-lua_lib.Vector4 = ffi.metatype('Vector4', {
+lua_lib.Vector4 = ffi.metatype('struct Vector4', {
   __name = 'Vector4',
   __tostring = function(self)
     return string.format('Vector4(%g, %g, %g, %g)', self.x, self.y, self.z, self.w)
@@ -1073,26 +1177,33 @@ lua_lib.Vector4 = ffi.metatype('Vector4', {
   __unm = function(self)
     return lua_lib.Vector4(-self.x, -self.y, -self.z, -self.w)
   end,
+  __index = {
+    ColorFromNormalized = c_lib.ColorFromNormalized,
+  },
 })
-lua_lib.Matrix = ffi.metatype('Matrix', {
+lua_lib.Matrix = ffi.metatype('struct Matrix', {
   __name = 'Matrix',
   __index = {
     SetProjection = c_lib.SetMatrixProjection,
     SetModelview = c_lib.SetMatrixModelview,
   },
 })
-lua_lib.Color = ffi.metatype('Color', {
+lua_lib.Color = ffi.metatype('struct Color', {
   __name = 'Color',
   __tostring = function(self)
     return string.format('Color(%d, %d, %d, %d)', self.r, self.g, self.b, self.a)
   end,
   __index = {
+    ClearBackground = c_lib.ClearBackground,
+    Fade = c_lib.Fade,
     ToInt = c_lib.ColorToInt,
     Normalize = c_lib.ColorNormalize,
     ToHSV = c_lib.ColorToHSV,
+    Alpha = c_lib.ColorAlpha,
+    AlphaBlend = c_lib.ColorAlphaBlend,
   },
 })
-lua_lib.Rectangle = ffi.metatype('Rectangle', {
+lua_lib.Rectangle = ffi.metatype('struct Rectangle', {
   __name = 'Rectangle',
   __tostring = function(self)
     return string.format('Rectangle{ x = %g, y = %g, width = %g, height = %g }', self.x, self.y, self.width, self.height)
@@ -1104,25 +1215,26 @@ lua_lib.Rectangle = ffi.metatype('Rectangle', {
     DrawLinesEx = c_lib.DrawRectangleLinesEx,
     DrawRounded = c_lib.DrawRectangleRounded,
     DrawRoundedLines = c_lib.DrawRectangleRoundedLines,
+    CheckCollisionRecs = c_lib.CheckCollisionRecs,
+    GetCollisionRec = c_lib.GetCollisionRec,
   },
 })
-lua_lib.Image = ffi.metatype('Image', {
+lua_lib.Image = ffi.metatype('struct Image', {
   __name = 'Image',
   __gc = c_lib.UnloadImage,
   __index = {
+    SetWindowIcon = c_lib.SetWindowIcon,
     Export = c_lib.ExportImage,
     ExportAsCode = c_lib.ExportImageAsCode,
-    GetData = c_lib.GetImageData,
-    GetDataNormalized = c_lib.GetImageDataNormalized,
     Copy = c_lib.ImageCopy,
     FromImage = c_lib.ImageFromImage,
-    ToPOT = c_lib.ImageToPOT,
     Format = c_lib.ImageFormat,
-    AlphaMask = c_lib.ImageAlphaMask,
-    AlphaClear = c_lib.ImageAlphaClear,
-    AlphaCrop = c_lib.ImageAlphaCrop,
-    AlphaPremultiply = c_lib.ImageAlphaPremultiply,
+    ToPOT = c_lib.ImageToPOT,
     Crop = c_lib.ImageCrop,
+    AlphaCrop = c_lib.ImageAlphaCrop,
+    AlphaClear = c_lib.ImageAlphaClear,
+    AlphaMask = c_lib.ImageAlphaMask,
+    AlphaPremultiply = c_lib.ImageAlphaPremultiply,
     Resize = c_lib.ImageResize,
     ResizeNN = c_lib.ImageResizeNN,
     ResizeCanvas = c_lib.ImageResizeCanvas,
@@ -1138,7 +1250,8 @@ lua_lib.Image = ffi.metatype('Image', {
     ColorContrast = c_lib.ImageColorContrast,
     ColorBrightness = c_lib.ImageColorBrightness,
     ColorReplace = c_lib.ImageColorReplace,
-    ExtractPalette = c_lib.ImageExtractPalette,
+    LoadColors = c_lib.LoadImageColors,
+    LoadPalette = c_lib.LoadImagePalette,
     GetAlphaBorder = c_lib.GetImageAlphaBorder,
     ClearBackground = c_lib.ImageClearBackground,
     DrawPixel = c_lib.ImageDrawPixel,
@@ -1155,32 +1268,84 @@ lua_lib.Image = ffi.metatype('Image', {
     DrawText = c_lib.ImageDrawText,
     DrawTextEx = c_lib.ImageDrawTextEx,
     LoadTextureFrom = c_lib.LoadTextureFromImage,
+    LoadTextureCubemap = c_lib.LoadTextureCubemap,
     LoadFontFrom = c_lib.LoadFontFromImage,
+    GenMeshHeightmap = c_lib.GenMeshHeightmap,
+    GenMeshCubicmap = c_lib.GenMeshCubicmap,
   },
 })
-lua_lib.Texture2D = ffi.metatype('Texture2D', {
-  __name = 'Texture2D',
+lua_lib.Texture = ffi.metatype('struct Texture', {
+  __name = 'Texture',
+  __gc = c_lib.UnloadTexture,
+  __index = {
+    Update = c_lib.UpdateTexture,
+    UpdateRec = c_lib.UpdateTextureRec,
+    GetData = c_lib.GetTextureData,
+    GenMipmaps = c_lib.GenTextureMipmaps,
+    SetFilter = c_lib.SetTextureFilter,
+    SetWrap = c_lib.SetTextureWrap,
+    Draw = c_lib.DrawTexture,
+    DrawV = c_lib.DrawTextureV,
+    DrawEx = c_lib.DrawTextureEx,
+    DrawRec = c_lib.DrawTextureRec,
+    DrawQuad = c_lib.DrawTextureQuad,
+    DrawTiled = c_lib.DrawTextureTiled,
+    DrawPro = c_lib.DrawTexturePro,
+    DrawNPatch = c_lib.DrawTextureNPatch,
+    DrawCube = c_lib.DrawCubeTexture,
+    SetShapes = c_lib.SetShapesTexture,
+  },
 })
-lua_lib.RenderTexture2D = ffi.metatype('RenderTexture2D', {
-  __name = 'RenderTexture2D',
+lua_lib.RenderTexture = ffi.metatype('struct RenderTexture', {
+  __name = 'RenderTexture',
+  __gc = c_lib.UnloadRenderTexture,
+  __index = {
+    BeginTextureMode = c_lib.BeginTextureMode,
+  },
 })
-lua_lib.NPatchInfo = ffi.metatype('NPatchInfo', {
+lua_lib.NPatchInfo = ffi.metatype('struct NPatchInfo', {
   __name = 'NPatchInfo',
 })
-lua_lib.CharInfo = ffi.metatype('CharInfo', {
+lua_lib.CharInfo = ffi.metatype('struct CharInfo', {
   __name = 'CharInfo',
+  __index = {
+    GenImageFontAtlas = c_lib.GenImageFontAtlas,
+    UnloadFontData = c_lib.UnloadFontData,
+  },
 })
-lua_lib.Font = ffi.metatype('Font', {
+lua_lib.Font = ffi.metatype('struct Font', {
   __name = 'Font',
   __gc = c_lib.UnloadFont,
+  __index = {
+    ImageTextEx = c_lib.ImageTextEx,
+    DrawTextEx = c_lib.DrawTextEx,
+    DrawTextRec = c_lib.DrawTextRec,
+    DrawTextRecEx = c_lib.DrawTextRecEx,
+    DrawTextCodepoint = c_lib.DrawTextCodepoint,
+    MeasureTextEx = c_lib.MeasureTextEx,
+    GetGlyphIndex = c_lib.GetGlyphIndex,
+  },
 })
-lua_lib.Camera3D = ffi.metatype('Camera3D', {
+lua_lib.Camera3D = ffi.metatype('struct Camera3D', {
   __name = 'Camera3D',
+  __index = {
+    BeginMode3D = c_lib.BeginMode3D,
+    GetCameraMatrix = c_lib.GetCameraMatrix,
+    SetCameraMode = c_lib.SetCameraMode,
+    UpdateCamera = c_lib.UpdateCamera,
+    DrawBillboard = c_lib.DrawBillboard,
+    DrawBillboardRec = c_lib.DrawBillboardRec,
+    UpdateVrTracking = c_lib.UpdateVrTracking,
+  },
 })
-lua_lib.Camera2D = ffi.metatype('Camera2D', {
+lua_lib.Camera2D = ffi.metatype('struct Camera2D', {
   __name = 'Camera2D',
+  __index = {
+    BeginMode2D = c_lib.BeginMode2D,
+    GetCameraMatrix2D = c_lib.GetCameraMatrix2D,
+  },
 })
-lua_lib.Mesh = ffi.metatype('Mesh', {
+lua_lib.Mesh = ffi.metatype('struct Mesh', {
   __name = 'Mesh',
   __gc = c_lib.UnloadMesh,
   __index = {
@@ -1189,39 +1354,45 @@ lua_lib.Mesh = ffi.metatype('Mesh', {
     BoundingBox = c_lib.MeshBoundingBox,
     Tangents = c_lib.MeshTangents,
     Binormals = c_lib.MeshBinormals,
+    NormalsSmooth = c_lib.MeshNormalsSmooth,
   },
 })
-lua_lib.Shader = ffi.metatype('Shader', {
+lua_lib.Shader = ffi.metatype('struct Shader', {
   __name = 'Shader',
   __gc = c_lib.UnloadShader,
   __index = {
     GetLocation = c_lib.GetShaderLocation,
+    GetLocationAttrib = c_lib.GetShaderLocationAttrib,
     SetValue = c_lib.SetShaderValue,
     SetValueV = c_lib.SetShaderValueV,
     SetValueMatrix = c_lib.SetShaderValueMatrix,
     SetValueTexture = c_lib.SetShaderValueTexture,
+    GenTextureCubemap = c_lib.GenTextureCubemap,
+    GenTextureIrradiance = c_lib.GenTextureIrradiance,
+    GenTexturePrefilter = c_lib.GenTexturePrefilter,
+    GenTextureBRDF = c_lib.GenTextureBRDF,
     BeginMode = c_lib.BeginShaderMode,
   },
 })
-lua_lib.MaterialMap = ffi.metatype('MaterialMap', {
+lua_lib.MaterialMap = ffi.metatype('struct MaterialMap', {
   __name = 'MaterialMap',
 })
-lua_lib.Material = ffi.metatype('Material', {
+lua_lib.Material = ffi.metatype('struct Material', {
   __name = 'Material',
   __gc = c_lib.UnloadMaterial,
   __index = {
     SetTexture = c_lib.SetMaterialTexture,
   },
 })
-lua_lib.Transform = ffi.metatype('Transform', {
+lua_lib.Transform = ffi.metatype('struct Transform', {
   __name = 'Transform',
 })
-lua_lib.BoneInfo = ffi.metatype('BoneInfo', {
+lua_lib.BoneInfo = ffi.metatype('struct BoneInfo', {
   __name = 'BoneInfo',
 })
-lua_lib.Model = ffi.metatype('Model', {
+lua_lib.Model = ffi.metatype('struct Model', {
   __name = 'Model',
-  __gc = c_lib.UnloadModel,
+  __gc = c_lib.UnloadModelKeepMeshes,
   __index = {
     SetMeshMaterial = c_lib.SetModelMeshMaterial,
     UpdateAnimation = c_lib.UpdateModelAnimation,
@@ -1232,32 +1403,35 @@ lua_lib.Model = ffi.metatype('Model', {
     DrawWiresEx = c_lib.DrawModelWiresEx,
   },
 })
-lua_lib.ModelAnimation = ffi.metatype('ModelAnimation', {
+lua_lib.ModelAnimation = ffi.metatype('struct ModelAnimation', {
   __name = 'ModelAnimation',
   __gc = c_lib.UnloadModelAnimation,
 })
-lua_lib.Ray = ffi.metatype('Ray', {
+lua_lib.Ray = ffi.metatype('struct Ray', {
   __name = 'Ray',
   __index = {
     Draw = c_lib.DrawRay,
     CheckCollisionSphere = c_lib.CheckCollisionRaySphere,
     CheckCollisionSphereEx = c_lib.CheckCollisionRaySphereEx,
     CheckCollisionBox = c_lib.CheckCollisionRayBox,
+    GetCollisionMesh = c_lib.GetCollisionRayMesh,
     GetCollisionModel = c_lib.GetCollisionRayModel,
     GetCollisionTriangle = c_lib.GetCollisionRayTriangle,
     GetCollisionGround = c_lib.GetCollisionRayGround,
   },
 })
-lua_lib.RayHitInfo = ffi.metatype('RayHitInfo', {
+lua_lib.RayHitInfo = ffi.metatype('struct RayHitInfo', {
   __name = 'RayHitInfo',
 })
-lua_lib.BoundingBox = ffi.metatype('BoundingBox', {
+lua_lib.BoundingBox = ffi.metatype('struct BoundingBox', {
   __name = 'BoundingBox',
   __index = {
     Draw = c_lib.DrawBoundingBox,
+    CheckCollisionBoxes = c_lib.CheckCollisionBoxes,
+    CheckCollisionBoxSphere = c_lib.CheckCollisionBoxSphere,
   },
 })
-lua_lib.Wave = ffi.metatype('Wave', {
+lua_lib.Wave = ffi.metatype('struct Wave', {
   __name = 'Wave',
   __gc = c_lib.UnloadWave,
   __index = {
@@ -1267,17 +1441,17 @@ lua_lib.Wave = ffi.metatype('Wave', {
     Format = c_lib.WaveFormat,
     Copy = c_lib.WaveCopy,
     Crop = c_lib.WaveCrop,
-    GetData = c_lib.GetWaveData,
+    LoadSamples = c_lib.LoadWaveSamples,
   },
 })
-lua_lib.rAudioBuffer = ffi.metatype('rAudioBuffer', {
+lua_lib.rAudioBuffer = ffi.metatype('struct rAudioBuffer', {
   __name = 'rAudioBuffer',
 })
-lua_lib.AudioStream = ffi.metatype('AudioStream', {
+lua_lib.AudioStream = ffi.metatype('struct AudioStream', {
   __name = 'AudioStream',
+  __gc = c_lib.CloseAudioStream,
   __index = {
     Update = c_lib.UpdateAudioStream,
-    Close = c_lib.CloseAudioStream,
     IsProcessed = c_lib.IsAudioStreamProcessed,
     Play = c_lib.PlayAudioStream,
     Pause = c_lib.PauseAudioStream,
@@ -1288,7 +1462,7 @@ lua_lib.AudioStream = ffi.metatype('AudioStream', {
     SetPitch = c_lib.SetAudioStreamPitch,
   },
 })
-lua_lib.Sound = ffi.metatype('Sound', {
+lua_lib.Sound = ffi.metatype('struct Sound', {
   __name = 'Sound',
   __gc = c_lib.UnloadSound,
   __index = {
@@ -1303,7 +1477,7 @@ lua_lib.Sound = ffi.metatype('Sound', {
     SetPitch = c_lib.SetSoundPitch,
   },
 })
-lua_lib.Music = ffi.metatype('Music', {
+lua_lib.Music = ffi.metatype('struct Music', {
   __name = 'Music',
   __gc = c_lib.UnloadMusicStream,
   __index = {
@@ -1315,13 +1489,15 @@ lua_lib.Music = ffi.metatype('Music', {
     IsPlaying = c_lib.IsMusicPlaying,
     SetVolume = c_lib.SetMusicVolume,
     SetPitch = c_lib.SetMusicPitch,
-    SetLoopCount = c_lib.SetMusicLoopCount,
     GetTimeLength = c_lib.GetMusicTimeLength,
     GetTimePlayed = c_lib.GetMusicTimePlayed,
   },
 })
-lua_lib.VrDeviceInfo = ffi.metatype('VrDeviceInfo', {
+lua_lib.VrDeviceInfo = ffi.metatype('struct VrDeviceInfo', {
   __name = 'VrDeviceInfo',
+  __index = {
+    SetVrConfiguration = c_lib.SetVrConfiguration,
+  },
 })
 
 return lua_lib
