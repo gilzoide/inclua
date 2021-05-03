@@ -27,15 +27,12 @@ Usage
 -----
 On your shell::
 
-    $ inclua <input> [-m <module_name>] [-p <pattern>...] [-n <namespace>...] [-g] [-d <definitions_file> | --no-metatypes] [-- <clang_args>...]
+    $ inclua <input> [-i <pattern>...] [-n <namespace>...] [options] [-- <clang_args>...]
 
 Check out the help for more information on arguments::
 
     $ inclua -h
 
-
-It is recommended to pass ``-I <path to clang headers>`` to *clang* to correctly
-include some standard headers like **stddef.h** and **stdbool.h**.
 
 Check out the ``examples`` folder and csfml-luajit_ for examples of usage.
 
