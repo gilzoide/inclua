@@ -22,9 +22,12 @@ setup(
         'Programming Language :: Python :: 3',
     ],
     keywords='language bindings development',
-    install_requires=['c_api_extract >= 0.5.2', 'docopt', 'pyyaml'],
+    install_requires=['c_api_extract >= 0.5.2', 'docopt', 'Mako', 'pyyaml'],
 
     packages=find_packages(),
+    package_data={
+        'inclua': ["templates/*.mako"],
+    },
     entry_points={
         'console_scripts': [
             'inclua = inclua.__main__:main',
