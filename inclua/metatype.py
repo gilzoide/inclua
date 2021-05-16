@@ -8,8 +8,6 @@ import c_api_extract
 
 from inclua.namespace import canonicalize
 
-IGNORE_TAG = "ignore"
-
 
 class Metatype:
     def __init__(self, definition, namespace_prefixes=[]):
@@ -27,11 +25,11 @@ class Metatype:
         self.native_methods.append((key, value))
 
     @classmethod
-    def from_definitions(cls, definitions, namespace_prefixes, extra_definitions):
+    def from_definitions(cls, definitions, namespace_prefixes, annotations):
         metatypes = [cls(t, namespace_prefixes)
                      for t in definitions
                      if t['kind'] in ('struct', 'union')
-                     and extra_definitions.get(t['name'], None) != IGNORE_TAG]
+                     and not annotations.should_ignore(t['name'])]
         metatype_by_name = {t.name: t for t in metatypes}
         for t in definitions:
             if t['kind'] == 'typedef':
@@ -41,8 +39,8 @@ class Metatype:
                     metatype_by_name[t['name']] = metatype
                 except KeyError:
                     pass
-        if extra_definitions:
-            for name, d in extra_definitions.items():
+        if annotations:
+            for name, d in annotations.items():
                 try:
                     metatype = metatype_by_name[name]
                     for key, value in d.items():
@@ -52,7 +50,7 @@ class Metatype:
         destructor_re = re.compile(r'release|destroy|unload|deinit|finalize|dispose|close', flags=re.I)
         for f in definitions:
             try:
-                if extra_definitions.get(f['name'], None) == IGNORE_TAG:
+                if annotations.should_ignore(f['name']):
                     continue
                 first_argument_base = f['arguments'][0][0]['base']
                 metatype = metatype_by_name[first_argument_base]

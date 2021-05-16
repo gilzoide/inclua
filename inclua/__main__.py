@@ -39,6 +39,7 @@ from mako.lookup import TemplateLookup
 from mako.template import Template
 import yaml
 
+from inclua.annotation import Annotations
 from inclua.error import IncluaError
 from inclua.metatype import Metatype
 
@@ -59,21 +60,23 @@ def main():
         stderr.write("Error: could not find template {!r}\n".format(template))
         return
 
+    header = opts['<input>']
     definitions = c_api_extract.definitions_from_header(
-        opts['<input>'],
+        header,
         clang_args=opts['<clang_args>'],
         include_patterns=opts['--include'],
         type_objects=True,
     )
     module_name = opts.get('--module') or PurePath(opts['<input>']).stem
+    annotations = Annotations()
     if opts.get('--extra-definitions'):
         with open(opts.get('--extra-definitions')) as f:
-            extra_definitions = yaml.safe_load(f) or {}
-    else:
-        extra_definitions = {}
-    metatypes = [] if opts.get('--pod') else Metatype.from_definitions(definitions, opts.get('--namespace'), extra_definitions)
+            annotations.parse(yaml.safe_load(f) or {})
+    metatypes = [] if opts.get('--pod') else Metatype.from_definitions(definitions, opts.get('--namespace'), annotations)
 
     code = template.render(
+        annotations=annotations,
+        header=header,
         definitions=definitions,
         module_name=module_name,
         metatypes=metatypes,

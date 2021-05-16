@@ -80,7 +80,7 @@ lua_lib.${metatype.unprefixed} = ffi.metatype("${metatype.spelling}", {
   __index = {
 <%    replace_method_name_re = re.compile('_?' + metatype.unprefixed) %>\
     % for method in metatype.methods:
-    ${replace_method_name_re.sub('', canonicalize(method['name'], namespace_prefixes), count=1).lstrip('_')} = c_lib.${method['name']},
+    ${replace_method_name_re.sub('', canonicalize(annotations.get_name(method['name']), namespace_prefixes), count=1).lstrip('_')} = c_lib.${method['name']},
     % endfor
     % for method in metatype.native_methods:
       % if not method[0].startswith('__'):
