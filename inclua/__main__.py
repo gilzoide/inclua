@@ -45,6 +45,7 @@ from inclua.metatype import Metatype
 
 
 BUILTIN_TEMPLATES = {
+    'lua': "templates/lua.cpp.mako",
     'luajit': "templates/luajit.lua.mako",
 }
 
