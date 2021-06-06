@@ -87,6 +87,7 @@ ${c_notice()}
 #define INCLUA_GDNATIVE_HPP
 
 #include <cstring>
+#include <type_traits>
 
 #include <gdnative_api_struct.gen.h>
 
@@ -176,21 +177,25 @@ INCLUA_DECL godot_variant to_variant(const char *s) {
 ///////////////////////////////////////////////////////////////////////////////
 template<typename T>
 INCLUA_DECL T from_variant(const godot_variant *var) {
-    godot_object *go = api->godot_variant_as_object(var);
-    void *data = nativescript_api->godot_nativescript_get_userdata(go);
-    return *((T *) data);
-}
-template<> bool from_variant(const godot_variant *var) {
-    return api->godot_variant_as_bool(var);
-}
-template<> uint64_t from_variant(const godot_variant *var) {
-    return api->godot_variant_as_uint(var);
-}
-template<> int64_t from_variant(const godot_variant *var) {
-    return api->godot_variant_as_int(var);
-}
-template<> double from_variant(const godot_variant *var) {
-    return api->godot_variant_as_real(var);
+    if (std::is_same<T, bool>::value) {
+        return api->godot_variant_as_bool(var);
+    }
+    else if (std::is_integral<T>::value) {
+        if (std::is_unsigned<T>::value) {
+            return api->godot_variant_as_uint(var);
+        }
+        else {
+            return api->godot_variant_as_int(var);
+        }
+    }
+    else if (std::is_floating_point<T>::value) {
+        return api->godot_variant_as_real(var);
+    }
+    else {
+        godot_object *go = api->godot_variant_as_object(var);
+        void *data = nativescript_api->godot_nativescript_get_userdata(go);
+        return *((T *) data);
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
