@@ -14,7 +14,8 @@ class Metatype:
         self.definition = definition
         self.spelling = definition.get('spelling')
         self.name = definition.get('name')
-        self.opaque = not definition.get('fields')
+        self.fields = definition.get('fields')
+        self.opaque = not self.fields
         self.unprefixed = canonicalize(self.name, namespace_prefixes)
         self.aliases = {self.unprefixed}
         self.methods = []
