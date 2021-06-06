@@ -47,12 +47,13 @@ from inclua.metatype import Metatype
 BUILTIN_TEMPLATES = {
     'lua': "templates/lua.cpp.mako",
     'luajit': "templates/luajit.lua.mako",
+    'gdnative': "templates/gdnative.cpp.mako",
 }
 
 
 def main():
     opts = docopt(__doc__)
-    template_lookup = TemplateLookup(directories=[Path.cwd(), PurePath(__file__).parent])
+    template_lookup = TemplateLookup(directories=[Path.cwd(), PurePath(__file__).parent], strict_undefined=True)
     template = opts.get('--template')
     template = BUILTIN_TEMPLATES.get(template, template)
     try:
