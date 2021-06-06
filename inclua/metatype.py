@@ -55,7 +55,7 @@ class Metatype:
                     continue
                 first_argument_base = f['arguments'][0][0]['base']
                 metatype = metatype_by_name[first_argument_base]
-                if metatype.unprefixed in f['name'] and len(f['arguments']) == 1 and destructor_re.search(f['name']):
+                if metatype.unprefixed.lower() in f['name'].lower() and len(f['arguments']) == 1 and destructor_re.search(f['name']):
                     metatype.destructor = f
                 else:
                     metatype.methods.append(f)
