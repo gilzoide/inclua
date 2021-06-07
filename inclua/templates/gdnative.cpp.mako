@@ -1,11 +1,19 @@
 <%namespace file="inclua.notice.mako" import="c_notice"/>
 
-<% 
+<%!
+    import re
+    from textwrap import dedent
+
+    from c_api_extract import typed_declaration
+
     REGISTER_NAME = '{}_register'
+    NEW_NAME = '{}_new'
     CONSTRUCTOR_NAME = '{}_constructor'
     DESTRUCTOR_NAME = '{}_destructor'
     SETTER_NAME = '{0}_set_{1}'
     GETTER_NAME = '{0}_get_{1}'
+    WRAPPER_NAME = 'wrap_{}'
+    C_ESCAPE_RE = re.compile(r'[^a-zA-Z_]')
 
     def godot_variant_type(t):
         if t.kind == 'bool':
@@ -19,34 +27,77 @@
         # TODO: array and pool arrays
         else:
             return 'GODOT_VARIANT_TYPE_OBJECT'
+
+    def c_escape(s):
+        return C_ESCAPE_RE.sub('_', s)
 %>
 
+<%def name="to_variant_for(t)" filter="trim">
+<% t = t.root() %>
+% if t.is_string():
+    string_variant
+% elif t.kind == 'void':
+    nil_variant
+% elif t.kind == 'uint':
+    uint_variant
+% elif t.kind == 'int':
+    int_variant
+% elif t.kind == 'float':
+    float_variant
+% elif t.is_record() or (t.kind == 'pointer' and t.element_type.root().is_record()):
+    object_variant
+% else:
+    <% assert False, "Invalid to_variant for {!r}".format(t.spelling) %>
+% endif
+</%def>
+
+<%def name="set_from_variant(t, rhs, var)" filter="trim">
+<% t = t.root() %>
+% if t.kind == 'bool':
+    ${rhs} = api->godot_variant_as_bool(${var});
+% elif t.kind == 'uint':
+    ${rhs} = api->godot_variant_as_uint(${var});
+% elif t.kind == 'int':
+    ${rhs} = api->godot_variant_as_int(${var});
+% elif t.kind == 'float':
+    ${rhs} = api->godot_variant_as_real(${var});
+% elif t.is_record():
+    ${rhs} = object_from_variant<${t.spelling}>(${var});
+% elif t.kind == 'pointer' and t.element_type.root().is_record():
+    ${rhs} = object_pointer_from_variant<${t.spelling}>(${var});
+% elif t.is_string():
+    StringHelper ${rhs | c_escape}_string_helper = ${var};
+    ${rhs} = ${rhs | c_escape}_string_helper.str();
+% else:
+    <% assert False, "Invalid from_variant for {!r}".format(t.spelling) %>
+% endif
+</%def>
+
+<%def name="record_forward_decl(d)" filter="trim">
+godot_class_constructor ${NEW_NAME.format(d.name)}; 
+INCLUA_DECL godot_variant object_variant(const ${d.spelling}& o);
+</%def>
+
 <%def name="def_record(d)" filter="trim">
-    <%def name="def_getter(f)" filter="trim">
-INCLUA_DECL GDCALLINGCONV godot_variant ${GETTER_NAME.format(d.name, f.name)}(godot_object *go, void *method_data, void *data) {
-    ${d.spelling} *obj = (${d.spelling} *) data;
-    % if f.type.is_string():
-    return string_to_variant(obj->${f.name});
-    % else:
-    return to_variant(obj->${f.name});
-    % endif
-}
-    </%def>
-    <%def name="def_setter(f)" filter="trim">
-INCLUA_DECL GDCALLINGCONV void ${SETTER_NAME.format(d.name, f.name)}(godot_object *go, void *method_data, void *data, godot_variant *var) {
-    ${d.spelling} *obj = (${d.spelling} *) data;
-    % if f.type.is_string():
-    if (obj->${f.name}) {
-        free((void *) obj->${f.name});
+    <%def name="def_getter(f)" filter="dedent,trim">
+    INCLUA_DECL GDCALLINGCONV godot_variant ${GETTER_NAME.format(d.name, f.name)}(godot_object *go, void *method_data, void *data) {
+        ${d.spelling} *obj = (${d.spelling} *) data;
+        return ${to_variant_for(f.type)}(obj->${f.name});
     }
-    StringHelper gs = var;
-    obj->${f.name} = strndup(gs.str(), gs.size());
-    % elif f.type.is_string_array():
-    // TODO: PoolStringArray
+    </%def>
+    <%def name="def_setter(f)" filter="dedent,trim">
+    INCLUA_DECL GDCALLINGCONV void ${SETTER_NAME.format(d.name, f.name)}(godot_object *go, void *method_data, void *data, godot_variant *var) {
+        ${d.spelling} *obj = (${d.spelling} *) data;
+    % if f.type.is_string():
+        if (obj->${f.name}) {
+            free((void *) obj->${f.name});
+        }
+        StringHelper gs = var;
+        obj->${f.name} = strndup(gs.str(), gs.size());
     % else:
-    obj->${f.name} = from_variant<${f.type.spelling}>(var);
+        ${set_from_variant(f.type, "obj->{}".format(f.name), "var")}
     % endif
-}
+    }
     </%def>
 <%
     class_name = oop.unprefixed.get(d.name, d.name)
@@ -61,9 +112,9 @@ INCLUA_DECL GDCALLINGCONV void *${constructor_name}(godot_object *go, void *meth
 
 INCLUA_DECL GDCALLINGCONV void ${destructor_name}(godot_object *go, void *method_data, void *data) {
     ${d.spelling} *obj = (${d.spelling} *) data;
-    % if oop.destructor.get(d.name):
+% if oop.destructor.get(d.name):
     ${oop.destructor[d.name].name}(obj);
-    % endif
+% endif
     api->godot_free(obj);
 }
 
@@ -79,15 +130,12 @@ INCLUA_DECL void ${REGISTER_NAME.format(d.name)}(void *p_handle) {
         p_handle, "${class_name}", "Reference",
         create_func, destroy_func
     );
-
-    % for f in d.fields:
+    ${NEW_NAME.format(d.name)} = api->godot_get_class_constructor("${class_name}");
+% for f in d.fields:
     {
         godot_property_attributes attr = {
-            GODOT_METHOD_RPC_MODE_DISABLED,
-            ${godot_variant_type(f.type)},
-            GODOT_PROPERTY_HINT_NONE,
-            godot_string(),
-            GODOT_PROPERTY_USAGE_DEFAULT,
+            GODOT_METHOD_RPC_MODE_DISABLED, ${godot_variant_type(f.type)},
+            GODOT_PROPERTY_HINT_NONE, godot_string(), GODOT_PROPERTY_USAGE_DEFAULT,
         };
         godot_property_get_func getter = { &${GETTER_NAME.format(d.name, f.name)}, NULL, NULL };
         godot_property_set_func setter = { &${SETTER_NAME.format(d.name, f.name)}, NULL, NULL };
@@ -95,9 +143,31 @@ INCLUA_DECL void ${REGISTER_NAME.format(d.name)}(void *p_handle) {
             p_handle, "${class_name}", "${f.name}",
             &attr, setter, getter
         );
-
     }
-    % endfor
+% endfor
+}
+INCLUA_DECL godot_variant object_variant(const ${d.spelling}& o) {
+    godot_variant var;
+    godot_object *go = ${NEW_NAME.format(d.name)}();
+    // *((${d.spelling} *) nativescript_api->godot_nativescript_get_userdata(go)) = o;
+    api->godot_variant_new_object(&var, go);
+    api->godot_object_destroy(go);
+    return var;
+}
+</%def>
+
+<%def name="def_function(d)" filter="trim">
+INCLUA_DECL GDCALLINGCONV godot_variant ${WRAPPER_NAME.format(d.name)}(godot_object *go, void *method_data, void *data, int argc, godot_variant **argv) {
+% for a in d.arguments:
+    ${set_from_variant(a.type, typed_declaration(a.type.spelling, a.name), "argv[{}]".format(loop.index))}
+% endfor
+% if d.return_type.kind == 'void':
+    ${d.name}(${', '.join(a.name for a in d.arguments)});
+    return nil_variant();
+% else:
+    auto result = ${d.name}(${', '.join(a.name for a in d.arguments)});
+    return ${to_variant_for(d.return_type)}(result);
+% endif
 }
 </%def>
 
@@ -168,30 +238,32 @@ private:
 ///////////////////////////////////////////////////////////////////////////////
 // Data -> Variant
 ///////////////////////////////////////////////////////////////////////////////
-template<typename T>
-INCLUA_DECL godot_variant to_variant(const T& val) {
+INCLUA_DECL godot_variant nil_variant() {
     godot_variant var;
-    if (std::is_same<T, bool>::value) {
-        api->godot_variant_new_bool(&var, val);
-    }
-    else if (std::is_pointer<T>::value) {
-        // TODO: pointers
-    }
-    else if (std::is_integral<T>::value) {
-        if (std::is_unsigned<T>::value) {
-            api->godot_variant_new_uint(&var, val);
-        }
-        else {
-            api->godot_variant_new_uint(&var, val);
-        }
-    }
-    else if (std::is_floating_point<T>::value) {
-        api->godot_variant_new_real(&var, val);
-    }
+    api->godot_variant_new_nil(&var);
     return var;
 }
-
-INCLUA_DECL godot_variant string_to_variant(const char *s) {
+template<typename T> INCLUA_DECL godot_variant bool_variant(T b) {
+    godot_variant var;
+    api->godot_variant_new_bool(&var, b);
+    return var;
+}
+template<typename T> INCLUA_DECL godot_variant uint_variant(T u) {
+    godot_variant var;
+    api->godot_variant_new_uint(&var, u);
+    return var;
+}
+template<typename T> INCLUA_DECL godot_variant int_variant(T i) {
+    godot_variant var;
+    api->godot_variant_new_int(&var, i);
+    return var;
+}
+template<typename T> INCLUA_DECL godot_variant float_variant(T f) {
+    godot_variant var;
+    api->godot_variant_new_real(&var, f);
+    return var;
+}
+INCLUA_DECL godot_variant string_variant(const char *s) {
     godot_variant var;
     StringHelper gs = s;
     api->godot_variant_new_string(&var, gs);
@@ -201,42 +273,67 @@ INCLUA_DECL godot_variant string_to_variant(const char *s) {
 ///////////////////////////////////////////////////////////////////////////////
 // Variant -> Data
 ///////////////////////////////////////////////////////////////////////////////
-template<typename T>
-INCLUA_DECL T from_variant(const godot_variant *var) {
-    if (std::is_same<T, bool>::value) {
-        return api->godot_variant_as_bool(var);
-    }
-    else if (std::is_pointer<T>::value) {
-        // TODO: poniters
-    }
-    else if (std::is_integral<T>::value) {
-        if (std::is_unsigned<T>::value) {
-            return api->godot_variant_as_uint(var);
-        }
-        else {
-            return api->godot_variant_as_int(var);
-        }
-    }
-    else if (std::is_floating_point<T>::value) {
-        return api->godot_variant_as_real(var);
-    }
-    else {
-        godot_object *go = api->godot_variant_as_object(var);
-        void *data = nativescript_api->godot_nativescript_get_userdata(go);
-        return *((T *) data);
-    }
+template<typename T> INCLUA_DECL T object_from_variant(const godot_variant *var) {
+    godot_object *go = api->godot_variant_as_object(var);
+    void *data = nativescript_api->godot_nativescript_get_userdata(go);
+    return *((T *) data);
+}
+template<typename T> INCLUA_DECL T object_pointer_from_variant(const godot_variant *var) {
+    godot_object *go = api->godot_variant_as_object(var);
+    void *data = nativescript_api->godot_nativescript_get_userdata(go);
+    return (T) data;
 }
 
+///////////////////////////////////////////////////////////////////////////////
+// Forward declarations
+///////////////////////////////////////////////////////////////////////////////
+% for d in definitions:
+    % if d.is_record():
+${record_forward_decl(d)}
+    % endif
+% endfor
+///////////////////////////////////////////////////////////////////////////////
+// Functions
+///////////////////////////////////////////////////////////////////////////////
+% for d in definitions:
+    % if d.kind == 'function':
+${def_function(d)}
+    % endif
+% endfor
 ///////////////////////////////////////////////////////////////////////////////
 // Classes
 ///////////////////////////////////////////////////////////////////////////////
 % for d in definitions:
-    % if d.kind in ('struct', 'union'):
+    % if d.is_record():
 ${def_record(d)}
-    % elif d.kind == 'function':
-${def_function(d)}
     % endif
 % endfor
+
+///////////////////////////////////////////////////////////////////////////////
+// Global scope: enums, all functions, constants, variables
+///////////////////////////////////////////////////////////////////////////////
+INCLUA_DECL GDCALLINGCONV void *_global_constructor(godot_object *go, void *method_data) { return NULL; }
+INCLUA_DECL GDCALLINGCONV void _global_destructor(godot_object *go, void *method_data, void *data) {}
+void _global_register(void *p_handle) {
+    godot_instance_create_func create_func = { &_global_constructor, NULL, NULL };
+    godot_instance_destroy_func destroy_func = { &_global_destructor, NULL, NULL };
+    nativescript_api->godot_nativescript_register_class(
+        p_handle, "Global", "Reference",
+        create_func, destroy_func
+    );
+    godot_method_attributes method_attr = {};
+% for d in definitions:
+    % if d.kind == 'function':
+    {
+        godot_instance_method method = { &${WRAPPER_NAME.format(d.name)}, NULL, NULL };
+        nativescript_api->godot_nativescript_register_method(
+            p_handle, "Global", "${d.name}", method_attr, method
+        );
+    }
+    % endif
+% endfor
+
+}
 
 } // namespace inclua
 
@@ -264,8 +361,9 @@ GDN_EXPORT void godot_gdnative_terminate(godot_gdnative_terminate_options *p_opt
 }
 
 GDN_EXPORT void godot_nativescript_init(void *p_handle) {
+    inclua::_global_register(p_handle);
 % for d in definitions:
-    % if d.kind in ('struct', 'union'):
+    % if d.is_record():
     inclua::${REGISTER_NAME.format(d.name)}(p_handle);
     % endif
 % endfor
