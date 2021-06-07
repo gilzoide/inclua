@@ -41,7 +41,7 @@ import yaml
 
 from inclua.annotation import Annotations
 from inclua.error import IncluaError
-from inclua.metatype import Metatype
+from inclua.oop import OOP
 
 
 BUILTIN_TEMPLATES = {
@@ -74,14 +74,14 @@ def main():
     if opts.get('--extra-definitions'):
         with open(opts.get('--extra-definitions')) as f:
             annotations.parse(yaml.safe_load(f) or {})
-    metatypes = [] if opts.get('--pod') else Metatype.from_definitions(definitions, opts.get('--namespace'), annotations)
+    oop = OOP([] if opts.get('--pod') else definitions, opts.get('--namespace'), annotations)
 
     code = template.render(
         annotations=annotations,
         header=header,
         definitions=definitions,
         module_name=module_name,
-        metatypes=metatypes,
+        oop=oop,
         namespace_prefixes=opts.get('--namespace'),
     ).strip()
 
