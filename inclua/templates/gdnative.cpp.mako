@@ -15,8 +15,7 @@
     C_ESCAPE_RE = re.compile(r'[^a-zA-Z_]')
 
     def class_name_for(type):
-        name = type.root().name
-        return oop.unprefixed.get(name, name)
+        return oop.get_unprefixed_name(type)
 
     def godot_variant_type(t):
         if t.kind == 'bool':

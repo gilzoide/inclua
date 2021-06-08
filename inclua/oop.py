@@ -15,43 +15,57 @@ class OOP:
     def __init__(self, definitions, namespace_prefixes, annotations):
         self.types = {}
         self.unprefixed = {}
-        self.aliases = {}
         self.methods = {}
         self.native_methods = {}
         self.destructor = {}
 
         for d in definitions:
-            if d.kind == 'typedef':
-                known_type = self.types.get(d.type.base)
-                if known_type:
-                    self.types[d.name] = known_type
-                    self.aliases[known_type.name].add(d.name)
-            elif d.kind in ('struct', 'union'):
-                type_name = d.name
-                unprefixed = canonicalize(type_name, namespace_prefixes)
-                self.types[type_name] = d
-                self.unprefixed[type_name] = unprefixed
-                self.aliases[type_name] = {unprefixed}
-                self.methods[type_name] = []
-                self.native_methods[type_name] = []
-                self.destructor[type_name] = None
+            if d.kind == 'typedef' and d.root().is_record():
+                self.types[d.name] = d.root()
+            elif d.is_record():
+                unprefixed = canonicalize(d.name, namespace_prefixes)
+                self.types[d.spelling] = d
+                self.types[d.name] = d
+                self.unprefixed[d.spelling] = unprefixed
+                self.methods[d.spelling] = []
+                self.native_methods[d.spelling] = []
+                self.destructor[d.spelling] = None
         if annotations:
             for name, d in annotations.items():
                 try:
                     the_type = self.types[name]
                     for key, value in d.items():
-                        self.native_methods[name].append((key, value))
+                        self.native_methods[the_type.spelling].append((key, value))
                 except KeyError:
                     pass
         for f in definitions:
             try:
                 if annotations.should_ignore(f.name):
                     continue
-                first_argument_base = f.arguments[0].type.base
-                the_type = self.types[first_argument_base]
-                if the_type.unprefixed.lower() in f.name.lower() and len(f.arguments) == 1 and DESTRUCTOR_RE.search(f.name):
-                    self.destructor[the_type.name] = f
+                first_argument = f.arguments[0].type
+                if first_argument.is_pointer():
+                    first_argument = first_argument.element_type
+                the_type = self.types[first_argument.name]
+                if self.get_unprefixed_name(the_type).lower() in f.name.lower() and len(f.arguments) == 1 and DESTRUCTOR_RE.search(f.name):
+                    self.destructor[the_type.spelling] = f
                 else:
-                    self.methods[the_type.name].append(f)
+                    self.methods[the_type.spelling].append(f)
             except (KeyError, AttributeError, IndexError):
                 pass
+
+    def iter_types(self):
+        for key in self.unprefixed.keys():
+            yield self.types[key]
+
+    def get_unprefixed_name(self, type):
+        root = type.root()
+        return self.unprefixed.get(root.spelling, root.name)
+
+    def get_methods(self, type):
+        return self.methods.get(type.root().spelling, [])
+
+    def get_native_methods(self, type):
+        return self.native_methods.get(type.root().spelling, [])
+
+    def get_destructor(self, type):
+        return self.destructor.get(type.root().spelling, None)
