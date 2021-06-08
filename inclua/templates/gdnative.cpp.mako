@@ -6,14 +6,6 @@
 
     from c_api_extract import typed_declaration
 
-    REGISTER_NAME = '{}_register'
-    CONSTRUCTOR_NAME = '{}_constructor'
-    DESTRUCTOR_NAME = '{}_destructor'
-    SETTER_NAME = '{0}_set_{1}'
-    GETTER_NAME = '{0}_get_{1}'
-    WRAPPER_NAME = '_global_{}'
-    METHOD_NAME = '{0}_{1}'
-    NATIVESCRIPT_NAME = '{}_nativescript'
     C_ESCAPE_RE = re.compile(r'[^a-zA-Z_]')
 
     def class_name_for(type):
@@ -40,6 +32,31 @@
     nativescripts.extend(c.name for c in classes)
 %>
 
+<%def name="REGISTER_NAME(n)" filter="trim">
+    ${n}_register
+</%def>
+<%def name="CONSTRUCTOR_NAME(n)" filter="trim">
+    ${n}_constructor
+</%def>
+<%def name="DESTRUCTOR_NAME(n)" filter="trim">
+    ${n}_destructor
+</%def>
+<%def name="SETTER_NAME(t, p)" filter="trim">
+    ${t}_set_${p}
+</%def>
+<%def name="GETTER_NAME(t, p)" filter="trim">
+    ${t}_get_${p}
+</%def>
+<%def name="WRAPPER_NAME(n)" filter="trim">
+    _global_${n}
+</%def>
+<%def name="METHOD_NAME(t, n)" filter="trim">
+    ${t}_${n}
+</%def>
+<%def name="NATIVESCRIPT_NAME(n)" filter="trim">
+    ${n}_nativescript
+</%def>
+
 <%def name="to_variant_for(t, val)" filter="trim">
 <% t = t.root() %>
 % if t.is_string():
@@ -53,9 +70,9 @@
 % elif t.kind == 'float':
     float_variant(${val})
 % elif t.is_record():
-    object_variant(${val}, ${NATIVESCRIPT_NAME.format(t.name)})
+    object_variant(${val}, ${NATIVESCRIPT_NAME(t.name)})
 % elif t.kind == 'pointer' and t.element_type.root().is_record():
-    object_variant(${val}, ${NATIVESCRIPT_NAME.format(t.element_type)})
+    object_variant(${val}, ${NATIVESCRIPT_NAME(t.element_type)})
 % else:
     <% assert False, "Invalid to_variant for {!r}".format(t.spelling) %>
 % endif
@@ -85,13 +102,13 @@
 
 <%def name="def_record(d)" filter="trim">
     <%def name="def_getter(f)" filter="dedent,trim">
-        INCLUA_DECL GDCALLINGCONV godot_variant ${GETTER_NAME.format(d.name, f.name)}(godot_object *go, void *method_data, void *data) {
+        INCLUA_DECL GDCALLINGCONV godot_variant ${GETTER_NAME(d.name, f.name)}(godot_object *go, void *method_data, void *data) {
             ${d.spelling} *obj = (${d.spelling} *) data;
             return ${to_variant_for(f.type, "obj->{}".format(f.name))};
         }
     </%def>
     <%def name="def_setter(f)" filter="dedent,trim">
-        INCLUA_DECL GDCALLINGCONV void ${SETTER_NAME.format(d.name, f.name)}(godot_object *go, void *method_data, void *data, godot_variant *var) {
+        INCLUA_DECL GDCALLINGCONV void ${SETTER_NAME(d.name, f.name)}(godot_object *go, void *method_data, void *data, godot_variant *var) {
             ${d.spelling} *obj = (${d.spelling} *) data;
         % if f.type.is_string():
             if (obj->${f.name}) {
@@ -105,19 +122,17 @@
         }
     </%def>
     <%def name="def_method(f)" filter="dedent,trim">
-        DEFINE_METHOD_WRAPPING_FUNC(${METHOD_NAME.format(d.name, f.name)}, ${WRAPPER_NAME.format(f.name)})
+        DEFINE_METHOD_WRAPPING_FUNC(${METHOD_NAME(d.name, f.name)}, ${WRAPPER_NAME(f.name)})
     </%def>
 <%
     class_name = class_name_for(d)
-    constructor_name = CONSTRUCTOR_NAME.format(d.name)
-    destructor_name = DESTRUCTOR_NAME.format(d.name)
 %>
-INCLUA_DECL GDCALLINGCONV void *${constructor_name}(godot_object *go, void *method_data) {
+INCLUA_DECL GDCALLINGCONV void *${CONSTRUCTOR_NAME(d.name)}(godot_object *go, void *method_data) {
     ${d.spelling} *obj = (${d.spelling} *) api->godot_alloc(sizeof(${d.spelling}));
     *obj = {};
     return obj;
 }
-INCLUA_DECL GDCALLINGCONV void ${destructor_name}(godot_object *go, void *method_data, void *data) {
+INCLUA_DECL GDCALLINGCONV void ${DESTRUCTOR_NAME(d.name)}(godot_object *go, void *method_data, void *data) {
     ${d.spelling} *obj = (${d.spelling} *) data;
 % if oop.destructor.get(d.name):
     ${oop.destructor[d.name].name}(obj);
@@ -134,9 +149,9 @@ ${def_getter(f)}
 ${def_method(method)}
 % endfor
 
-INCLUA_DECL void ${REGISTER_NAME.format(d.name)}(void *p_handle) {
-    godot_instance_create_func create_func = { &${constructor_name}, NULL, NULL };
-    godot_instance_destroy_func destroy_func = { &${destructor_name}, NULL, NULL };
+INCLUA_DECL void ${REGISTER_NAME(d.name)}(void *p_handle) {
+    godot_instance_create_func create_func = { &${CONSTRUCTOR_NAME(d.name)}, NULL, NULL };
+    godot_instance_destroy_func destroy_func = { &${DESTRUCTOR_NAME(d.name)}, NULL, NULL };
     nativescript_api->godot_nativescript_register_class(
         p_handle, "${class_name}", "Reference",
         create_func, destroy_func
@@ -147,8 +162,8 @@ INCLUA_DECL void ${REGISTER_NAME.format(d.name)}(void *p_handle) {
             GODOT_METHOD_RPC_MODE_DISABLED, ${godot_variant_type(f.type)},
             GODOT_PROPERTY_HINT_NONE, godot_string(), GODOT_PROPERTY_USAGE_DEFAULT,
         };
-        godot_property_get_func getter = { &${GETTER_NAME.format(d.name, f.name)}, NULL, NULL };
-        godot_property_set_func setter = { &${SETTER_NAME.format(d.name, f.name)}, NULL, NULL };
+        godot_property_get_func getter = { &${GETTER_NAME(d.name, f.name)}, NULL, NULL };
+        godot_property_set_func setter = { &${SETTER_NAME(d.name, f.name)}, NULL, NULL };
         nativescript_api->godot_nativescript_register_property(
             p_handle, "${class_name}", "${f.name}",
             &attr, setter, getter
@@ -158,18 +173,18 @@ INCLUA_DECL void ${REGISTER_NAME.format(d.name)}(void *p_handle) {
     godot_method_attributes method_attr = {};
 % for method in oop.get_methods(d):
     {
-        godot_instance_method method = { &${METHOD_NAME.format(d.name, method.name)}, NULL, NULL };
+        godot_instance_method method = { &${METHOD_NAME(d.name, method.name)}, NULL, NULL };
         nativescript_api->godot_nativescript_register_method(
             p_handle, "${class_name}", "${method.name}", method_attr, method
         );
     }
 % endfor
-    ${NATIVESCRIPT_NAME.format(d.name)} = nativescript_for_class("${class_name}");
+    ${NATIVESCRIPT_NAME(d.name)} = nativescript_for_class("${class_name}");
 }
 </%def>
 
 <%def name="def_function(d)" filter="trim">
-INCLUA_DECL GDCALLINGCONV godot_variant ${WRAPPER_NAME.format(d.name)}(godot_object *go, void *method_data, void *data, int argc, godot_variant **argv) {
+INCLUA_DECL GDCALLINGCONV godot_variant ${WRAPPER_NAME(d.name)}(godot_object *go, void *method_data, void *data, int argc, godot_variant **argv) {
 % for a in d.arguments:
     ${set_from_variant(a.type, typed_declaration(a.type.spelling, a.name), "argv[{}]".format(loop.index))}
 % endfor
@@ -184,13 +199,13 @@ INCLUA_DECL GDCALLINGCONV godot_variant ${WRAPPER_NAME.format(d.name)}(godot_obj
 </%def>
 
 <%def name="def_global_getter(d)" filter="trim">
-INCLUA_DECL GDCALLINGCONV godot_variant ${GETTER_NAME.format("Global", d.name)}(godot_object *go, void *method_data, void *data) {
+INCLUA_DECL GDCALLINGCONV godot_variant ${GETTER_NAME("Global", d.name)}(godot_object *go, void *method_data, void *data) {
     return ${to_variant_for(d.type, d.name)};
 }
 </%def>
 
 <%def name="def_global_setter(d)" filter="trim">
-INCLUA_DECL GDCALLINGCONV void ${SETTER_NAME.format("Global", d.name)}(godot_object *go, void *method_data, void *data, godot_variant *var) {
+INCLUA_DECL GDCALLINGCONV void ${SETTER_NAME("Global", d.name)}(godot_object *go, void *method_data, void *data, godot_variant *var) {
 % if f.type.is_string():
     <% assert False, "Setting global strings is not support yet" %>
 % else:
@@ -236,7 +251,7 @@ godot_method_bind *NativeScript_set_class_name = nullptr;
 godot_method_bind *NativeScript_set_library = nullptr;
 
 % for name in nativescripts:
-godot_object *${NATIVESCRIPT_NAME.format(name)} = nullptr;
+godot_object *${NATIVESCRIPT_NAME(name)} = nullptr;
 % endfor
 
 godot_object *Global;
@@ -440,13 +455,13 @@ void _global_register(void *p_handle) {
         p_handle, "Global", "Reference",
         create_func, destroy_func
     );
-    ${NATIVESCRIPT_NAME.format("Global")} = nativescript_for_class("Global");
-    Global = new_object_with_script(${NATIVESCRIPT_NAME.format("Global")});  // Yay, a global Global =D
+    ${NATIVESCRIPT_NAME("Global")} = nativescript_for_class("Global");
+    Global = new_object_with_script(${NATIVESCRIPT_NAME("Global")});  // Yay, a global Global =D
     godot_method_attributes method_attr = {};
 % for d in definitions:
     % if d.kind == 'function':
     {  // ${d.name}
-        godot_instance_method method = { &${WRAPPER_NAME.format(d.name)}, NULL, NULL };
+        godot_instance_method method = { &${WRAPPER_NAME(d.name)}, NULL, NULL };
         nativescript_api->godot_nativescript_register_method(
             p_handle, "Global", "${d.name}", method_attr, method
         );
@@ -457,8 +472,8 @@ void _global_register(void *p_handle) {
             GODOT_METHOD_RPC_MODE_DISABLED, ${godot_variant_type(d.type)},
             GODOT_PROPERTY_HINT_NONE, godot_string(), GODOT_PROPERTY_USAGE_DEFAULT,
         };
-        godot_property_get_func getter = { &${GETTER_NAME.format("Global", d.name)}, NULL, NULL };
-        godot_property_set_func setter = { ${'&' + SETTER_NAME.format("Global", d.name) if d.kind == 'var' else 'NULL'}, NULL, NULL };
+        godot_property_get_func getter = { &${GETTER_NAME("Global", d.name)}, NULL, NULL };
+        godot_property_set_func setter = { ${'&' + SETTER_NAME("Global", d.name) if d.kind == 'var' else 'NULL'}, NULL, NULL };
         nativescript_api->godot_nativescript_register_property(
             p_handle, "Global", "${d.name}",
             &attr, setter, getter
@@ -543,7 +558,7 @@ GDN_EXPORT void godot_nativescript_init(void *p_handle) {
     inclua::_global_register(p_handle);
 % for d in definitions:
     % if d.is_record():
-    inclua::${REGISTER_NAME.format(d.name)}(p_handle);
+    inclua::${REGISTER_NAME(d.name)}(p_handle);
     % endif
 % endfor
 }
