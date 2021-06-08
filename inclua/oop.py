@@ -26,6 +26,7 @@ class OOP:
                 unprefixed = canonicalize(d.name, namespace_prefixes)
                 self.types[d.spelling] = d
                 self.types[d.name] = d
+                self.types[unprefixed] = d
                 self.unprefixed[d.spelling] = unprefixed
                 self.methods[d.spelling] = []
                 self.native_methods[d.spelling] = []
@@ -44,9 +45,9 @@ class OOP:
                     continue
                 first_argument = f.arguments[0].type
                 if first_argument.is_pointer():
-                    first_argument = first_argument.element_type
-                the_type = self.types[first_argument.name]
-                if self.get_unprefixed_name(the_type).lower() in f.name.lower() and len(f.arguments) == 1 and DESTRUCTOR_RE.search(f.name):
+                    first_argument = first_argument.element_type.root()
+                the_type = self.types[first_argument.spelling]
+                if len(f.arguments) == 1 and DESTRUCTOR_RE.search(f.name):
                     self.destructor[the_type.spelling] = f
                 else:
                     self.methods[the_type.spelling].append(f)
