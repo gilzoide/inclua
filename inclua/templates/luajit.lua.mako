@@ -2,8 +2,6 @@
 import re
 
 from c_api_extract import typed_declaration
-
-from inclua.namespace import canonicalize
 %>
 
 <%namespace file="inclua.notice.mako" import="lua_notice"/>
@@ -86,7 +84,7 @@ lua_lib.${unprefixed_name} = ffi.metatype('${t.spelling}', {
   __index = {
 <%    replace_method_name_re = re.compile('_?' + unprefixed_name) %>\
     % for method in methods:
-    ${replace_method_name_re.sub('', canonicalize(annotations.get_name(method.name), namespace_prefixes), count=1).lstrip('_')} = c_lib.${method.name},
+    ${replace_method_name_re.sub('', canonicalize(method.name), count=1).lstrip('_')} = c_lib.${method.name},
     % endfor
     % for method_name, method_impl in native_methods:
       % if not method_name.startswith('__'):
@@ -104,7 +102,7 @@ lua_lib.${unprefixed_name} = ffi.metatype('${t.spelling}', {
         name = d.name
         if d.kind in ('typedef', 'enum', 'struct', 'union') or name in prefixed:
             continue
-        canonicalized = canonicalize(name, namespace_prefixes)
+        canonicalized = canonicalize(name)
         if name != canonicalized:
             prefixed[name] = canonicalized
 %>

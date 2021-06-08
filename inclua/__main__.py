@@ -41,6 +41,7 @@ import yaml
 
 from inclua.annotation import Annotations
 from inclua.error import IncluaError
+from inclua import namespace
 from inclua.oop import OOP
 
 
@@ -70,19 +71,24 @@ def main():
         type_objects=True,
     )
     module_name = opts.get('--module') or PurePath(opts['<input>']).stem
+    namespace_prefixes = opts.get('--namespace')
     annotations = Annotations()
     if opts.get('--extra-definitions'):
         with open(opts.get('--extra-definitions')) as f:
-            annotations.parse(yaml.safe_load(f) or {})
-    oop = OOP([] if opts.get('--pod') else definitions, opts.get('--namespace'), annotations)
+            annotations.update(yaml.safe_load(f) or {})
+    oop = OOP([] if opts.get('--pod') else definitions, namespace_prefixes, annotations)
+
+    def canonicalize(s):
+        return namespace.canonicalize(s, namespace_prefixes)
 
     code = template.render(
         annotations=annotations,
+        canonicalize=canonicalize,
         header=header,
         definitions=definitions,
         module_name=module_name,
+        namespace_prefixes=namespace_prefixes,
         oop=oop,
-        namespace_prefixes=opts.get('--namespace'),
     ).strip()
 
     signal(SIGPIPE, SIG_DFL)

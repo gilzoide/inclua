@@ -6,8 +6,6 @@
 
     from c_api_extract import typed_declaration
 
-    from inclua import namespace
-
     REGISTER_NAME = '{}_register'
     CONSTRUCTOR_NAME = '{}_constructor'
     DESTRUCTOR_NAME = '{}_destructor'
@@ -36,9 +34,6 @@
 
     def c_escape(s):
         return C_ESCAPE_RE.sub('_', s)
-
-    def canonicalize(n):
-        return namespace.canonicalize(n, namespace_prefixes)
 
     classes = list(oop.iter_types())
     nativescripts = ['Global']
