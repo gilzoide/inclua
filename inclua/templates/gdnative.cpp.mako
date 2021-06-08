@@ -283,6 +283,24 @@ struct StringHelper {
     bool gcs_valid;
 };
 
+struct VariantHelper {
+    VariantHelper() {
+        api->godot_variant_new_nil(&var);
+    }
+    VariantHelper(godot_variant var) : var(var) {}
+    ~VariantHelper() {
+        api->godot_variant_destroy(&var);
+    }
+    operator const godot_variant() const {
+        return var;
+    }
+    operator const godot_variant *() const {
+        return &var;
+    }
+    // fields
+    godot_variant var;
+};
+
 INCLUA_DECL godot_object *nativescript_for_class(const char *classname) {
     StringHelper classname_gs = classname;
     const void *classname_arg[] = { &classname_gs.gs };
@@ -473,9 +491,9 @@ void _global_register(void *p_handle) {
         % for v in d.values:
         {
             % if not d.is_anonymous():
-            godot_variant key = string_variant("${v.name | canonicalize}");
-            godot_variant value = uint_variant(${v.name});
-            api->godot_dictionary_set(&enum_dict, &key, &value);
+            VariantHelper key = string_variant("${v.name | canonicalize}");
+            VariantHelper value = uint_variant(${v.name});
+            api->godot_dictionary_set(&enum_dict, key, value);
             % endif
             getter.method_data = (void *) ${v.name};
             nativescript_api->godot_nativescript_register_property(
