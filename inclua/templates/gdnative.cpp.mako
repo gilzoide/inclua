@@ -34,6 +34,10 @@
 
     def c_escape(s):
         return C_ESCAPE_RE.sub('_', s)
+
+    classes = list(oop.iter_types())
+    nativescripts = ['Global']
+    nativescripts.extend(c.name for c in classes)
 %>
 
 <%def name="to_variant_for(t, val)" filter="trim">
@@ -179,6 +183,22 @@ INCLUA_DECL GDCALLINGCONV godot_variant ${WRAPPER_NAME.format(d.name)}(godot_obj
 }
 </%def>
 
+<%def name="def_global_getter(d)" filter="trim">
+INCLUA_DECL GDCALLINGCONV godot_variant ${GETTER_NAME.format("Global", d.name)}(godot_object *go, void *method_data, void *data) {
+    return ${to_variant_for(d.type, d.name)};
+}
+</%def>
+
+<%def name="def_global_setter(d)" filter="trim">
+INCLUA_DECL GDCALLINGCONV void ${SETTER_NAME.format("Global", d.name)}(godot_object *go, void *method_data, void *data, godot_variant *var) {
+% if f.type.is_string():
+    <% assert False, "Setting global strings is not support yet" %>
+% else:
+    ${set_from_variant(d.type, d.name, "var")}
+% endif
+}
+</%def>
+
 ${c_notice()}
 
 /*
@@ -215,9 +235,8 @@ godot_method_bind *Object_set_script = nullptr;
 godot_method_bind *NativeScript_set_class_name = nullptr;
 godot_method_bind *NativeScript_set_library = nullptr;
 
-godot_object *${NATIVESCRIPT_NAME.format("Global")} = nullptr;
-% for t in oop.iter_types():
-godot_object *${NATIVESCRIPT_NAME.format(t.name)} = nullptr;
+% for name in nativescripts:
+godot_object *${NATIVESCRIPT_NAME.format(name)} = nullptr;
 % endfor
 
 godot_object *Global;
@@ -344,6 +363,19 @@ template<typename T> INCLUA_DECL T object_pointer_from_variant(const godot_varia
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+// Constants and variables
+///////////////////////////////////////////////////////////////////////////////
+% for d in definitions:
+    % if d.kind == 'const':
+${def_global_getter(d)}
+    % elif d.kind == 'var':
+${def_global_getter(d)}
+${def_global_setter(d)}
+    % endif
+% endfor
+
+
+///////////////////////////////////////////////////////////////////////////////
 // Functions
 ///////////////////////////////////////////////////////////////////////////////
 % for d in definitions:
@@ -373,6 +405,8 @@ void _global_register(void *p_handle) {
         p_handle, "Global", "Reference",
         create_func, destroy_func
     );
+    ${NATIVESCRIPT_NAME.format("Global")} = nativescript_for_class("Global");
+    Global = new_object_with_script(${NATIVESCRIPT_NAME.format("Global")});  // Yay, a global Global =D
     godot_method_attributes method_attr = {};
 % for d in definitions:
     % if d.kind == 'function':
@@ -382,11 +416,21 @@ void _global_register(void *p_handle) {
             p_handle, "Global", "${d.name}", method_attr, method
         );
     }
+    % elif d.kind in ('var', 'const'):
+    {
+        godot_property_attributes attr = {
+            GODOT_METHOD_RPC_MODE_DISABLED, ${godot_variant_type(d.type)},
+            GODOT_PROPERTY_HINT_NONE, godot_string(), GODOT_PROPERTY_USAGE_DEFAULT,
+        };
+        godot_property_get_func getter = { &${GETTER_NAME.format("Global", d.name)}, NULL, NULL };
+        godot_property_set_func setter = { ${'&' + SETTER_NAME.format("Global", d.name) if d.kind == 'var' else 'NULL'}, NULL, NULL };
+        nativescript_api->godot_nativescript_register_property(
+            p_handle, "Global", "${d.name}",
+            &attr, setter, getter
+        );
+    }
     % endif
 % endfor
-    ${NATIVESCRIPT_NAME.format("Global")} = nativescript_for_class("Global");
-    // Yay, a global Global =D
-    Global = new_object_with_script(${NATIVESCRIPT_NAME.format("Global")});
 }
 
 } // namespace inclua
