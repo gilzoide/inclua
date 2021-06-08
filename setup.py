@@ -22,7 +22,7 @@ setup(
         'Programming Language :: Python :: 3',
     ],
     keywords='language bindings development',
-    install_requires=['c_api_extract >= 0.6.0', 'docopt', 'Mako', 'pyyaml'],
+    install_requires=['c_api_extract >= 0.7.0', 'docopt', 'Mako', 'pyyaml'],
 
     packages=find_packages(),
     package_data={
