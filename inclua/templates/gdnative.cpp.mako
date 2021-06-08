@@ -1,19 +1,22 @@
 <%namespace file="inclua.notice.mako" import="c_notice"/>
 
-<%!
+<%
     import re
     from textwrap import dedent
 
     from c_api_extract import typed_declaration
 
     REGISTER_NAME = '{}_register'
-    NEW_NAME = '{}_new'
     CONSTRUCTOR_NAME = '{}_constructor'
     DESTRUCTOR_NAME = '{}_destructor'
     SETTER_NAME = '{0}_set_{1}'
     GETTER_NAME = '{0}_get_{1}'
     WRAPPER_NAME = 'wrap_{}'
     C_ESCAPE_RE = re.compile(r'[^a-zA-Z_]')
+
+    def class_name_for(type):
+        name = type.root().name
+        return oop.unprefixed.get(name, name)
 
     def godot_variant_type(t):
         if t.kind == 'bool':
@@ -32,20 +35,22 @@
         return C_ESCAPE_RE.sub('_', s)
 %>
 
-<%def name="to_variant_for(t)" filter="trim">
+<%def name="to_variant_for(t, val)" filter="trim">
 <% t = t.root() %>
 % if t.is_string():
-    string_variant
+    string_variant(${val})
 % elif t.kind == 'void':
-    nil_variant
+    nil_variant(${val})
 % elif t.kind == 'uint':
-    uint_variant
+    uint_variant(${val})
 % elif t.kind == 'int':
-    int_variant
+    int_variant(${val})
 % elif t.kind == 'float':
-    float_variant
-% elif t.is_record() or (t.kind == 'pointer' and t.element_type.root().is_record()):
-    object_variant
+    float_variant(${val})
+% elif t.is_record():
+    object_variant(${val}, "${class_name_for(t)}");
+% elif t.kind == 'pointer' and t.element_type.root().is_record():
+    object_variant(${val}, "${class_name_for(t.element_type)}")
 % else:
     <% assert False, "Invalid to_variant for {!r}".format(t.spelling) %>
 % endif
@@ -73,16 +78,11 @@
 % endif
 </%def>
 
-<%def name="record_forward_decl(d)" filter="trim">
-godot_class_constructor ${NEW_NAME.format(d.name)}; 
-INCLUA_DECL godot_variant object_variant(const ${d.spelling}& o);
-</%def>
-
 <%def name="def_record(d)" filter="trim">
     <%def name="def_getter(f)" filter="dedent,trim">
     INCLUA_DECL GDCALLINGCONV godot_variant ${GETTER_NAME.format(d.name, f.name)}(godot_object *go, void *method_data, void *data) {
         ${d.spelling} *obj = (${d.spelling} *) data;
-        return ${to_variant_for(f.type)}(obj->${f.name});
+        return ${to_variant_for(f.type, "obj->{}".format(f.name))};
     }
     </%def>
     <%def name="def_setter(f)" filter="dedent,trim">
@@ -100,7 +100,7 @@ INCLUA_DECL godot_variant object_variant(const ${d.spelling}& o);
     }
     </%def>
 <%
-    class_name = oop.unprefixed.get(d.name, d.name)
+    class_name = class_name_for(d)
     constructor_name = CONSTRUCTOR_NAME.format(d.name)
     destructor_name = DESTRUCTOR_NAME.format(d.name)
 %>
@@ -130,7 +130,6 @@ INCLUA_DECL void ${REGISTER_NAME.format(d.name)}(void *p_handle) {
         p_handle, "${class_name}", "Reference",
         create_func, destroy_func
     );
-    ${NEW_NAME.format(d.name)} = api->godot_get_class_constructor("${class_name}");
 % for f in d.fields:
     {
         godot_property_attributes attr = {
@@ -146,14 +145,6 @@ INCLUA_DECL void ${REGISTER_NAME.format(d.name)}(void *p_handle) {
     }
 % endfor
 }
-INCLUA_DECL godot_variant object_variant(const ${d.spelling}& o) {
-    godot_variant var;
-    godot_object *go = ${NEW_NAME.format(d.name)}();
-    // *((${d.spelling} *) nativescript_api->godot_nativescript_get_userdata(go)) = o;
-    api->godot_variant_new_object(&var, go);
-    api->godot_object_destroy(go);
-    return var;
-}
 </%def>
 
 <%def name="def_function(d)" filter="trim">
@@ -166,7 +157,7 @@ INCLUA_DECL GDCALLINGCONV godot_variant ${WRAPPER_NAME.format(d.name)}(godot_obj
     return nil_variant();
 % else:
     auto result = ${d.name}(${', '.join(a.name for a in d.arguments)});
-    return ${to_variant_for(d.return_type)}(result);
+    return ${to_variant_for(d.return_type, "result")};
 % endif
 }
 </%def>
@@ -194,16 +185,25 @@ ${c_notice()}
     #endif
 #endif
 
-const godot_gdnative_core_api_struct *api = NULL;
-const godot_gdnative_ext_nativescript_api_struct *nativescript_api = NULL;
+#define LOG_ERROR(msg) api->godot_print_error(msg, __PRETTY_FUNCTION__, __FILE__, __LINE__)
+#define LOG_ERROR_IF_FALSE(cond) if(!(cond)) LOG_ERROR("Error: !(" #cond ")")
+
+const godot_gdnative_core_api_struct *api = nullptr;
+const godot_gdnative_ext_nativescript_api_struct *nativescript_api = nullptr;
+godot_object *gd_native_library = nullptr;
+
+godot_class_constructor Reference_new = nullptr;
+godot_class_constructor NativeScript_new = nullptr;
+godot_method_bind *Object_set_script = nullptr;
+godot_method_bind *NativeScript_set_class_name = nullptr;
+godot_method_bind *NativeScript_set_library = nullptr;
 
 namespace inclua {
 
 ///////////////////////////////////////////////////////////////////////////////
 // Helpers
 ///////////////////////////////////////////////////////////////////////////////
-class StringHelper {
-public:
+struct StringHelper {
     StringHelper(const char *s) : gcs_valid(false) {
         gs = api->godot_string_chars_to_utf8(s);
     }
@@ -229,7 +229,7 @@ public:
     operator godot_string *() {
         return &gs;
     }
-private:
+    // fields
     godot_string gs;
     godot_char_string gcs;
     bool gcs_valid;
@@ -270,6 +270,23 @@ INCLUA_DECL godot_variant string_variant(const char *s) {
     return var;
 }
 
+template<typename T> INCLUA_DECL godot_variant object_variant(const T& value, const char *classname) {
+    // create a NativeScript that creates a T
+    StringHelper classname_gs = classname;
+    const void *classname_arg[] = { &classname_gs.gs };
+    godot_object *script = NativeScript_new();
+    api->godot_method_bind_ptrcall(NativeScript_set_library, script, (const void **) &gd_native_library, nullptr);
+    api->godot_method_bind_ptrcall(NativeScript_set_class_name, script, classname_arg, nullptr);
+
+    // now create the actual object, attach the script and set the data
+    godot_variant var;
+    godot_object *go = Reference_new();
+    api->godot_method_bind_ptrcall(Object_set_script, go, (const void **) &script, nullptr);
+    *((T *) nativescript_api->godot_nativescript_get_userdata(go)) = value;
+    api->godot_variant_new_object(&var, go);
+    return var;
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // Variant -> Data
 ///////////////////////////////////////////////////////////////////////////////
@@ -284,14 +301,6 @@ template<typename T> INCLUA_DECL T object_pointer_from_variant(const godot_varia
     return (T) data;
 }
 
-///////////////////////////////////////////////////////////////////////////////
-// Forward declarations
-///////////////////////////////////////////////////////////////////////////////
-% for d in definitions:
-    % if d.is_record():
-${record_forward_decl(d)}
-    % endif
-% endfor
 ///////////////////////////////////////////////////////////////////////////////
 // Functions
 ///////////////////////////////////////////////////////////////////////////////
@@ -312,7 +321,7 @@ ${def_record(d)}
 ///////////////////////////////////////////////////////////////////////////////
 // Global scope: enums, all functions, constants, variables
 ///////////////////////////////////////////////////////////////////////////////
-INCLUA_DECL GDCALLINGCONV void *_global_constructor(godot_object *go, void *method_data) { return NULL; }
+INCLUA_DECL GDCALLINGCONV void *_global_constructor(godot_object *go, void *method_data) { return nullptr; }
 INCLUA_DECL GDCALLINGCONV void _global_destructor(godot_object *go, void *method_data, void *data) {}
 void _global_register(void *p_handle) {
     godot_instance_create_func create_func = { &_global_constructor, NULL, NULL };
@@ -342,8 +351,9 @@ extern "C" {
 ///////////////////////////////////////////////////////////////////////////////
 // API initialization
 ///////////////////////////////////////////////////////////////////////////////
-GDN_EXPORT void godot_gdnative_init(godot_gdnative_init_options *p_options) {
-    api = p_options->api_struct;
+GDN_EXPORT void godot_gdnative_init(godot_gdnative_init_options *options) {
+    api = options->api_struct;
+    gd_native_library = options->gd_native_library;
     // Now find our extensions.
     for(int i = 0; i < api->num_extensions; i++) {
         switch(api->extensions[i]->type) {
@@ -353,11 +363,22 @@ GDN_EXPORT void godot_gdnative_init(godot_gdnative_init_options *p_options) {
             default: break;
         }
     }
+    // cache some references
+    LOG_ERROR_IF_FALSE(Reference_new = api->godot_get_class_constructor("Reference"));
+    LOG_ERROR_IF_FALSE(NativeScript_new = api->godot_get_class_constructor("NativeScript"));
+    LOG_ERROR_IF_FALSE(Object_set_script = api->godot_method_bind_get_method("Object", "set_script"));
+    LOG_ERROR_IF_FALSE(NativeScript_set_class_name = api->godot_method_bind_get_method("NativeScript", "set_class_name"));
+    LOG_ERROR_IF_FALSE(NativeScript_set_library = api->godot_method_bind_get_method("NativeScript", "set_library"));
 }
 
-GDN_EXPORT void godot_gdnative_terminate(godot_gdnative_terminate_options *p_options) {
-    nativescript_api = NULL;
-    api = NULL;
+GDN_EXPORT void godot_gdnative_terminate(godot_gdnative_terminate_options *options) {
+    NativeScript_set_library = nullptr;
+    NativeScript_set_class_name = nullptr;
+    Object_set_script = nullptr;
+    NativeScript_new = nullptr;
+    nativescript_api = nullptr;
+    gd_native_library = nullptr;
+    api = nullptr;
 }
 
 GDN_EXPORT void godot_nativescript_init(void *p_handle) {
