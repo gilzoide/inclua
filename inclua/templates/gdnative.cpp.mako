@@ -6,6 +6,8 @@
 
     from c_api_extract import typed_declaration
 
+    from inclua import namespace
+
     REGISTER_NAME = '{}_register'
     CONSTRUCTOR_NAME = '{}_constructor'
     DESTRUCTOR_NAME = '{}_destructor'
@@ -34,6 +36,9 @@
 
     def c_escape(s):
         return C_ESCAPE_RE.sub('_', s)
+
+    def canonicalize(n):
+        return namespace.canonicalize(n, namespace_prefixes)
 
     classes = list(oop.iter_types())
     nativescripts = ['Global']
@@ -207,8 +212,8 @@ ${c_notice()}
 #ifndef INCLUA_GDNATIVE_HPP
 #define INCLUA_GDNATIVE_HPP
 
+#include <cstdint>
 #include <cstring>
-#include <type_traits>
 
 #include <gdnative_api_struct.gen.h>
 
@@ -334,6 +339,11 @@ INCLUA_DECL godot_variant string_variant(const char *s) {
     api->godot_variant_new_string(&var, gs);
     return var;
 }
+INCLUA_DECL godot_variant dictionary_variant(const godot_dictionary *dict) {
+    godot_variant var;
+    api->godot_variant_new_dictionary(&var, dict);
+    return var;
+}
 
 INCLUA_DECL godot_object *new_object_with_script(const godot_object *script) {
     godot_object *go = Reference_new();
@@ -360,6 +370,18 @@ template<typename T> INCLUA_DECL T object_pointer_from_variant(const godot_varia
     godot_object *go = api->godot_variant_as_object(var);
     void *data = nativescript_api->godot_nativescript_get_userdata(go);
     return (T) data;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Bound values getters
+///////////////////////////////////////////////////////////////////////////////
+INCLUA_DECL godot_variant get_bound_uint(godot_object *go, void *method_data, void *data) {
+    uintptr_t u = (uintptr_t) method_data;
+    return uint_variant(u);
+}
+INCLUA_DECL godot_variant get_bound_dictionary(godot_object *go, void *method_data, void *data) {
+    const godot_dictionary *dict = (const godot_dictionary *) method_data;
+    return dictionary_variant(dict);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -410,14 +432,14 @@ void _global_register(void *p_handle) {
     godot_method_attributes method_attr = {};
 % for d in definitions:
     % if d.kind == 'function':
-    {
+    {  // ${d.name}
         godot_instance_method method = { &${WRAPPER_NAME.format(d.name)}, NULL, NULL };
         nativescript_api->godot_nativescript_register_method(
             p_handle, "Global", "${d.name}", method_attr, method
         );
     }
     % elif d.kind in ('var', 'const'):
-    {
+    {  // ${d.name}
         godot_property_attributes attr = {
             GODOT_METHOD_RPC_MODE_DISABLED, ${godot_variant_type(d.type)},
             GODOT_PROPERTY_HINT_NONE, godot_string(), GODOT_PROPERTY_USAGE_DEFAULT,
@@ -428,6 +450,40 @@ void _global_register(void *p_handle) {
             p_handle, "Global", "${d.name}",
             &attr, setter, getter
         );
+    }
+    % elif d.kind == 'enum':
+    {  // ${d.spelling}
+        godot_property_attributes attr = {
+            GODOT_METHOD_RPC_MODE_DISABLED, GODOT_VARIANT_TYPE_INT,
+            GODOT_PROPERTY_HINT_NONE, godot_string(), GODOT_PROPERTY_USAGE_DEFAULT,
+        };
+        godot_property_get_func getter = { &get_bound_uint, NULL, NULL };
+        godot_property_set_func setter = { NULL, NULL, NULL };
+        % if not d.is_anonymous():
+        static godot_dictionary enum_dict;
+        api->godot_dictionary_new(&enum_dict);
+        {
+            godot_property_get_func getter = { &get_bound_dictionary, &enum_dict, (void (*)(void *)) api->godot_dictionary_destroy };
+            nativescript_api->godot_nativescript_register_property(
+                p_handle, "Global", "${d.name}",
+                &attr, setter, getter
+            );
+        }
+        % endif
+        % for v in d.values:
+        {
+            % if not d.is_anonymous():
+            godot_variant key = string_variant("${v.name | canonicalize}");
+            godot_variant value = uint_variant(${v.name});
+            api->godot_dictionary_set(&enum_dict, &key, &value);
+            % endif
+            getter.method_data = (void *) ${v.name};
+            nativescript_api->godot_nativescript_register_property(
+                p_handle, "Global", "${v.name}",
+                &attr, setter, getter
+            );
+        }
+        % endfor
     }
     % endif
 % endfor
