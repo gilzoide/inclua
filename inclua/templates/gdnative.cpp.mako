@@ -11,7 +11,8 @@
     DESTRUCTOR_NAME = '{}_destructor'
     SETTER_NAME = '{0}_set_{1}'
     GETTER_NAME = '{0}_get_{1}'
-    WRAPPER_NAME = 'wrap_{}'
+    WRAPPER_NAME = 'Global_{}'
+    METHOD_NAME = '{0}_{1}'
     C_ESCAPE_RE = re.compile(r'[^a-zA-Z_]')
 
     def class_name_for(type):
@@ -47,7 +48,7 @@
 % elif t.kind == 'float':
     float_variant(${val})
 % elif t.is_record():
-    object_variant(${val}, "${class_name_for(t)}");
+    object_variant(${val}, "${class_name_for(t)}")
 % elif t.kind == 'pointer' and t.element_type.root().is_record():
     object_variant(${val}, "${class_name_for(t.element_type)}")
 % else:
@@ -79,24 +80,27 @@
 
 <%def name="def_record(d)" filter="trim">
     <%def name="def_getter(f)" filter="dedent,trim">
-    INCLUA_DECL GDCALLINGCONV godot_variant ${GETTER_NAME.format(d.name, f.name)}(godot_object *go, void *method_data, void *data) {
-        ${d.spelling} *obj = (${d.spelling} *) data;
-        return ${to_variant_for(f.type, "obj->{}".format(f.name))};
-    }
+        INCLUA_DECL GDCALLINGCONV godot_variant ${GETTER_NAME.format(d.name, f.name)}(godot_object *go, void *method_data, void *data) {
+            ${d.spelling} *obj = (${d.spelling} *) data;
+            return ${to_variant_for(f.type, "obj->{}".format(f.name))};
+        }
     </%def>
     <%def name="def_setter(f)" filter="dedent,trim">
-    INCLUA_DECL GDCALLINGCONV void ${SETTER_NAME.format(d.name, f.name)}(godot_object *go, void *method_data, void *data, godot_variant *var) {
-        ${d.spelling} *obj = (${d.spelling} *) data;
-    % if f.type.is_string():
-        if (obj->${f.name}) {
-            free((void *) obj->${f.name});
+        INCLUA_DECL GDCALLINGCONV void ${SETTER_NAME.format(d.name, f.name)}(godot_object *go, void *method_data, void *data, godot_variant *var) {
+            ${d.spelling} *obj = (${d.spelling} *) data;
+        % if f.type.is_string():
+            if (obj->${f.name}) {
+                free((void *) obj->${f.name});
+            }
+            StringHelper gs = var;
+            obj->${f.name} = strndup(gs.str(), gs.size());
+        % else:
+            ${set_from_variant(f.type, "obj->{}".format(f.name), "var")}
+        % endif
         }
-        StringHelper gs = var;
-        obj->${f.name} = strndup(gs.str(), gs.size());
-    % else:
-        ${set_from_variant(f.type, "obj->{}".format(f.name), "var")}
-    % endif
-    }
+    </%def>
+    <%def name="def_method(f)" filter="dedent,trim">
+        DEFINE_METHOD_WRAPPING_FUNC(${METHOD_NAME.format(d.name, f.name)}, ${WRAPPER_NAME.format(f.name)})
     </%def>
 <%
     class_name = class_name_for(d)
@@ -122,6 +126,10 @@ ${def_setter(f)}
 ${def_getter(f)}
 % endfor
 
+% for method in oop.get_methods(d):
+${def_method(method)}
+% endfor
+
 INCLUA_DECL void ${REGISTER_NAME.format(d.name)}(void *p_handle) {
     godot_instance_create_func create_func = { &${constructor_name}, NULL, NULL };
     godot_instance_destroy_func destroy_func = { &${destructor_name}, NULL, NULL };
@@ -140,6 +148,15 @@ INCLUA_DECL void ${REGISTER_NAME.format(d.name)}(void *p_handle) {
         nativescript_api->godot_nativescript_register_property(
             p_handle, "${class_name}", "${f.name}",
             &attr, setter, getter
+        );
+    }
+% endfor
+    godot_method_attributes method_attr = {};
+% for method in oop.get_methods(d):
+    {
+        godot_instance_method method = { &${METHOD_NAME.format(d.name, method.name)}, NULL, NULL };
+        nativescript_api->godot_nativescript_register_method(
+            p_handle, "${class_name}", "${method.name}", method_attr, method
         );
     }
 % endfor
@@ -164,7 +181,7 @@ INCLUA_DECL GDCALLINGCONV godot_variant ${WRAPPER_NAME.format(d.name)}(godot_obj
 ${c_notice()}
 
 /*
- * This code is C++14
+ * This code is C++11
  */
 #ifndef INCLUA_GDNATIVE_HPP
 #define INCLUA_GDNATIVE_HPP
@@ -196,6 +213,8 @@ godot_class_constructor NativeScript_new = nullptr;
 godot_method_bind *Object_set_script = nullptr;
 godot_method_bind *NativeScript_set_class_name = nullptr;
 godot_method_bind *NativeScript_set_library = nullptr;
+
+godot_object *Global;
 
 namespace inclua {
 
@@ -234,6 +253,19 @@ struct StringHelper {
     bool gcs_valid;
 };
 
+<%text>
+#define DEFINE_METHOD_WRAPPING_FUNC(method_name, func_name)                   \
+    INCLUA_DECL GDCALLINGCONV godot_variant method_name(godot_object *go, void *method_data, void *data, int argc, godot_variant **argv) { \
+        godot_variant *wrapper_argv[argc + 1];                                \
+        godot_variant self;                                                   \
+        api->godot_variant_new_object(&self, go);                             \
+        wrapper_argv[0] = &self;                                              \
+        for (int i = 0; i < argc; i++) {                                      \
+            wrapper_argv[i + 1] = argv[i];                                    \
+        }                                                                     \
+        return func_name(Global, nullptr, nullptr, argc + 1, wrapper_argv);   \
+    }
+</%text>
 ///////////////////////////////////////////////////////////////////////////////
 // Data -> Variant
 ///////////////////////////////////////////////////////////////////////////////
@@ -269,7 +301,7 @@ INCLUA_DECL godot_variant string_variant(const char *s) {
     return var;
 }
 
-template<typename T> INCLUA_DECL godot_variant object_variant(const T& value, const char *classname) {
+INCLUA_DECL godot_object *new_object_with_script(const char *classname) {
     // create a NativeScript that creates a T
     StringHelper classname_gs = classname;
     const void *classname_arg[] = { &classname_gs.gs };
@@ -277,11 +309,15 @@ template<typename T> INCLUA_DECL godot_variant object_variant(const T& value, co
     api->godot_method_bind_ptrcall(NativeScript_set_library, script, (const void **) &gd_native_library, nullptr);
     api->godot_method_bind_ptrcall(NativeScript_set_class_name, script, classname_arg, nullptr);
 
-    // now create the actual object, attach the script and set the data
-    godot_variant var;
     godot_object *go = Reference_new();
     api->godot_method_bind_ptrcall(Object_set_script, go, (const void **) &script, nullptr);
+    return go;
+}
+
+template<typename T> INCLUA_DECL godot_variant object_variant(const T& value, const char *classname) {
+    godot_object *go = new_object_with_script(classname);
     *((T *) nativescript_api->godot_nativescript_get_userdata(go)) = value;
+    godot_variant var;
     api->godot_variant_new_object(&var, go);
     return var;
 }
@@ -340,7 +376,8 @@ void _global_register(void *p_handle) {
     }
     % endif
 % endfor
-
+    // Yay, a global Global =D
+    Global = new_object_with_script("Global");
 }
 
 } // namespace inclua
