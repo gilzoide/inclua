@@ -11,8 +11,9 @@
     DESTRUCTOR_NAME = '{}_destructor'
     SETTER_NAME = '{0}_set_{1}'
     GETTER_NAME = '{0}_get_{1}'
-    WRAPPER_NAME = 'Global_{}'
+    WRAPPER_NAME = '_global_{}'
     METHOD_NAME = '{0}_{1}'
+    NATIVESCRIPT_NAME = '{}_nativescript'
     C_ESCAPE_RE = re.compile(r'[^a-zA-Z_]')
 
     def class_name_for(type):
@@ -48,9 +49,9 @@
 % elif t.kind == 'float':
     float_variant(${val})
 % elif t.is_record():
-    object_variant(${val}, "${class_name_for(t)}")
+    object_variant(${val}, ${NATIVESCRIPT_NAME.format(t.name)})
 % elif t.kind == 'pointer' and t.element_type.root().is_record():
-    object_variant(${val}, "${class_name_for(t.element_type)}")
+    object_variant(${val}, ${NATIVESCRIPT_NAME.format(t.element_type)})
 % else:
     <% assert False, "Invalid to_variant for {!r}".format(t.spelling) %>
 % endif
@@ -112,7 +113,6 @@ INCLUA_DECL GDCALLINGCONV void *${constructor_name}(godot_object *go, void *meth
     *obj = {};
     return obj;
 }
-
 INCLUA_DECL GDCALLINGCONV void ${destructor_name}(godot_object *go, void *method_data, void *data) {
     ${d.spelling} *obj = (${d.spelling} *) data;
 % if oop.destructor.get(d.name):
@@ -160,6 +160,7 @@ INCLUA_DECL void ${REGISTER_NAME.format(d.name)}(void *p_handle) {
         );
     }
 % endfor
+    ${NATIVESCRIPT_NAME.format(d.name)} = nativescript_for_class("${class_name}");
 }
 </%def>
 
@@ -214,6 +215,11 @@ godot_method_bind *Object_set_script = nullptr;
 godot_method_bind *NativeScript_set_class_name = nullptr;
 godot_method_bind *NativeScript_set_library = nullptr;
 
+godot_object *${NATIVESCRIPT_NAME.format("Global")} = nullptr;
+% for t in oop.iter_types():
+godot_object *${NATIVESCRIPT_NAME.format(t.name)} = nullptr;
+% endfor
+
 godot_object *Global;
 
 namespace inclua {
@@ -252,6 +258,15 @@ struct StringHelper {
     godot_char_string gcs;
     bool gcs_valid;
 };
+
+INCLUA_DECL godot_object *nativescript_for_class(const char *classname) {
+    StringHelper classname_gs = classname;
+    const void *classname_arg[] = { &classname_gs.gs };
+    godot_object *script = NativeScript_new();
+    api->godot_method_bind_ptrcall(NativeScript_set_library, script, (const void **) &gd_native_library, nullptr);
+    api->godot_method_bind_ptrcall(NativeScript_set_class_name, script, classname_arg, nullptr);
+    return script;
+}
 
 <%text>
 #define DEFINE_METHOD_WRAPPING_FUNC(method_name, func_name)                   \
@@ -301,21 +316,13 @@ INCLUA_DECL godot_variant string_variant(const char *s) {
     return var;
 }
 
-INCLUA_DECL godot_object *new_object_with_script(const char *classname) {
-    // create a NativeScript that creates a T
-    StringHelper classname_gs = classname;
-    const void *classname_arg[] = { &classname_gs.gs };
-    godot_object *script = NativeScript_new();
-    api->godot_method_bind_ptrcall(NativeScript_set_library, script, (const void **) &gd_native_library, nullptr);
-    api->godot_method_bind_ptrcall(NativeScript_set_class_name, script, classname_arg, nullptr);
-
+INCLUA_DECL godot_object *new_object_with_script(const godot_object *script) {
     godot_object *go = Reference_new();
     api->godot_method_bind_ptrcall(Object_set_script, go, (const void **) &script, nullptr);
     return go;
 }
-
-template<typename T> INCLUA_DECL godot_variant object_variant(const T& value, const char *classname) {
-    godot_object *go = new_object_with_script(classname);
+template<typename T> INCLUA_DECL godot_variant object_variant(const T& value, const godot_object *script) {
+    godot_object *go = new_object_with_script(script);
     *((T *) nativescript_api->godot_nativescript_get_userdata(go)) = value;
     godot_variant var;
     api->godot_variant_new_object(&var, go);
@@ -344,6 +351,7 @@ template<typename T> INCLUA_DECL T object_pointer_from_variant(const godot_varia
 ${def_function(d)}
     % endif
 % endfor
+
 ///////////////////////////////////////////////////////////////////////////////
 // Classes
 ///////////////////////////////////////////////////////////////////////////////
@@ -376,8 +384,9 @@ void _global_register(void *p_handle) {
     }
     % endif
 % endfor
+    ${NATIVESCRIPT_NAME.format("Global")} = nativescript_for_class("Global");
     // Yay, a global Global =D
-    Global = new_object_with_script("Global");
+    Global = new_object_with_script(${NATIVESCRIPT_NAME.format("Global")});
 }
 
 } // namespace inclua
