@@ -59,10 +59,10 @@
 </%def>
 
 
-<%def name="to_variant_for(t, val)" filter="trim">
+<%def name="to_variant_for(t, val, size='')" filter="trim">
 <% t = t.root() %>
 % if t.is_string():
-    string_variant(${val})
+    string_variant(${val}${', ' + size if size else ''})
 % elif t.kind == 'void':
     nil_variant(${val})
 % elif t.kind in ('uint', 'enum'):
@@ -104,22 +104,35 @@
 
 <%def name="def_record(d)" filter="trim">
     <%def name="def_getter(f)" filter="dedent,trim">
+        <%
+            size = annotations.get_array_size(d.name, f.name).strip()
+            if size and size in (f.name for f in d.fields):
+                size = 'obj->' + size
+        %>
         INCLUA_DECL GDCALLINGCONV godot_variant ${GETTER_NAME(d.name, f.name)}(godot_object *go, void *method_data, void *data) {
             ${d.spelling} *obj = (${d.spelling} *) data;
-            return ${to_variant_for(f.type, "obj->{}".format(f.name))};
+            return ${to_variant_for(f.type, "obj->" + f.name, size)};
         }
     </%def>
     <%def name="def_setter(f)" filter="dedent,trim">
+        <%
+            size = annotations.get_array_size(d.name, f.name).strip()
+            obj_size = 'obj->' + size if (size and size in (f.name for f in d.fields)) else ''
+            obj_field = 'obj->' + f.name
+        %>
         INCLUA_DECL GDCALLINGCONV void ${SETTER_NAME(d.name, f.name)}(godot_object *go, void *method_data, void *data, godot_variant *var) {
             ${d.spelling} *obj = (${d.spelling} *) data;
         % if f.type.is_string():
-            if (obj->${f.name}) {
-                free((void *) obj->${f.name});
+            if (${obj_field}) {
+                api->godot_free((void *) ${obj_field});
             }
             StringHelper gs = var;
-            obj->${f.name} = strndup(gs.str(), gs.size());
+            % if obj_size:
+            ${obj_size} = gs.length();
+            % endif
+            ${obj_field} = gs.strdup();
         % else:
-            ${set_from_variant(f.type, "obj->{}".format(f.name), "var")}
+            ${set_from_variant(f.type, obj_field, "var")}
         % endif
         }
     </%def>
@@ -267,6 +280,9 @@ struct StringHelper {
     StringHelper(const char *s) : gcs_valid(false) {
         gs = api->godot_string_chars_to_utf8(s);
     }
+    StringHelper(const char *s, size_t length) : gcs_valid(false) {
+        gs = api->godot_string_chars_to_utf8_with_len(s, length);
+    }
     StringHelper(const godot_variant *var) : gcs_valid(false) {
         gs = api->godot_variant_as_string(var);
     }
@@ -283,7 +299,14 @@ struct StringHelper {
         }
         return api->godot_char_string_get_data(&gcs);
     }
-    godot_int size() const {
+    const char *strdup() {
+        auto len = length();
+        const char *s = str();
+        char *buffer = (char *) api->godot_alloc(len + 1);
+        memcpy(buffer, s, len + 1);
+        return buffer;
+    }
+    godot_int length() const {
         return api->godot_string_length(&gs);
     }
     operator godot_string *() {
@@ -366,6 +389,12 @@ template<typename T> INCLUA_DECL godot_variant float_variant(T f) {
 INCLUA_DECL godot_variant string_variant(const char *s) {
     godot_variant var;
     StringHelper gs = s;
+    api->godot_variant_new_string(&var, gs);
+    return var;
+}
+INCLUA_DECL godot_variant string_variant(const char *s, size_t lenght) {
+    godot_variant var;
+    StringHelper gs = { s, lenght };
     api->godot_variant_new_string(&var, gs);
     return var;
 }
