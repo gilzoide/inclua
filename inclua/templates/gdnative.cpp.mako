@@ -423,7 +423,9 @@ template<typename T> struct IntArrayHelper {
                 api->godot_pool_byte_array_destroy(&arr);
                 break;
             }
-            case GODOT_VARIANT_TYPE_POOL_INT_ARRAY: {
+            case GODOT_VARIANT_TYPE_ARRAY:
+            case GODOT_VARIANT_TYPE_POOL_INT_ARRAY:
+            case GODOT_VARIANT_TYPE_POOL_REAL_ARRAY: {
                 godot_pool_int_array arr = api->godot_variant_as_pool_int_array(var);
                 buffer = buffer_from_pool_int_array<T>(arr, &size);
                 api->godot_pool_int_array_destroy(&arr);
@@ -552,7 +554,7 @@ INCLUA_DECL char char_from_variant(const godot_variant *var) {
             return gs.length() ? gs.str()[0] : 0;
         }
         default:
-            LOG_ERROR("Invalid type, should be int or string");
+            LOG_ERROR("Invalid type, should be int, string or null");
             return 0;
     }
 }
