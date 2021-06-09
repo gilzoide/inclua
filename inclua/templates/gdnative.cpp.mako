@@ -83,7 +83,7 @@
 % endif
 </%def>
 
-<%def name="set_from_variant(t, rhs, var, size='')" filter="trim">
+<%def name="arg_from_variant(t, rhs, var, size='')" filter="trim">
 <% t = t.root() %>
 % if t.kind == 'bool':
     ${rhs} = api->godot_variant_as_bool(${var});
@@ -98,9 +98,22 @@
 % elif t.kind == 'pointer' and t.element_type.root().is_record():
     ${rhs} = object_pointer_from_variant<${t.spelling}>(${var});
 % elif t.is_string():
-    set_string_from_variant(${rhs}${opt_argument(size)}, ${var});
+    StringHelper ${rhs | c_escape}_string_helper = ${var};
+    ${rhs} = ${rhs | c_escape}_string_helper.str();
+    % if size:
+    ${size} = ${rhs | c_escape}_string_helper.length();
+    % endif
 % else:
     <% assert False, "Invalid from_variant for {!r}".format(t.spelling) %>
+% endif
+</%def>
+
+<%def name="set_from_variant(t, rhs, var, size='')" filter="trim">
+<% t = t.root() %>
+% if t.is_string():
+    set_string_from_variant(${rhs}${opt_argument(size)}, ${var});
+% else:
+    ${arg_from_variant(t, rhs, var, size)}
 % endif
 </%def>
 
@@ -197,7 +210,7 @@ INCLUA_DECL void ${REGISTER_NAME(d.name)}(void *p_handle) {
 <%def name="def_function(d)" filter="trim">
 INCLUA_DECL GDCALLINGCONV godot_variant ${WRAPPER_NAME(d.name)}(godot_object *go, void *method_data, void *data, int argc, godot_variant **argv) {
 % for a in d.arguments:
-    ${set_from_variant(a.type, typed_declaration(a.type.spelling, a.name), "argv[{}]".format(loop.index))}
+    ${arg_from_variant(a.type, typed_declaration(a.type.spelling, a.name), "argv[{}]".format(loop.index))}
 % endfor
 % if d.return_type.kind == 'void':
     ${d.name}(${', '.join(a.name for a in d.arguments)});
