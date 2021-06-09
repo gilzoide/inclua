@@ -109,12 +109,13 @@
 <% element_type = t.element_type.root() %>
     % if element_type.kind in ('int', 'uint'):
     IntArrayHelper<${element_type.spelling}> ${rhs | c_escape}_helper = ${var};
-    ${rhs} = ${rhs | c_escape}_helper.buffer;
-        % if size:
-    ${size} = ${rhs | c_escape}_helper.size;
-        % endif
-    % elif element_type.root() == 'float':
+    % elif element_type.kind == 'float':
+    FloatArrayHelper<${element_type.spelling}> ${rhs | c_escape}_helper = ${var};
     % else:
+    % endif
+    ${rhs} = ${rhs | c_escape}_helper.buffer;
+    % if size:
+    ${size} = ${rhs | c_escape}_helper.size;
     % endif
 % else:
     <% assert False, "Invalid from_variant for {!r}".format(t.spelling) %>
@@ -400,11 +401,34 @@ template<typename T> T *buffer_from_pool_int_array(godot_pool_int_array int_arra
             memcpy(buffer, int_ptr, size * sizeof(T));
         }
         else {
-            for (int i = 0; i < size; i++) {
+            for (size_t i = 0; i < size; i++) {
                 buffer[i] = (T) int_ptr[i];
             }
         }
         api->godot_pool_int_array_read_access_destroy(read);
+        *out_size = size;
+        return buffer;
+    }
+    else {
+        *out_size = 0;
+        return nullptr;
+    }
+}
+
+template<typename T> T *buffer_from_pool_real_array(godot_pool_real_array real_array, size_t *out_size) {
+    size_t size = api->godot_pool_real_array_size(&real_array);
+    if (T *buffer = (T *) api->godot_alloc(size * sizeof(T))) {
+        godot_pool_real_array_read_access *read = api->godot_pool_real_array_read(&real_array);
+        const godot_real *real_ptr = api->godot_pool_real_array_read_access_ptr(read);
+        if (std::is_same<T, godot_real>::value) {
+            memcpy(buffer, real_ptr, size * sizeof(T));
+        }
+        else {
+            for (size_t i = 0; i < size; i++) {
+                buffer[i] = (T) real_ptr[i];
+            }
+        }
+        api->godot_pool_real_array_read_access_destroy(read);
         *out_size = size;
         return buffer;
     }
@@ -423,21 +447,38 @@ template<typename T> struct IntArrayHelper {
                 api->godot_pool_byte_array_destroy(&arr);
                 break;
             }
-            case GODOT_VARIANT_TYPE_ARRAY:
-            case GODOT_VARIANT_TYPE_POOL_INT_ARRAY:
-            case GODOT_VARIANT_TYPE_POOL_REAL_ARRAY: {
+            default:
                 godot_pool_int_array arr = api->godot_variant_as_pool_int_array(var);
                 buffer = buffer_from_pool_int_array<T>(arr, &size);
                 api->godot_pool_int_array_destroy(&arr);
                 break;
-            }
-            default:
-                buffer = nullptr;
-                size = 0;
-                break;
         }
     }
     ~IntArrayHelper() {
+        if (buffer) api->godot_free(buffer);
+    }
+    // fields
+    T *buffer;
+    size_t size;
+};
+
+template<typename T> struct FloatArrayHelper {
+    FloatArrayHelper(const godot_variant *var) {
+        switch (api->godot_variant_get_type(var)) {
+            case GODOT_VARIANT_TYPE_POOL_BYTE_ARRAY: {
+                godot_pool_byte_array arr = api->godot_variant_as_pool_byte_array(var);
+                buffer = buffer_from_pool_byte_array<T>(arr, &size);
+                api->godot_pool_byte_array_destroy(&arr);
+                break;
+            }
+            default:
+                godot_pool_real_array arr = api->godot_variant_as_pool_real_array(var);
+                buffer = buffer_from_pool_real_array<T>(arr, &size);
+                api->godot_pool_real_array_destroy(&arr);
+                break;
+        }
+    }
+    ~FloatArrayHelper() {
         if (buffer) api->godot_free(buffer);
     }
     // fields
