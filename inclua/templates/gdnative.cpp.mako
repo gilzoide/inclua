@@ -100,10 +100,21 @@
 % elif t.kind == 'pointer' and t.element_type.root().is_record():
     ${rhs} = object_pointer_from_variant<${t.spelling}>(${var});
 % elif t.is_string():
-    StringHelper ${rhs | c_escape}_string_helper = ${var};
-    ${rhs} = ${rhs | c_escape}_string_helper.str();
+    StringHelper ${rhs | c_escape}_helper = ${var};
+    ${rhs} = ${rhs | c_escape}_helper.str();
     % if size:
-    ${size} = ${rhs | c_escape}_string_helper.length();
+    ${size} = ${rhs | c_escape}_helper.length();
+    % endif
+% elif t.kind in ('pointer', 'array'):
+<% element_type = t.element_type.root() %>
+    % if element_type.kind in ('int', 'uint'):
+    IntArrayHelper<${element_type.spelling}> ${rhs | c_escape}_helper = ${var};
+    ${rhs} = ${rhs | c_escape}_helper.buffer;
+        % if size:
+    ${size} = ${rhs | c_escape}_helper.size;
+        % endif
+    % elif element_type.root() == 'float':
+    % else:
     % endif
 % else:
     <% assert False, "Invalid from_variant for {!r}".format(t.spelling) %>
@@ -210,15 +221,23 @@ INCLUA_DECL void ${REGISTER_NAME(d.name)}(void *p_handle) {
 </%def>
 
 <%def name="def_function(d)" filter="trim">
+<% i = -1 %>
 INCLUA_DECL GDCALLINGCONV godot_variant ${WRAPPER_NAME(d.name)}(godot_object *go, void *method_data, void *data, int argc, godot_variant **argv) {
 % for a in d.arguments:
-    ${arg_from_variant(a.type, typed_declaration(a.type.spelling, a.name), "argv[{}]".format(loop.index))}
+<%
+    if annotations.is_argument_size(d.name, a.name):
+        continue
+    i += 1
+    size = annotations.get_array_size(d.name, a.name)
+    param_size = 'size_t ' + size if (size and size in (a.name for a in d.arguments)) else ''
+%>\
+    ${arg_from_variant(a.type, typed_declaration(a.type.spelling, a.name), "argv[{}]".format(i), size=param_size)}
 % endfor
 % if d.return_type.kind == 'void':
     ${d.name}(${', '.join(a.name for a in d.arguments)});
     return nil_variant();
 % else:
-    auto result = ${d.name}(${', '.join(a.name for a in d.arguments)});
+    ${d.return_type.spelling} result = ${d.name}(${', '.join(a.name for a in d.arguments)});
     return ${to_variant_for(d.return_type, "result")};
 % endif
 }
@@ -250,6 +269,7 @@ ${c_notice()}
 
 #include <cstdint>
 #include <cstring>
+#include <type_traits>
 
 #include <gdnative_api_struct.gen.h>
 
@@ -356,6 +376,59 @@ struct StringHelper {
     bool gcs_valid;
 };
 
+template<typename T> struct IntArrayHelper {
+    IntArrayHelper(const godot_variant *var) {
+        switch (api->godot_variant_get_type(var)) {
+            case GODOT_VARIANT_TYPE_POOL_BYTE_ARRAY:
+                get_buffer_from_pool_byte_array(var);
+                break;
+            case GODOT_VARIANT_TYPE_POOL_INT_ARRAY:
+                get_buffer_from_pool_int_array(var);
+                break;
+            default:
+                buffer = nullptr;
+                size = 0;
+                break;
+        }
+    }
+    ~IntArrayHelper() {
+        if (buffer) api->godot_free(buffer);
+    }
+    void get_buffer_from_pool_byte_array(const godot_variant *var) {
+        godot_pool_byte_array byte_array = api->godot_variant_as_pool_byte_array(var);
+        size_t size = api->godot_pool_byte_array_size(&byte_array) / sizeof(T);
+        if ((buffer = (T *) api->godot_alloc(size * sizeof(T))) != nullptr) {
+            this->size = size;
+            godot_pool_byte_array_read_access *read = api->godot_pool_byte_array_read(&byte_array);
+            memcpy(buffer, api->godot_pool_byte_array_read_access_ptr(read), size * sizeof(T));
+            api->godot_pool_byte_array_read_access_destroy(read);
+        }
+        api->godot_pool_byte_array_destroy(&byte_array);
+    }
+    void get_buffer_from_pool_int_array(const godot_variant *var) {
+        godot_pool_int_array int_array = api->godot_variant_as_pool_int_array(var);
+        size_t size = api->godot_pool_int_array_size(&int_array);
+        if ((buffer = (T *) api->godot_alloc(size * sizeof(T))) != nullptr) {
+            this->size = size;
+            godot_pool_int_array_read_access *read = api->godot_pool_int_array_read(&int_array);
+            const godot_int *int_ptr = api->godot_pool_int_array_read_access_ptr(read);
+            if (std::is_same<T, godot_int>::value) {
+                memcpy(buffer, int_ptr, size * sizeof(T));
+            }
+            else {
+                for (int i = 0; i < size; i++) {
+                    buffer[i] = (T) int_ptr[i];
+                }
+            }
+            api->godot_pool_int_array_read_access_destroy(read);
+        }
+        api->godot_pool_int_array_destroy(&int_array);
+    }
+    // fields
+    T *buffer;
+    size_t size;
+};
+
 INCLUA_DECL void set_meta(godot_object *go, const char *rawkey, const godot_variant *var) {
     StringHelper key = rawkey;
     const void *args[] = { &key.gs, var };
@@ -457,8 +530,7 @@ template<typename T> INCLUA_DECL T object_pointer_from_variant(const godot_varia
 }
 
 INCLUA_DECL char char_from_variant(const godot_variant *var) {
-    auto type = api->godot_variant_get_type(var);
-    switch (type) {
+    switch (api->godot_variant_get_type(var)) {
         case GODOT_VARIANT_TYPE_NIL: return 0;
         case GODOT_VARIANT_TYPE_INT: return (char) api->godot_variant_as_int(var);
         case GODOT_VARIANT_TYPE_STRING: {
