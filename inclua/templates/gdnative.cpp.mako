@@ -77,7 +77,7 @@
 % elif t.is_record():
     object_variant(${val}, ${NATIVESCRIPT_NAME(t.name)})
 % elif t.kind == 'pointer' and t.element_type.root().is_record():
-    object_variant(${val}, ${NATIVESCRIPT_NAME(t.element_type)})
+    object_variant(${val}, ${NATIVESCRIPT_NAME(t.element_type.name)})
 % else:
     <% assert False, "Invalid to_variant for {!r}".format(t.spelling) %>
 % endif
@@ -132,6 +132,9 @@
 </%def>
 
 <%def name="def_record(d)" filter="trim">
+<%
+    class_name = class_name_for(d)
+%>
     <%def name="def_getter(f)" filter="dedent,trim">
         <%
             size = annotations.get_array_size(d.name, f.name).strip()
@@ -156,12 +159,6 @@
             ${set_from_variant(f.type, obj_field, "var", size=obj_size)}
         }
     </%def>
-    <%def name="def_method(f)" filter="dedent,trim">
-        DEFINE_METHOD_WRAPPING_FUNC(${METHOD_NAME(d.name, f.name)}, ${WRAPPER_NAME(f.name)})
-    </%def>
-<%
-    class_name = class_name_for(d)
-%>
 INCLUA_DECL GDCALLINGCONV void *${CONSTRUCTOR_NAME(d.name)}(godot_object *go, void *method_data) {
 % if d.opaque:
     LOG_ERROR("${d.spelling} is opaque and cannot be constructed");
@@ -189,15 +186,11 @@ ${def_setter(f)}
 ${def_getter(f)}
 % endfor
 
-% for method in oop.get_methods(d):
-${def_method(method)}
-% endfor
-
 INCLUA_DECL void ${REGISTER_NAME(d.name)}(void *p_handle) {
     godot_instance_create_func create_func = { &${CONSTRUCTOR_NAME(d.name)}, NULL, NULL };
     godot_instance_destroy_func destroy_func = { &${DESTRUCTOR_NAME(d.name)}, NULL, NULL };
     nativescript_api->godot_nativescript_register_class(
-        p_handle, "${class_name}", "Reference",
+        p_handle, "${class_name}", "Object",
         create_func, destroy_func
     );
 % for f in d.fields:
@@ -215,9 +208,10 @@ INCLUA_DECL void ${REGISTER_NAME(d.name)}(void *p_handle) {
     }
 % endfor
     godot_method_attributes method_attr = {};
+    godot_instance_method method = { &call_function_as_method, NULL, NULL };
 % for method in oop.get_methods(d):
     {
-        godot_instance_method method = { &${METHOD_NAME(d.name, method.name)}, NULL, NULL };
+        method.method_data = (void *) &${WRAPPER_NAME(method.name)};
         nativescript_api->godot_nativescript_register_method(
             p_handle, "${class_name}", "${method.name}", method_attr, method
         );
@@ -299,8 +293,9 @@ godot_object *gd_native_library = nullptr;
 
 godot_class_constructor Reference_new = nullptr;
 godot_class_constructor NativeScript_new = nullptr;
-godot_method_bind *Object_set_script = nullptr;
+godot_method_bind *Object_get_meta = nullptr;
 godot_method_bind *Object_set_meta = nullptr;
+godot_method_bind *Object_set_script = nullptr;
 godot_method_bind *NativeScript_set_class_name = nullptr;
 godot_method_bind *NativeScript_set_library = nullptr;
 
@@ -523,6 +518,14 @@ template<typename T> struct FloatArrayHelper {
     size_t size;
 };
 
+INCLUA_DECL godot_variant get_meta(godot_object *go, const char *rawkey) {
+    StringHelper key = rawkey;
+    const void *args[] = { &key.gs };
+    godot_variant var;
+    api->godot_method_bind_ptrcall(Object_set_meta, go, args, &var);
+    return var;
+}
+
 INCLUA_DECL void set_meta(godot_object *go, const char *rawkey, const godot_variant *var) {
     StringHelper key = rawkey;
     const void *args[] = { &key.gs, var };
@@ -540,19 +543,19 @@ INCLUA_DECL godot_object *nativescript_for_class(const char *classname, size_t l
 <%text filter="trim">
 #define NATIVESCRIPT_FOR_CLASS_LITERAL(classname) \
     nativescript_for_class(classname, sizeof(classname))
-
-#define DEFINE_METHOD_WRAPPING_FUNC(method_name, func_name)                   \
-    INCLUA_DECL GDCALLINGCONV godot_variant method_name(godot_object *go, void *method_data, void *data, int argc, godot_variant **argv) { \
-        godot_variant *wrapper_argv[argc + 1];                                \
-        godot_variant self;                                                   \
-        api->godot_variant_new_object(&self, go);                             \
-        wrapper_argv[0] = &self;                                              \
-        for (int i = 0; i < argc; i++) {                                      \
-            wrapper_argv[i + 1] = argv[i];                                    \
-        }                                                                     \
-        return func_name(Global, nullptr, nullptr, argc + 1, wrapper_argv);   \
-    }
 </%text>
+
+INCLUA_DECL GDCALLINGCONV godot_variant call_function_as_method(godot_object *go, void *method_data, void *data, int argc, godot_variant **argv) {
+    godot_variant *wrapper_argv[argc + 1];
+    godot_variant self;
+    api->godot_variant_new_object(&self, go);
+    wrapper_argv[0] = &self;
+    for (int i = 0; i < argc; i++) {
+        wrapper_argv[i + 1] = argv[i];
+    }
+    auto func = (GDCALLINGCONV godot_variant (*)(godot_object *, void *, void *, int, godot_variant **)) method_data;
+    return func(Global, nullptr, nullptr, argc + 1, wrapper_argv);
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 // Data -> Variant
@@ -707,10 +710,11 @@ void _global_register(void *p_handle) {
     ${NATIVESCRIPT_NAME("Global")} = NATIVESCRIPT_FOR_CLASS_LITERAL("Global");
     Global = new_object_with_script(${NATIVESCRIPT_NAME("Global")});  // Yay, a global Global =D
     godot_method_attributes method_attr = {};
+    godot_instance_method method = { &call_function_as_method, NULL, NULL };
 % for d in definitions:
     % if d.kind == 'function':
     {  // ${d.name}
-        godot_instance_method method = { &${WRAPPER_NAME(d.name)}, NULL, NULL };
+    method.method_data = (void *) &${WRAPPER_NAME(d.name)};
         nativescript_api->godot_nativescript_register_method(
             p_handle, "Global", "${d.name}", method_attr, method
         );
@@ -788,21 +792,14 @@ GDN_EXPORT void godot_gdnative_init(godot_gdnative_init_options *options) {
     // cache some references
     LOG_ERROR_IF_FALSE(Reference_new = api->godot_get_class_constructor("Reference"));
     LOG_ERROR_IF_FALSE(NativeScript_new = api->godot_get_class_constructor("NativeScript"));
-    LOG_ERROR_IF_FALSE(Object_set_script = api->godot_method_bind_get_method("Object", "set_script"));
+    LOG_ERROR_IF_FALSE(Object_get_meta = api->godot_method_bind_get_method("Object", "get_meta"));
     LOG_ERROR_IF_FALSE(Object_set_meta = api->godot_method_bind_get_method("Object", "set_meta"));
+    LOG_ERROR_IF_FALSE(Object_set_script = api->godot_method_bind_get_method("Object", "set_script"));
     LOG_ERROR_IF_FALSE(NativeScript_set_class_name = api->godot_method_bind_get_method("NativeScript", "set_class_name"));
     LOG_ERROR_IF_FALSE(NativeScript_set_library = api->godot_method_bind_get_method("NativeScript", "set_library"));
 }
 
-GDN_EXPORT void godot_gdnative_terminate(godot_gdnative_terminate_options *options) {
-    NativeScript_set_library = nullptr;
-    NativeScript_set_class_name = nullptr;
-    Object_set_script = nullptr;
-    NativeScript_new = nullptr;
-    nativescript_api = nullptr;
-    gd_native_library = nullptr;
-    api = nullptr;
-}
+GDN_EXPORT void godot_gdnative_terminate(godot_gdnative_terminate_options *options) {}
 
 GDN_EXPORT void godot_nativescript_init(void *p_handle) {
     inclua::_global_register(p_handle);
