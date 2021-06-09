@@ -75,9 +75,9 @@
 % elif t.kind == 'float':
     float_variant(${val})
 % elif t.is_record():
-    object_variant(${val}, ${NATIVESCRIPT_NAME(t.name)})
+    object_variant<${t.name}>(${val}, ${NATIVESCRIPT_NAME(t.name)})
 % elif t.kind == 'pointer' and t.element_type.root().is_record():
-    object_variant(${val}, ${NATIVESCRIPT_NAME(t.element_type.name)})
+    object_variant<${t.element_type.name}>(${val}, ${NATIVESCRIPT_NAME(t.element_type.name)})
 % else:
     <% assert False, "Invalid to_variant for {!r}".format(t.spelling) %>
 % endif
@@ -160,7 +160,7 @@
         }
     </%def>
 INCLUA_DECL GDCALLINGCONV void *${CONSTRUCTOR_NAME(d.name)}(godot_object *go, void *method_data) {
-    auto helper = (RecordHelper<${d.spelling}${" *" if d.opaque else ""}> *) api->godot_alloc(sizeof(RecordHelper<${d.spelling}${" *" if d.opaque else ""}>));
+    auto helper = (RecordHelper<${d.spelling}> *) api->godot_alloc(sizeof(RecordHelper<${d.spelling}>));
     *helper = {};
     ${d.spelling}${" *" if d.opaque else ""} zeroinit = {};
     helper->set(zeroinit);
@@ -328,9 +328,17 @@ template<typename T> struct RecordHelper {
     T *get() {
         return ptr;
     }
-    void set(const T *value) {
+    void set(const T *value, bool own_data = false) {
+        if (this->own_data != own_data) {
+            if (own_data) {
+                ptr = (T *) api->godot_alloc(sizeof(T));
+            }
+            else if (ptr) {
+                api->godot_free(ptr);
+            }
+            this->own_data = own_data;
+        }
         if (own_data) {
-            if (!ptr) ptr = (T *) api->godot_alloc(sizeof(T));
             memcpy(ptr, value, sizeof(T));
         }
         else {
@@ -338,8 +346,7 @@ template<typename T> struct RecordHelper {
         }
     }
     void set(const T& value) {
-        own_data = true;
-        set(&value);
+        set(&value, true);
     }
     // fields
     bool own_data;
@@ -609,7 +616,7 @@ INCLUA_DECL godot_object *new_object_with_script(const godot_object *script) {
     api->godot_method_bind_ptrcall(Object_set_script, go, (const void **) &script, nullptr);
     return go;
 }
-template<typename T> INCLUA_DECL godot_variant object_variant(const T& value, const godot_object *script) {
+template<typename T, typename U> INCLUA_DECL godot_variant object_variant(const U& value, const godot_object *script) {
     godot_object *go = new_object_with_script(script);
     auto helper = RecordHelper<T>::from_object(go);
     helper->set(value);
