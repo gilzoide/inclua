@@ -309,6 +309,11 @@ struct StringHelper {
     godot_int length() const {
         return api->godot_string_length(&gs);
     }
+    godot_variant var() const {
+        godot_variant newvar;
+        api->godot_variant_new_string(&newvar, &gs);
+        return newvar;
+    }
     operator godot_string *() {
         return &gs;
     }
@@ -387,16 +392,12 @@ template<typename T> INCLUA_DECL godot_variant float_variant(T f) {
     return var;
 }
 INCLUA_DECL godot_variant string_variant(const char *s) {
-    godot_variant var;
     StringHelper gs = s;
-    api->godot_variant_new_string(&var, gs);
-    return var;
+    return gs.var();
 }
 INCLUA_DECL godot_variant string_variant(const char *s, size_t lenght) {
-    godot_variant var;
     StringHelper gs = { s, lenght };
-    api->godot_variant_new_string(&var, gs);
-    return var;
+    return gs.var();
 }
 INCLUA_DECL godot_variant dictionary_variant(const godot_dictionary *dict) {
     godot_variant var;
