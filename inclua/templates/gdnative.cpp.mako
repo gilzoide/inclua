@@ -376,15 +376,59 @@ struct StringHelper {
     bool gcs_valid;
 };
 
+template<typename T> T *buffer_from_pool_byte_array(godot_pool_byte_array byte_array, size_t *out_size) {
+    size_t size = api->godot_pool_byte_array_size(&byte_array) / sizeof(T);
+    if (T *buffer = (T *) api->godot_alloc(size * sizeof(T))) {
+        godot_pool_byte_array_read_access *read = api->godot_pool_byte_array_read(&byte_array);
+        memcpy(buffer, api->godot_pool_byte_array_read_access_ptr(read), size * sizeof(T));
+        api->godot_pool_byte_array_read_access_destroy(read);
+        *out_size = size;
+        return buffer;
+    }
+    else {
+        *out_size = 0;
+        return nullptr;
+    }
+}
+
+template<typename T> T *buffer_from_pool_int_array(godot_pool_int_array int_array, size_t *out_size) {
+    size_t size = api->godot_pool_int_array_size(&int_array);
+    if (T *buffer = (T *) api->godot_alloc(size * sizeof(T))) {
+        godot_pool_int_array_read_access *read = api->godot_pool_int_array_read(&int_array);
+        const godot_int *int_ptr = api->godot_pool_int_array_read_access_ptr(read);
+        if (std::is_same<T, godot_int>::value) {
+            memcpy(buffer, int_ptr, size * sizeof(T));
+        }
+        else {
+            for (int i = 0; i < size; i++) {
+                buffer[i] = (T) int_ptr[i];
+            }
+        }
+        api->godot_pool_int_array_read_access_destroy(read);
+        *out_size = size;
+        return buffer;
+    }
+    else {
+        *out_size = 0;
+        return nullptr;
+    }
+}
+
 template<typename T> struct IntArrayHelper {
     IntArrayHelper(const godot_variant *var) {
         switch (api->godot_variant_get_type(var)) {
-            case GODOT_VARIANT_TYPE_POOL_BYTE_ARRAY:
-                get_buffer_from_pool_byte_array(var);
+            case GODOT_VARIANT_TYPE_POOL_BYTE_ARRAY: {
+                godot_pool_byte_array arr = api->godot_variant_as_pool_byte_array(var);
+                buffer = buffer_from_pool_byte_array<T>(arr, &size);
+                api->godot_pool_byte_array_destroy(&arr);
                 break;
-            case GODOT_VARIANT_TYPE_POOL_INT_ARRAY:
-                get_buffer_from_pool_int_array(var);
+            }
+            case GODOT_VARIANT_TYPE_POOL_INT_ARRAY: {
+                godot_pool_int_array arr = api->godot_variant_as_pool_int_array(var);
+                buffer = buffer_from_pool_int_array<T>(arr, &size);
+                api->godot_pool_int_array_destroy(&arr);
                 break;
+            }
             default:
                 buffer = nullptr;
                 size = 0;
@@ -393,36 +437,6 @@ template<typename T> struct IntArrayHelper {
     }
     ~IntArrayHelper() {
         if (buffer) api->godot_free(buffer);
-    }
-    void get_buffer_from_pool_byte_array(const godot_variant *var) {
-        godot_pool_byte_array byte_array = api->godot_variant_as_pool_byte_array(var);
-        size_t size = api->godot_pool_byte_array_size(&byte_array) / sizeof(T);
-        if ((buffer = (T *) api->godot_alloc(size * sizeof(T))) != nullptr) {
-            this->size = size;
-            godot_pool_byte_array_read_access *read = api->godot_pool_byte_array_read(&byte_array);
-            memcpy(buffer, api->godot_pool_byte_array_read_access_ptr(read), size * sizeof(T));
-            api->godot_pool_byte_array_read_access_destroy(read);
-        }
-        api->godot_pool_byte_array_destroy(&byte_array);
-    }
-    void get_buffer_from_pool_int_array(const godot_variant *var) {
-        godot_pool_int_array int_array = api->godot_variant_as_pool_int_array(var);
-        size_t size = api->godot_pool_int_array_size(&int_array);
-        if ((buffer = (T *) api->godot_alloc(size * sizeof(T))) != nullptr) {
-            this->size = size;
-            godot_pool_int_array_read_access *read = api->godot_pool_int_array_read(&int_array);
-            const godot_int *int_ptr = api->godot_pool_int_array_read_access_ptr(read);
-            if (std::is_same<T, godot_int>::value) {
-                memcpy(buffer, int_ptr, size * sizeof(T));
-            }
-            else {
-                for (int i = 0; i < size; i++) {
-                    buffer[i] = (T) int_ptr[i];
-                }
-            }
-            api->godot_pool_int_array_read_access_destroy(read);
-        }
-        api->godot_pool_int_array_destroy(&int_array);
     }
     // fields
     T *buffer;
