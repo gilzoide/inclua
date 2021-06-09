@@ -31,7 +31,10 @@ from inclua.error import IncluaError
 
 IGNORE_TAG = 'ignore'
 OPAQUE_TAG = 'opaque'
+ARRAY_TAG = 'array'
 SIZE_TAG = 'size'
+SIZE_OF_TAG = 'sizeof'
+OUT_TAG = 'out'
 
 
 class Annotations(dict):
@@ -42,7 +45,30 @@ class Annotations(dict):
             return ""
 
     def is_array(self, func_or_record: str, arg_or_field: Union[str, int]) -> bool:
-        return bool(self.get_array_size(func_or_record, arg_or_field))
+        if self.get_array_size(func_or_record, arg_or_field):
+            return True
+        try:
+            arg_annotation = self[func_or_record][arg_or_field]
+            return arg_annotation == ARRAY_TAG or bool(arg_annotation[ARRAY_TAG])
+        except KeyError:
+            return False
+
+    def is_argument_size(self, func: str, arg: Union[str, int]) -> bool:
+        try:
+            func_annotation = self[func]
+            for other_arg, annotations in func_annotation.items():
+                if annotations.get(SIZE_TAG) == arg:
+                    return True
+        except KeyError:
+            pass
+        return False
+
+    def is_argument_out(self, func: str, arg: Union[str, int]) -> bool:
+        try:
+            arg_annotation = self[func][arg]
+            return arg_annotation == OUT_TAG or bool(arg_annotation[OUT_TAG])
+        except KeyError:
+            return False
 
     def should_ignore(self, name) -> bool:
         return self.get(name) == IGNORE_TAG
