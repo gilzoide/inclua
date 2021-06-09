@@ -87,6 +87,8 @@
 <% t = t.root() %>
 % if t.kind == 'bool':
     ${rhs} = api->godot_variant_as_bool(${var});
+% elif t.kind == 'char':
+    ${rhs} = char_from_variant(${var});
 % elif t.kind == 'uint':
     ${rhs} = api->godot_variant_as_uint(${var});
 % elif t.kind == 'int':
@@ -452,6 +454,21 @@ template<typename T> INCLUA_DECL T object_pointer_from_variant(const godot_varia
     godot_object *go = api->godot_variant_as_object(var);
     void *data = nativescript_api->godot_nativescript_get_userdata(go);
     return (T) data;
+}
+
+INCLUA_DECL char char_from_variant(const godot_variant *var) {
+    auto type = api->godot_variant_get_type(var);
+    switch (type) {
+        case GODOT_VARIANT_TYPE_NIL: return 0;
+        case GODOT_VARIANT_TYPE_INT: return (char) api->godot_variant_as_int(var);
+        case GODOT_VARIANT_TYPE_STRING: {
+            StringHelper gs = var;
+            return gs.length() ? gs.str()[0] : 0;
+        }
+        default:
+            LOG_ERROR("Invalid type, should be int or string");
+            return 0;
+    }
 }
 
 template<typename T> INCLUA_DECL void set_string_from_variant(T& cstr, const godot_variant *var) {
