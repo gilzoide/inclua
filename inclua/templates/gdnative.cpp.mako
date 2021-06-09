@@ -123,14 +123,12 @@
         INCLUA_DECL GDCALLINGCONV void ${SETTER_NAME(d.name, f.name)}(godot_object *go, void *method_data, void *data, godot_variant *var) {
             ${d.spelling} *obj = (${d.spelling} *) data;
         % if f.type.is_string():
-            if (${obj_field}) {
-                api->godot_free((void *) ${obj_field});
-            }
+            if (${obj_field}) api->godot_free((void *) ${obj_field});
             StringHelper gs = var;
+            ${obj_field} = gs.strdup();
             % if obj_size:
             ${obj_size} = gs.length();
             % endif
-            ${obj_field} = gs.strdup();
         % else:
             ${set_from_variant(f.type, obj_field, "var")}
         % endif
@@ -152,6 +150,11 @@ INCLUA_DECL GDCALLINGCONV void ${DESTRUCTOR_NAME(d.name)}(godot_object *go, void
 % if oop.destructor.get(d.name):
     ${oop.destructor[d.name].name}(obj);
 % endif
+% for f in d.fields:
+    % if f.type.is_string():
+    if (obj->${f.name}) api->godot_free((void *) obj->${f.name});
+    % endif
+% endfor
     api->godot_free(obj);
 }
 
@@ -262,6 +265,7 @@ godot_object *gd_native_library = nullptr;
 godot_class_constructor Reference_new = nullptr;
 godot_class_constructor NativeScript_new = nullptr;
 godot_method_bind *Object_set_script = nullptr;
+godot_method_bind *Object_set_meta = nullptr;
 godot_method_bind *NativeScript_set_class_name = nullptr;
 godot_method_bind *NativeScript_set_library = nullptr;
 
@@ -276,6 +280,24 @@ namespace inclua {
 ///////////////////////////////////////////////////////////////////////////////
 // Helpers
 ///////////////////////////////////////////////////////////////////////////////
+struct VariantHelper {
+    VariantHelper() {
+        api->godot_variant_new_nil(&var);
+    }
+    VariantHelper(godot_variant var) : var(var) {}
+    ~VariantHelper() {
+        api->godot_variant_destroy(&var);
+    }
+    operator const godot_variant() const {
+        return var;
+    }
+    operator const godot_variant *() const {
+        return &var;
+    }
+    // fields
+    godot_variant var;
+};
+
 struct StringHelper {
     StringHelper(const char *s) : gcs_valid(false) {
         gs = api->godot_string_chars_to_utf8(s);
@@ -299,11 +321,14 @@ struct StringHelper {
         }
         return api->godot_char_string_get_data(&gcs);
     }
-    const char *strdup() {
-        auto len = length();
+    char *strdup() {
+        godot_int len = length();
         const char *s = str();
         char *buffer = (char *) api->godot_alloc(len + 1);
-        memcpy(buffer, s, len + 1);
+        if (buffer) {
+            memcpy(buffer, s, len);
+            buffer[len] = 0;
+        }
         return buffer;
     }
     godot_int length() const {
@@ -323,24 +348,6 @@ struct StringHelper {
     bool gcs_valid;
 };
 
-struct VariantHelper {
-    VariantHelper() {
-        api->godot_variant_new_nil(&var);
-    }
-    VariantHelper(godot_variant var) : var(var) {}
-    ~VariantHelper() {
-        api->godot_variant_destroy(&var);
-    }
-    operator const godot_variant() const {
-        return var;
-    }
-    operator const godot_variant *() const {
-        return &var;
-    }
-    // fields
-    godot_variant var;
-};
-
 INCLUA_DECL godot_object *nativescript_for_class(const char *classname) {
     StringHelper classname_gs = classname;
     const void *classname_arg[] = { &classname_gs.gs };
@@ -348,6 +355,12 @@ INCLUA_DECL godot_object *nativescript_for_class(const char *classname) {
     api->godot_method_bind_ptrcall(NativeScript_set_library, script, (const void **) &gd_native_library, nullptr);
     api->godot_method_bind_ptrcall(NativeScript_set_class_name, script, classname_arg, nullptr);
     return script;
+}
+
+INCLUA_DECL void set_meta(godot_object *go, const char *rawkey, const godot_variant *var) {
+    StringHelper key = rawkey;
+    const void *args[] = { &key.gs, var };
+    api->godot_method_bind_ptrcall(Object_set_meta, go, args, nullptr);
 }
 
 <%text>
@@ -572,6 +585,7 @@ GDN_EXPORT void godot_gdnative_init(godot_gdnative_init_options *options) {
     LOG_ERROR_IF_FALSE(Reference_new = api->godot_get_class_constructor("Reference"));
     LOG_ERROR_IF_FALSE(NativeScript_new = api->godot_get_class_constructor("NativeScript"));
     LOG_ERROR_IF_FALSE(Object_set_script = api->godot_method_bind_get_method("Object", "set_script"));
+    LOG_ERROR_IF_FALSE(Object_set_meta = api->godot_method_bind_get_method("Object", "set_meta"));
     LOG_ERROR_IF_FALSE(NativeScript_set_class_name = api->godot_method_bind_get_method("NativeScript", "set_class_name"));
     LOG_ERROR_IF_FALSE(NativeScript_set_library = api->godot_method_bind_get_method("NativeScript", "set_library"));
 }
