@@ -139,7 +139,8 @@
                 size = 'obj->' + size
         %>
         INCLUA_DECL GDCALLINGCONV godot_variant ${GETTER_NAME(d.name, f.name)}(godot_object *go, void *method_data, void *data) {
-            ${d.spelling} *obj = (${d.spelling} *) data;
+            RecordHelper *helper = (RecordHelper *) data;
+            ${d.spelling} *obj = (${d.spelling} *) helper->get();
             return ${to_variant_for(f.type, "obj->" + f.name, size)};
         }
     </%def>
@@ -150,7 +151,8 @@
             obj_field = 'obj->' + f.name
         %>
         INCLUA_DECL GDCALLINGCONV void ${SETTER_NAME(d.name, f.name)}(godot_object *go, void *method_data, void *data, godot_variant *var) {
-            ${d.spelling} *obj = (${d.spelling} *) data;
+            RecordHelper *helper = (RecordHelper *) data;
+            ${d.spelling} *obj = (${d.spelling} *) helper->get();
             ${set_from_variant(f.type, obj_field, "var", size=obj_size)}
         }
     </%def>
@@ -161,12 +163,16 @@
     class_name = class_name_for(d)
 %>
 INCLUA_DECL GDCALLINGCONV void *${CONSTRUCTOR_NAME(d.name)}(godot_object *go, void *method_data) {
-    ${d.spelling} *obj = (${d.spelling} *) api->godot_alloc(sizeof(${d.spelling}));
-    *obj = {};
-    return obj;
+% if d.opaque:
+    LOG_ERROR("${d.spelling} is opaque and cannot be constructed");
+    return nullptr;
+% else:
+    return RecordHelper::alloc<${d.spelling}>();
+% endif
 }
 INCLUA_DECL GDCALLINGCONV void ${DESTRUCTOR_NAME(d.name)}(godot_object *go, void *method_data, void *data) {
-    ${d.spelling} *obj = (${d.spelling} *) data;
+    RecordHelper *helper = (RecordHelper *) data;
+    ${d.spelling} *obj = (${d.spelling} *) helper->get();
 % if oop.destructor.get(d.name):
     ${oop.destructor[d.name].name}(obj);
 % endif
@@ -175,7 +181,7 @@ INCLUA_DECL GDCALLINGCONV void ${DESTRUCTOR_NAME(d.name)}(godot_object *go, void
     if (obj->${f.name}) api->godot_free((void *) obj->${f.name});
     % endif
 % endfor
-    api->godot_free(obj);
+    api->godot_free(helper);
 }
 
 % for f in d.fields:
@@ -309,6 +315,37 @@ namespace inclua {
 ///////////////////////////////////////////////////////////////////////////////
 // Helpers
 ///////////////////////////////////////////////////////////////////////////////
+struct RecordHelper {
+    bool is_pointer;
+    uint8_t data[0];
+
+    template<typename T>
+    static RecordHelper *alloc() {
+        size_t size = sizeof(RecordHelper) + sizeof(T);
+        if (RecordHelper *helper = (RecordHelper *) api->godot_alloc(size)) {
+            helper->is_pointer = std::is_pointer<T>::value;
+            memset(helper->data, 0, sizeof(T));
+            return helper;
+        }
+        else return nullptr;
+    }
+
+    void *get() {
+        return is_pointer ? *((void **) data) : (void *) &data;
+    }
+
+    template<typename T>
+    void set(bool is_pointer, T *data) {
+        this->is_pointer = is_pointer;
+        if (is_pointer) {
+            *((T **) this->data) = data;
+        }
+        else {
+            memcpy(this->data, data, sizeof(T));
+        }
+    }
+};
+
 struct VariantHelper {
     VariantHelper() {
         api->godot_variant_new_nil(&var);
@@ -577,13 +614,13 @@ template<typename T> INCLUA_DECL godot_variant object_variant(const T& value, co
 ///////////////////////////////////////////////////////////////////////////////
 template<typename T> INCLUA_DECL T object_from_variant(const godot_variant *var) {
     godot_object *go = api->godot_variant_as_object(var);
-    void *data = nativescript_api->godot_nativescript_get_userdata(go);
-    return *((T *) data);
+    RecordHelper *helper = (RecordHelper *) nativescript_api->godot_nativescript_get_userdata(go);
+    return *((T *) helper->get());
 }
 template<typename T> INCLUA_DECL T object_pointer_from_variant(const godot_variant *var) {
     godot_object *go = api->godot_variant_as_object(var);
-    void *data = nativescript_api->godot_nativescript_get_userdata(go);
-    return (T) data;
+    RecordHelper *helper = (RecordHelper *) nativescript_api->godot_nativescript_get_userdata(go);
+    return (T) helper->get();
 }
 
 INCLUA_DECL char char_from_variant(const godot_variant *var) {
