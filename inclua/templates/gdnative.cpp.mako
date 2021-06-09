@@ -11,19 +11,6 @@
     def class_name_for(type):
         return oop.get_unprefixed_name(type)
 
-    def godot_variant_type(t):
-        if t.kind == 'bool':
-            return 'GODOT_VARIANT_TYPE_BOOL'
-        elif t.is_integral():
-            return 'GODOT_VARIANT_TYPE_INT'
-        elif t.is_floating_point():
-            return 'GODOT_VARIANT_TYPE_REAL'
-        elif t.is_string():
-            return 'GODOT_VARIANT_TYPE_STRING'
-        # TODO: array and pool arrays
-        else:
-            return 'GODOT_VARIANT_TYPE_OBJECT'
-
     def c_escape(s):
         return C_ESCAPE_RE.sub('_', s)
 
@@ -57,13 +44,28 @@
     ${n}_nativescript
 </%def>
 
+<%def name="godot_variant_type(t)" filter="trim">
+    % if t.kind == 'bool':
+        GODOT_VARIANT_TYPE_BOOL
+    % elif t.is_integral():
+        GODOT_VARIANT_TYPE_INT
+    % elif t.is_floating_point():
+        GODOT_VARIANT_TYPE_REAL
+    % elif t.is_string():
+        GODOT_VARIANT_TYPE_STRING
+    % else:
+        GODOT_VARIANT_TYPE_OBJECT
+    %endif
+</%def>
+
+
 <%def name="to_variant_for(t, val)" filter="trim">
 <% t = t.root() %>
 % if t.is_string():
     string_variant(${val})
 % elif t.kind == 'void':
     nil_variant(${val})
-% elif t.kind == 'uint':
+% elif t.kind in ('uint', 'enum'):
     uint_variant(${val})
 % elif t.kind == 'int':
     int_variant(${val})
