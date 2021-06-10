@@ -62,7 +62,7 @@
 </%def>
 
 
-<%def name="to_variant_for(t, val, size='', is_array=False)" filter="trim">
+<%def name="to_variant_for(t, val, size='', is_array=False, free='')" filter="trim">
 <% t = t.root() %>
 % if t.is_string():
     string_variant(${val}${', ' + size if size else ''})
@@ -81,9 +81,11 @@
 % elif t.kind in ('array', 'vector') or (t.kind == 'pointer' and (size or is_array)): 
 <% element_type = t.element_type.root() %>
     % if element_type.kind in ('int', 'uint'):
-    // TODO: PoolIntArray
+        <% assert size, "Int array must have a known size" %>
+    int_array_variant(${val}, ${size})
     % elif element_type.kind == 'float':
-    // TODO: PoolRealArray
+        <% assert size, "Float array must have a known size" %>
+    float_array_variant(${val}, ${size})
     % else:
     % endif
 % else:
@@ -241,7 +243,8 @@ INCLUA_DECL void ${REGISTER_NAME(d.name)}(void *p_handle) {
     i = -1
     return_values = []
     if d.return_type.kind != 'void':
-        return_values.append((d.return_type, 'result'))
+        if not annotations.is_argument_size(d.name, 'return'):
+            return_values.append({ 't': d.return_type, 'val': 'result', 'free': annotations.get_out_free(d.name, 'return') })
 %>
 INCLUA_DECL GDCALLINGCONV godot_variant ${WRAPPER_NAME(d.name)}(godot_object *go, void *method_data, void *data, int argc, godot_variant **argv) {
 % for a in d.arguments:
@@ -255,7 +258,7 @@ INCLUA_DECL GDCALLINGCONV godot_variant ${WRAPPER_NAME(d.name)}(godot_object *go
     is_array = size or annotations.is_array(d.name, a.name)
 %>\
     % if is_out:
-<% return_values.append((a.type.remove_pointer(), '__out_' + a.name)) %>\
+<% return_values.append({ 't': a.type.remove_pointer(), 'val': '__out_' + a.name, 'size': 'result' if size == 'return' else size, 'free': annotations.get_out_free(d.name, a.name) }) %>\
     ${typed_declaration(a.type.remove_pointer().spelling, '__out_' + a.name)};
     ${typed_declaration(a.type.spelling, a.name)} = &__out_${a.name};
     % else:
@@ -270,13 +273,17 @@ INCLUA_DECL GDCALLINGCONV godot_variant ${WRAPPER_NAME(d.name)}(godot_object *go
 % if not return_values:
     return nil_variant();
 % elif len(return_values) == 1:
-    return ${to_variant_for(*return_values[0])};
+    godot_variant var = ${to_variant_for(**return_values[0])};
+    % if return_values[0].get('free'):
+    ${return_values[0]['free']}(${return_values[0]['val']});
+    % endif
+    return var;
 % else:
     godot_array return_values;
     api->godot_array_new(&return_values);
-    % for type, name in return_values:
+    % for ret in return_values:
     {
-        godot_variant ret = ${to_variant_for(type, name)};
+        godot_variant ret = ${to_variant_for(**ret)};
         api->godot_array_append(&return_values, &ret);
         api->godot_variant_destroy(&ret);
     }
@@ -630,9 +637,31 @@ template<typename T> INCLUA_DECL godot_variant int_variant(T i) {
     api->godot_variant_new_int(&var, i);
     return var;
 }
+template<typename T> INCLUA_DECL godot_variant int_array_variant(const T *arr, size_t size) {
+    godot_pool_int_array pool_array;
+    api->godot_pool_int_array_new(&pool_array);
+    api->godot_pool_int_array_resize(&pool_array, size);
+    for (size_t i = 0; i < size; i++) {
+        api->godot_pool_int_array_set(&pool_array, i, (godot_int) arr[i]);
+    }
+    godot_variant var;
+    api->godot_variant_new_pool_int_array(&var, &pool_array);
+    return var;
+}
 template<typename T> INCLUA_DECL godot_variant float_variant(T f) {
     godot_variant var;
     api->godot_variant_new_real(&var, f);
+    return var;
+}
+template<typename T> INCLUA_DECL godot_variant float_array_variant(const T *arr, size_t size) {
+    godot_pool_real_array pool_array;
+    api->godot_pool_real_array_new(&pool_array);
+    api->godot_pool_real_array_resize(&pool_array, size);
+    for (size_t i = 0; i < size; i++) {
+        api->godot_pool_real_array_set(&pool_array, i, (godot_real) arr[i]);
+    }
+    godot_variant var;
+    api->godot_variant_new_pool_real_array(&var, &pool_array);
     return var;
 }
 INCLUA_DECL godot_variant string_variant(const char *s) {
