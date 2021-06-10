@@ -734,11 +734,10 @@ void _global_register(void *p_handle) {
     ${NATIVESCRIPT_NAME("Global")} = NATIVESCRIPT_FOR_CLASS_LITERAL("Global");
     Global = new_object_with_script(${NATIVESCRIPT_NAME("Global")});  // Yay, a global Global =D
     godot_method_attributes method_attr = {};
-    godot_instance_method method = { &call_function_as_method, NULL, NULL };
 % for d in definitions:
     % if d.kind == 'function':
     {  // ${d.name}
-        method.method_data = (void *) &${WRAPPER_NAME(d.name)};
+        godot_instance_method method = { &${WRAPPER_NAME(d.name)}, NULL, NULL };
         nativescript_api->godot_nativescript_register_method(
             p_handle, "Global", "${d.name}", method_attr, method
         );
