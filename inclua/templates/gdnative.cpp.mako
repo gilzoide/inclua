@@ -98,7 +98,7 @@
 % elif t.is_record():
     ${rhs} = object_from_variant<${t.spelling}>(${var});
 % elif t.kind == 'pointer' and t.element_type.root().is_record():
-    ${rhs} = object_pointer_from_variant<${t.spelling}>(${var});
+    ${rhs} = object_pointer_from_variant<${t.element_type.spelling}>(${var});
 % elif t.is_string():
     StringHelper ${rhs | c_escape}_helper = ${var};
     ${rhs} = ${rhs | c_escape}_helper.str();
@@ -616,7 +616,16 @@ INCLUA_DECL godot_object *new_object_with_script(const godot_object *script) {
     api->godot_method_bind_ptrcall(Object_set_script, go, (const void **) &script, nullptr);
     return go;
 }
-template<typename T, typename U> INCLUA_DECL godot_variant object_variant(const U& value, const godot_object *script) {
+template<typename T> INCLUA_DECL godot_variant object_variant(const T& value, const godot_object *script) {
+    godot_object *go = new_object_with_script(script);
+    auto helper = RecordHelper<T>::from_object(go);
+    helper->set(value);
+    godot_variant var;
+    api->godot_variant_new_object(&var, go);
+    return var;
+}
+template<typename T> INCLUA_DECL godot_variant object_variant(const T *value, const godot_object *script) {
+    if (!value) return nil_variant();
     godot_object *go = new_object_with_script(script);
     auto helper = RecordHelper<T>::from_object(go);
     helper->set(value);
@@ -633,10 +642,10 @@ template<typename T> INCLUA_DECL T object_from_variant(const godot_variant *var)
     auto helper = RecordHelper<T>::from_object(go);
     return *helper->get();
 }
-template<typename T> INCLUA_DECL T object_pointer_from_variant(const godot_variant *var) {
+template<typename T> INCLUA_DECL T *object_pointer_from_variant(const godot_variant *var) {
     godot_object *go = api->godot_variant_as_object(var);
     auto helper = RecordHelper<T>::from_object(go);
-    return (T) helper->get();
+    return helper->get();
 }
 
 INCLUA_DECL char char_from_variant(const godot_variant *var) {
