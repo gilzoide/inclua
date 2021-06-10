@@ -62,7 +62,7 @@
 </%def>
 
 
-<%def name="to_variant_for(t, val, size='')" filter="trim">
+<%def name="to_variant_for(t, val, size='', is_array=False)" filter="trim">
 <% t = t.root() %>
 % if t.is_string():
     string_variant(${val}${', ' + size if size else ''})
@@ -78,8 +78,16 @@
     object_variant<${t.name}>(${val}, ${NATIVESCRIPT_NAME(t.name)})
 % elif t.kind == 'pointer' and t.element_type.root().is_record():
     object_variant<${t.element_type.name}>(${val}, ${NATIVESCRIPT_NAME(t.element_type.name)})
+% elif t.kind in ('array', 'vector') or (t.kind == 'pointer' and (size or is_array)): 
+<% element_type = t.element_type.root() %>
+    % if element_type.kind in ('int', 'uint'):
+    // TODO: PoolIntArray
+    % elif element_type.kind == 'float':
+    // TODO: PoolRealArray
+    % else:
+    % endif
 % else:
-    <% assert False, "Invalid to_variant for {!r}".format(t.spelling) %>
+    <% assert False, "Invalid to_variant for {!r}".format(t.to_dict()) %>
 % endif
 </%def>
 
@@ -105,7 +113,7 @@
     % if size:
     ${size} = ${rhs | c_escape}_helper.length();
     % endif
-% elif t.kind == 'array' or (t.kind == 'pointer' and (size or is_array)):
+% elif t.kind in ('array', 'vector') or (t.kind == 'pointer' and (size or is_array)):
 <% element_type = t.element_type.root() %>
     % if element_type.kind in ('int', 'uint'):
     IntArrayHelper<${element_type.spelling}> ${rhs | c_escape}_helper = ${var};
@@ -142,8 +150,8 @@
                 size = 'obj->' + size
         %>
         INCLUA_DECL GDCALLINGCONV godot_variant ${GETTER_NAME(d.name, f.name)}(godot_object *go, void *method_data, void *data) {
-            auto helper = (RecordHelper<${d.spelling}> *) data;
-            ${d.spelling} *obj = helper->get();
+            RecordHelper *helper = (RecordHelper *) data;
+            ${d.spelling} *obj = (${d.spelling} *) helper->ptr;
             return ${to_variant_for(f.type, "obj->" + f.name, size)};
         }
     </%def>
@@ -154,31 +162,36 @@
             obj_field = 'obj->' + f.name
         %>
         INCLUA_DECL GDCALLINGCONV void ${SETTER_NAME(d.name, f.name)}(godot_object *go, void *method_data, void *data, godot_variant *var) {
-            auto helper = (RecordHelper<${d.spelling}> *) data;
-            ${d.spelling} *obj = helper->get();
+            RecordHelper *helper = (RecordHelper *) data;
+            ${d.spelling} *obj = (${d.spelling} *) helper->ptr;
             ${set_from_variant(f.type, obj_field, "var", size=obj_size)}
         }
     </%def>
 INCLUA_DECL GDCALLINGCONV void *${CONSTRUCTOR_NAME(d.name)}(godot_object *go, void *method_data) {
-    auto helper = (RecordHelper<${d.spelling}> *) api->godot_alloc(sizeof(RecordHelper<${d.spelling}>));
+    RecordHelper *helper = (RecordHelper *) api->godot_alloc(sizeof(RecordHelper));
     *helper = {};
-    ${d.spelling}${" *" if d.opaque else ""} zeroinit = {};
-    helper->set(zeroinit);
+% if d.opaque:
+    helper->set(nullptr, nullptr);
+% else:
+    ${d.spelling} zeroinit = {};
+    helper->set(&zeroinit, api->godot_free);
+% endif
     return helper;
 }
 INCLUA_DECL GDCALLINGCONV void ${DESTRUCTOR_NAME(d.name)}(godot_object *go, void *method_data, void *data) {
-    auto helper = (RecordHelper<${d.spelling}> *) data;
-    if (helper->own_data) {
-        ${d.spelling} *obj = helper->ptr;
-% if oop.destructor.get(d.name):
-        ${oop.destructor[d.name].name}(obj);
+    RecordHelper *helper = (RecordHelper *) data;
+    if (helper->owns_data()) {
+    ${d.spelling} *obj = (${d.spelling} *) helper->ptr;
+<% destructor = oop.get_destructor(d) %>
+% if destructor:
+        ${destructor.name}(${"" if destructor.arguments[0].type.is_pointer() else "*"}obj);
 % endif
 % for f in d.fields:
     % if f.type.is_string():
         if (obj->${f.name}) api->godot_free((void *) obj->${f.name});
     % endif
 % endfor
-        api->godot_free(obj);
+        helper->free_ptr();
     }
     api->godot_free(data);
 }
@@ -233,14 +246,15 @@ INCLUA_DECL void ${REGISTER_NAME(d.name)}(void *p_handle) {
 INCLUA_DECL GDCALLINGCONV godot_variant ${WRAPPER_NAME(d.name)}(godot_object *go, void *method_data, void *data, int argc, godot_variant **argv) {
 % for a in d.arguments:
 <%
-    if annotations.is_argument_size(d.name, a.name):
+    is_out = annotations.is_argument_out(d.name, a.name)
+    if not is_out and annotations.is_argument_size(d.name, a.name):
         continue
     i += 1
     size = annotations.get_array_size(d.name, a.name)
     param_size = 'size_t ' + size if (size and size in (a.name for a in d.arguments)) else ''
     is_array = size or annotations.is_array(d.name, a.name)
 %>\
-    % if annotations.is_argument_out(d.name, a.name):
+    % if is_out:
 <% return_values.append((a.type.remove_pointer(), '__out_' + a.name)) %>\
     ${typed_declaration(a.type.remove_pointer().spelling, '__out_' + a.name)};
     ${typed_declaration(a.type.spelling, a.name)} = &__out_${a.name};
@@ -341,42 +355,35 @@ namespace inclua {
 ///////////////////////////////////////////////////////////////////////////////
 // Helpers
 ///////////////////////////////////////////////////////////////////////////////
-template<typename T> struct RecordHelper {
-    RecordHelper() : own_data(false), ptr(nullptr) {}
-    RecordHelper(godot_object *go) : own_data(false) {
-        if (RecordHelper *helper = from_object(go)) {
-            ptr = helper->ptr;
-        }
-    }
+typedef void (*FreeFunc)(void *);
+struct RecordHelper {
+    RecordHelper() : free_func(nullptr), ptr(nullptr) {}
     static RecordHelper *from_object(godot_object *go) {
         return (RecordHelper *) nativescript_api->godot_nativescript_get_userdata(go);
     }
-    T *get() {
-        return ptr;
+    bool owns_data() {
+        return free_func != nullptr;
     }
-    void set(const T *value, bool own_data = false) {
-        if (this->own_data != own_data) {
-            if (own_data) {
-                ptr = (T *) api->godot_alloc(sizeof(T));
-            }
-            else if (ptr) {
-                api->godot_free(ptr);
-            }
-            this->own_data = own_data;
+    void free_ptr() {
+        if (ptr && free_func) {
+            free_func(ptr);
         }
-        if (own_data) {
+    }
+    template<typename T>
+    void set(const T *value, FreeFunc new_free_func) {
+        free_ptr();
+        if (new_free_func == api->godot_free) {
+            ptr = api->godot_alloc(sizeof(T));
             memcpy(ptr, value, sizeof(T));
         }
         else {
-            ptr = (T *) value;
+            ptr = (void *) value;
         }
-    }
-    void set(const T& value) {
-        set(&value, true);
+        free_func = new_free_func;
     }
     // fields
-    bool own_data;
-    T *ptr;
+    void *ptr;
+    FreeFunc free_func;
 };
 
 struct VariantHelper {
@@ -649,17 +656,17 @@ INCLUA_DECL godot_object *new_object_with_script(const godot_object *script) {
 }
 template<typename T> INCLUA_DECL godot_variant object_variant(const T& value, const godot_object *script) {
     godot_object *go = new_object_with_script(script);
-    auto helper = RecordHelper<T>::from_object(go);
-    helper->set(value);
+    RecordHelper *helper = RecordHelper::from_object(go);
+    helper->set(&value, api->godot_free);
     godot_variant var;
     api->godot_variant_new_object(&var, go);
     return var;
 }
-template<typename T> INCLUA_DECL godot_variant object_variant(const T *value, const godot_object *script) {
+template<typename T> INCLUA_DECL godot_variant object_variant(const T *value, const godot_object *script, FreeFunc free_func) {
     if (!value) return nil_variant();
     godot_object *go = new_object_with_script(script);
-    auto helper = RecordHelper<T>::from_object(go);
-    helper->set(value);
+    RecordHelper *helper = RecordHelper::from_object(go);
+    helper->set(value, free_func);
     godot_variant var;
     api->godot_variant_new_object(&var, go);
     return var;
@@ -670,13 +677,13 @@ template<typename T> INCLUA_DECL godot_variant object_variant(const T *value, co
 ///////////////////////////////////////////////////////////////////////////////
 template<typename T> INCLUA_DECL T object_from_variant(const godot_variant *var) {
     godot_object *go = api->godot_variant_as_object(var);
-    auto helper = RecordHelper<T>::from_object(go);
-    return *helper->get();
+    RecordHelper *helper = RecordHelper::from_object(go);
+    return *((T *) helper->ptr);
 }
 template<typename T> INCLUA_DECL T *object_pointer_from_variant(const godot_variant *var) {
     godot_object *go = api->godot_variant_as_object(var);
-    auto helper = RecordHelper<T>::from_object(go);
-    return helper->get();
+    RecordHelper *helper = RecordHelper::from_object(go);
+    return (T *) helper->ptr;
 }
 
 INCLUA_DECL int char_from_variant(const godot_variant *var) {
