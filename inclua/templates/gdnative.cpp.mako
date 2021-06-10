@@ -132,12 +132,21 @@
 % endif
 </%def>
 
-<%def name="set_from_variant(t, rhs, var, size='')" filter="trim">
+<%def name="set_from_variant(t, rhs, var, size='', is_array=False)" filter="trim">
 <% t = t.root() %>
 % if t.is_string():
     set_string_from_variant(${rhs}${opt_argument(size)}, ${var});
+% elif t.kind in ('array', 'vector') or (t.kind == 'pointer' and (size or is_array)):
+<% element_type = t.element_type.root() %>
+    % if element_type.kind in ('int', 'uint'):
+    set_int_array_from_variant(${rhs}${opt_argument(size)}, ${var});
+    % elif element_type.kind == 'float':
+    set_float_array_from_variant(${rhs}${opt_argument(size)}, ${var});
+    % else:
+        <% assert False, "Only int and float arrays are supported" %>
+    % endif
 % else:
-    ${arg_from_variant(t, rhs, var, size)}
+    ${arg_from_variant(t, rhs, var, size, is_array)}
 % endif
 </%def>
 
@@ -183,8 +192,8 @@ INCLUA_DECL GDCALLINGCONV void *${CONSTRUCTOR_NAME(d.name)}(godot_object *go, vo
 INCLUA_DECL GDCALLINGCONV void ${DESTRUCTOR_NAME(d.name)}(godot_object *go, void *method_data, void *data) {
     RecordHelper *helper = (RecordHelper *) data;
     if (helper->owns_data()) {
-    ${d.spelling} *obj = (${d.spelling} *) helper->ptr;
-<% destructor = oop.get_destructor(d) %>
+        ${d.spelling} *obj = (${d.spelling} *) helper->ptr;
+<% destructor = oop.get_destructor(d) %>\
 % if destructor:
         ${destructor.name}(${"" if destructor.arguments[0].type.is_pointer() else "*"}obj);
 % endif
@@ -542,6 +551,11 @@ template<typename T> struct IntArrayHelper {
             }
         }
     }
+    T *extract() {
+        T *ptr = buffer;
+        buffer = nullptr;
+        return ptr;
+    }
     ~IntArrayHelper() {
         if (buffer) api->godot_free(buffer);
     }
@@ -569,6 +583,11 @@ template<typename T> struct FloatArrayHelper {
     }
     ~FloatArrayHelper() {
         if (buffer) api->godot_free(buffer);
+    }
+    T *extract() {
+        T *ptr = buffer;
+        buffer = nullptr;
+        return ptr;
     }
     // fields
     T *buffer;
@@ -739,6 +758,30 @@ template<typename T, typename S> INCLUA_DECL void set_string_from_variant(T& cst
     StringHelper gs = var;
     cstr = gs.strdup();
     length = gs.length();
+}
+
+template<typename T> INCLUA_DECL void set_int_array_from_variant(T& arr, const godot_variant *var) {
+    if (arr) api->godot_free(arr);
+    IntArrayHelper<typename std::remove_pointer<T>::type> helper = var;
+    arr = helper.extract();
+}
+template<typename T, typename S> INCLUA_DECL void set_int_array_from_variant(T& arr, S& size, const godot_variant *var) {
+    if (arr) api->godot_free(arr);
+    IntArrayHelper<typename std::remove_pointer<T>::type> helper = var;
+    arr = helper.extract();
+    size = helper.size;
+}
+
+template<typename T> INCLUA_DECL void set_float_array_from_variant(T& arr, const godot_variant *var) {
+    if (arr) api->godot_free(arr);
+    FloatArrayHelper<typename std::remove_pointer<T>::type> helper = var;
+    arr = helper.extract();
+}
+template<typename T, typename S> INCLUA_DECL void set_float_array_from_variant(T& arr, S& size, const godot_variant *var) {
+    if (arr) api->godot_free(arr);
+    FloatArrayHelper<typename std::remove_pointer<T>::type> helper = var;
+    arr = helper.extract();
+    size = helper.size;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
