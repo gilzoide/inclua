@@ -83,18 +83,18 @@
 % endif
 </%def>
 
-<%def name="arg_from_variant(t, rhs, var, size='')" filter="trim">
+<%def name="arg_from_variant(t, rhs, var, size='', is_array=False)" filter="trim">
 <% t = t.root() %>
 % if t.kind == 'bool':
-    ${rhs} = api->godot_variant_as_bool(${var});
+    ${rhs} = (${t.spelling}) api->godot_variant_as_bool(${var});
 % elif t.kind == 'char':
-    ${rhs} = char_from_variant(${var});
-% elif t.kind == 'uint':
-    ${rhs} = api->godot_variant_as_uint(${var});
+    ${rhs} = (${t.spelling}) char_from_variant(${var});
+% elif t.kind in ('uint', 'enum'):
+    ${rhs} = (${t.spelling}) api->godot_variant_as_uint(${var});
 % elif t.kind == 'int':
-    ${rhs} = api->godot_variant_as_int(${var});
+    ${rhs} = (${t.spelling}) api->godot_variant_as_int(${var});
 % elif t.kind == 'float':
-    ${rhs} = api->godot_variant_as_real(${var});
+    ${rhs} = (${t.spelling}) api->godot_variant_as_real(${var});
 % elif t.is_record():
     ${rhs} = object_from_variant<${t.spelling}>(${var});
 % elif t.kind == 'pointer' and t.element_type.root().is_record():
@@ -105,7 +105,7 @@
     % if size:
     ${size} = ${rhs | c_escape}_helper.length();
     % endif
-% elif t.kind in ('pointer', 'array'):
+% elif t.kind == 'array' or (t.kind == 'pointer' and (size or is_array)):
 <% element_type = t.element_type.root() %>
     % if element_type.kind in ('int', 'uint'):
     IntArrayHelper<${element_type.spelling}> ${rhs | c_escape}_helper = ${var};
@@ -224,7 +224,12 @@ INCLUA_DECL void ${REGISTER_NAME(d.name)}(void *p_handle) {
 </%def>
 
 <%def name="def_function(d)" filter="trim">
-<% i = -1 %>
+<%
+    i = -1
+    return_values = []
+    if d.return_type.kind != 'void':
+        return_values.append((d.return_type, 'result'))
+%>
 INCLUA_DECL GDCALLINGCONV godot_variant ${WRAPPER_NAME(d.name)}(godot_object *go, void *method_data, void *data, int argc, godot_variant **argv) {
 % for a in d.arguments:
 <%
@@ -233,15 +238,39 @@ INCLUA_DECL GDCALLINGCONV godot_variant ${WRAPPER_NAME(d.name)}(godot_object *go
     i += 1
     size = annotations.get_array_size(d.name, a.name)
     param_size = 'size_t ' + size if (size and size in (a.name for a in d.arguments)) else ''
+    is_array = size or annotations.is_array(d.name, a.name)
 %>\
-    ${arg_from_variant(a.type, typed_declaration(a.type.spelling, a.name), "argv[{}]".format(i), size=param_size)}
+    % if annotations.is_argument_out(d.name, a.name):
+<% return_values.append((a.type.remove_pointer(), '__out_' + a.name)) %>\
+    ${typed_declaration(a.type.remove_pointer().spelling, '__out_' + a.name)};
+    ${typed_declaration(a.type.spelling, a.name)} = &__out_${a.name};
+    % else:
+    ${arg_from_variant(a.type, typed_declaration(a.type.spelling, a.name), "argv[{}]".format(i), size=param_size, is_array=is_array)}
+    % endif
 % endfor
 % if d.return_type.kind == 'void':
     ${d.name}(${', '.join(a.name for a in d.arguments)});
-    return nil_variant();
 % else:
     ${d.return_type.spelling} result = ${d.name}(${', '.join(a.name for a in d.arguments)});
-    return ${to_variant_for(d.return_type, "result")};
+% endif
+% if not return_values:
+    return nil_variant();
+% elif len(return_values) == 1:
+    return ${to_variant_for(*return_values[0])};
+% else:
+    godot_array return_values;
+    api->godot_array_new(&return_values);
+    % for type, name in return_values:
+    {
+        godot_variant ret = ${to_variant_for(type, name)};
+        api->godot_array_append(&return_values, &ret);
+        api->godot_variant_destroy(&ret);
+    }
+    % endfor
+    godot_variant var;
+    api->godot_variant_new_array(&var, &return_values);
+    api->godot_array_destroy(&return_values);
+    return var;
 % endif
 }
 </%def>
@@ -650,10 +679,10 @@ template<typename T> INCLUA_DECL T *object_pointer_from_variant(const godot_vari
     return helper->get();
 }
 
-INCLUA_DECL char char_from_variant(const godot_variant *var) {
+INCLUA_DECL int char_from_variant(const godot_variant *var) {
     switch (api->godot_variant_get_type(var)) {
         case GODOT_VARIANT_TYPE_NIL: return 0;
-        case GODOT_VARIANT_TYPE_INT: return (char) api->godot_variant_as_int(var);
+        case GODOT_VARIANT_TYPE_INT: return api->godot_variant_as_int(var);
         case GODOT_VARIANT_TYPE_STRING: {
             StringHelper gs = var;
             return gs.length() ? gs.str()[0] : 0;
