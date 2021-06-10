@@ -35,6 +35,7 @@ ARRAY_TAG = 'array'
 SIZE_TAG = 'size'
 SIZE_OF_TAG = 'sizeof'
 OUT_TAG = 'out'
+FREE_TAG = 'free'
 
 
 class Annotations(dict):
@@ -69,6 +70,12 @@ class Annotations(dict):
             return arg_annotation == OUT_TAG or bool(arg_annotation[OUT_TAG])
         except:
             return False
+
+    def get_out_free(self, func: str, arg: str) -> str:
+        try:
+            return self[func][arg][FREE_TAG]
+        except:
+            return ''
 
     def should_ignore(self, name) -> bool:
         return self.get(name) == IGNORE_TAG
