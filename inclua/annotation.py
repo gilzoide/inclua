@@ -41,7 +41,7 @@ class Annotations(dict):
     def get_array_size(self, func_or_record: str, arg_or_field: Union[str, int]) -> str:
         try:
             return self[func_or_record][arg_or_field][SIZE_TAG]
-        except KeyError:
+        except:
             return ""
 
     def is_array(self, func_or_record: str, arg_or_field: Union[str, int]) -> bool:
@@ -50,7 +50,7 @@ class Annotations(dict):
         try:
             arg_annotation = self[func_or_record][arg_or_field]
             return arg_annotation == ARRAY_TAG or bool(arg_annotation[ARRAY_TAG])
-        except KeyError:
+        except:
             return False
 
     def is_argument_size(self, func: str, arg: Union[str, int]) -> bool:
@@ -59,7 +59,7 @@ class Annotations(dict):
             for other_arg, annotations in func_annotation.items():
                 if annotations.get(SIZE_TAG) == arg:
                     return True
-        except KeyError:
+        except:
             pass
         return False
 
@@ -67,7 +67,7 @@ class Annotations(dict):
         try:
             arg_annotation = self[func][arg]
             return arg_annotation == OUT_TAG or bool(arg_annotation[OUT_TAG])
-        except KeyError:
+        except:
             return False
 
     def should_ignore(self, name) -> bool:
