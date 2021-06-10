@@ -289,9 +289,6 @@ ${c_notice()}
 #define LOG_ERROR(msg) api->godot_print_error(msg, __PRETTY_FUNCTION__, __FILE__, __LINE__)
 #define LOG_ERROR_IF_FALSE(cond) if(!(cond)) LOG_ERROR("Error: !(" #cond ")")
 
-#define OBJECT_DATA_META_KEY "cdata"
-
-
 const godot_gdnative_core_api_struct *api = nullptr;
 const godot_gdnative_ext_nativescript_api_struct *nativescript_api = nullptr;
 godot_object *gd_native_library = nullptr;
@@ -421,25 +418,26 @@ struct StringHelper {
     bool gcs_valid;
 };
 
-template<typename T> T *buffer_from_pool_byte_array(godot_pool_byte_array byte_array, size_t *out_size) {
-    size_t size = api->godot_pool_byte_array_size(&byte_array) / sizeof(T);
+template<typename T> T *buffer_from_pool_byte_array(godot_pool_byte_array *byte_array, size_t *out_size) {
+    size_t size = api->godot_pool_byte_array_size(byte_array) / sizeof(T);
     if (T *buffer = (T *) api->godot_alloc(size * sizeof(T))) {
-        godot_pool_byte_array_read_access *read = api->godot_pool_byte_array_read(&byte_array);
+        godot_pool_byte_array_read_access *read = api->godot_pool_byte_array_read(byte_array);
         memcpy(buffer, api->godot_pool_byte_array_read_access_ptr(read), size * sizeof(T));
         api->godot_pool_byte_array_read_access_destroy(read);
         *out_size = size;
         return buffer;
     }
     else {
+        LOG_ERROR("Failed allocating memory");
         *out_size = 0;
         return nullptr;
     }
 }
 
-template<typename T> T *buffer_from_pool_int_array(godot_pool_int_array int_array, size_t *out_size) {
-    size_t size = api->godot_pool_int_array_size(&int_array);
+template<typename T> T *buffer_from_pool_int_array(godot_pool_int_array *int_array, size_t *out_size) {
+    size_t size = api->godot_pool_int_array_size(int_array);
     if (T *buffer = (T *) api->godot_alloc(size * sizeof(T))) {
-        godot_pool_int_array_read_access *read = api->godot_pool_int_array_read(&int_array);
+        godot_pool_int_array_read_access *read = api->godot_pool_int_array_read(int_array);
         const godot_int *int_ptr = api->godot_pool_int_array_read_access_ptr(read);
         if (std::is_same<T, godot_int>::value) {
             memcpy(buffer, int_ptr, size * sizeof(T));
@@ -454,15 +452,16 @@ template<typename T> T *buffer_from_pool_int_array(godot_pool_int_array int_arra
         return buffer;
     }
     else {
+        LOG_ERROR("Failed allocating memory");
         *out_size = 0;
         return nullptr;
     }
 }
 
-template<typename T> T *buffer_from_pool_real_array(godot_pool_real_array real_array, size_t *out_size) {
-    size_t size = api->godot_pool_real_array_size(&real_array);
+template<typename T> T *buffer_from_pool_real_array(godot_pool_real_array *real_array, size_t *out_size) {
+    size_t size = (size_t) api->godot_pool_real_array_size(real_array);
     if (T *buffer = (T *) api->godot_alloc(size * sizeof(T))) {
-        godot_pool_real_array_read_access *read = api->godot_pool_real_array_read(&real_array);
+        godot_pool_real_array_read_access *read = api->godot_pool_real_array_read(real_array);
         const godot_real *real_ptr = api->godot_pool_real_array_read_access_ptr(read);
         if (std::is_same<T, godot_real>::value) {
             memcpy(buffer, real_ptr, size * sizeof(T));
@@ -477,6 +476,7 @@ template<typename T> T *buffer_from_pool_real_array(godot_pool_real_array real_a
         return buffer;
     }
     else {
+        LOG_ERROR("Failed allocating memory");
         *out_size = 0;
         return nullptr;
     }
@@ -487,15 +487,16 @@ template<typename T> struct IntArrayHelper {
         switch (api->godot_variant_get_type(var)) {
             case GODOT_VARIANT_TYPE_POOL_BYTE_ARRAY: {
                 godot_pool_byte_array arr = api->godot_variant_as_pool_byte_array(var);
-                buffer = buffer_from_pool_byte_array<T>(arr, &size);
+                buffer = buffer_from_pool_byte_array<T>(&arr, &size);
                 api->godot_pool_byte_array_destroy(&arr);
                 break;
             }
-            default:
+            default: {
                 godot_pool_int_array arr = api->godot_variant_as_pool_int_array(var);
-                buffer = buffer_from_pool_int_array<T>(arr, &size);
+                buffer = buffer_from_pool_int_array<T>(&arr, &size);
                 api->godot_pool_int_array_destroy(&arr);
                 break;
+            }
         }
     }
     ~IntArrayHelper() {
@@ -511,15 +512,16 @@ template<typename T> struct FloatArrayHelper {
         switch (api->godot_variant_get_type(var)) {
             case GODOT_VARIANT_TYPE_POOL_BYTE_ARRAY: {
                 godot_pool_byte_array arr = api->godot_variant_as_pool_byte_array(var);
-                buffer = buffer_from_pool_byte_array<T>(arr, &size);
+                buffer = buffer_from_pool_byte_array<T>(&arr, &size);
                 api->godot_pool_byte_array_destroy(&arr);
                 break;
             }
-            default:
+            default: {
                 godot_pool_real_array arr = api->godot_variant_as_pool_real_array(var);
-                buffer = buffer_from_pool_real_array<T>(arr, &size);
+                buffer = buffer_from_pool_real_array<T>(&arr, &size);
                 api->godot_pool_real_array_destroy(&arr);
                 break;
+            }
         }
     }
     ~FloatArrayHelper() {
@@ -736,7 +738,7 @@ void _global_register(void *p_handle) {
 % for d in definitions:
     % if d.kind == 'function':
     {  // ${d.name}
-    method.method_data = (void *) &${WRAPPER_NAME(d.name)};
+        method.method_data = (void *) &${WRAPPER_NAME(d.name)};
         nativescript_api->godot_nativescript_register_method(
             p_handle, "Global", "${d.name}", method_attr, method
         );
