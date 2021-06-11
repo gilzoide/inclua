@@ -186,9 +186,7 @@
 INCLUA_DECL GDCALLINGCONV void *${CONSTRUCTOR_NAME(d.name)}(godot_object *go, void *method_data) {
     RecordHelper *helper = (RecordHelper *) api->godot_alloc(sizeof(RecordHelper));
     *helper = {};
-% if d.opaque:
-    helper->set(nullptr, nullptr);
-% else:
+% if not d.opaque:
     ${d.spelling} zeroinit = {};
     helper->set(&zeroinit, api->godot_free);
 % endif
@@ -286,7 +284,8 @@ INCLUA_DECL GDCALLINGCONV godot_variant ${WRAPPER_NAME(d.name)}(godot_object *go
 % for a in d.arguments:
 <%
     is_out = annotations.is_argument_out(d.name, a.name)
-    if not is_out and annotations.is_argument_size(d.name, a.name):
+    is_size = annotations.is_argument_size(d.name, a.name)
+    if not is_out and is_size:
         continue
     i += 1
     size = annotations.get_array_size(d.name, a.name)
@@ -294,7 +293,14 @@ INCLUA_DECL GDCALLINGCONV godot_variant ${WRAPPER_NAME(d.name)}(godot_object *go
     is_array = size or annotations.is_array(d.name, a.name)
 %>\
     % if is_out:
-<% return_values.append({ 't': a.type.remove_pointer(), 'val': '__out_' + a.name, 'size': 'result' if size == 'return' else size, 'free': annotations.get_free_func(d.name, a.name) }) %>\
+<% 
+    if not is_size:
+        return_values.append({
+            't': a.type.remove_pointer(),
+            'val': '__out_' + a.name, 'size': 'result' if size == 'return' else size,
+            'free': annotations.get_free_func(d.name, a.name)
+        })
+%>\
     ${typed_declaration(a.type.remove_pointer().spelling, '__out_' + a.name)};
     ${typed_declaration(a.type.spelling, a.name)} = &__out_${a.name};
     % else:
