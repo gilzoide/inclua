@@ -75,9 +75,7 @@
 % elif t.kind == 'float':
     float_variant(${val})
 % elif t.is_record():
-    object_variant<${t.name}>(${val}, ${NATIVESCRIPT_NAME(t.name)})
-% elif t.kind == 'pointer' and t.element_type.root().is_record():
-    object_variant<${t.element_type.name}>(${val}, ${NATIVESCRIPT_NAME(t.element_type.name)})
+    object_variant(${val}, ${NATIVESCRIPT_NAME(t.name)})
 % elif t.kind in ('array', 'vector') or (t.kind == 'pointer' and (size or is_array)): 
 <% element_type = t.remove_array().root() %>
     % if element_type.kind in ('int', 'uint'):
@@ -89,8 +87,14 @@
     % elif element_type.is_string():
         <% assert size, "String array must have a known size" %>
     string_array_variant(${val}, ${size})
+    % elif element_type.is_record():
+        <% assert size, "Object array must have a known size" %>
+    object_array_variant(${val}, ${size}, ${NATIVESCRIPT_NAME(element_type.name)})
     % else:
+        <% assert False, "Array of {!r} is not supported yet" %>
     % endif
+% elif t.kind == 'pointer' and t.remove_array().root().is_record():
+    object_variant(${val}, ${NATIVESCRIPT_NAME(t.element_type.name)})
 % else:
     <% assert False, "Invalid to_variant for {!r}".format(t.to_dict()) %>
 % endif
@@ -110,8 +114,6 @@
     ${rhs} = (${t.spelling}) api->godot_variant_as_real(${var});
 % elif t.is_record():
     ${rhs} = object_from_variant<${t.spelling}>(${var});
-% elif t.kind == 'pointer' and t.element_type.root().is_record():
-    ${rhs} = object_pointer_from_variant<${t.element_type.spelling}>(${var});
 % elif t.is_string():
     StringHelper ${rhs | c_escape}_helper = ${var};
     ${rhs} = ${rhs | c_escape}_helper.str();
@@ -119,17 +121,25 @@
     ${size} = ${rhs | c_escape}_helper.length();
     % endif
 % elif t.kind in ('array', 'vector') or (t.kind == 'pointer' and (size or is_array)):
-<% element_type = t.remove_array().root() %>
+<% 
+    element_type = t.remove_array().root()
+    helper_name = c_escape(rhs)
+%>
     % if element_type.kind in ('int', 'uint'):
-    IntArrayHelper<${element_type.spelling}> ${rhs | c_escape}_helper = ${var};
+    IntArrayHelper<${element_type.spelling}> ${helper_name} = ${var};
     % elif element_type.kind == 'float':
-    FloatArrayHelper<${element_type.spelling}> ${rhs | c_escape}_helper = ${var};
+    FloatArrayHelper<${element_type.spelling}> ${helper_name} = ${var};
+    % elif element_type.is_record() or element_type.remove_array().root().is_record():
+    ObjectArrayHelper<${element_type.spelling}> ${helper_name} = ${var};
     % else:
+        <% assert False, "from_variant not supported yet for {!r}".format(t.to_dict()) %>
     % endif
-    ${rhs} = ${rhs | c_escape}_helper.buffer;
+    ${rhs} = ${helper_name}.buffer;
     % if size:
-    ${size} = ${rhs | c_escape}_helper.size;
+    ${size} = ${helper_name}.size;
     % endif
+% elif t.kind == 'pointer' and t.element_type.root().is_record():
+    ${rhs} = object_pointer_from_variant<${t.spelling}>(${var});
 % else:
     <% assert False, "Invalid from_variant for {!r}".format(t.spelling) %>
 % endif
@@ -274,43 +284,45 @@ INCLUA_DECL void ${REGISTER_NAME(d.name)}(void *p_handle) {
 
 <%def name="def_function(d)" filter="trim">
 <%
-    i = -1
+    i = 0
     return_values = []
     if d.return_type.kind != 'void':
         if not annotations.is_argument_size(d.name, 'return'):
             return_values.append({ 't': d.return_type, 'val': 'result', 'free': annotations.get_free_func(d.name, 'return') })
+    arguments = []
 %>
 INCLUA_DECL GDCALLINGCONV godot_variant ${WRAPPER_NAME(d.name)}(godot_object *go, void *method_data, void *data, int argc, godot_variant **argv) {
 % for a in d.arguments:
 <%
+    arguments.append(a.name)
+    is_in = annotations.is_argument_in(d.name, a.name)
     is_out = annotations.is_argument_out(d.name, a.name)
     is_size = annotations.is_argument_size(d.name, a.name)
     if not is_out and is_size:
         continue
-    i += 1
     size = annotations.get_array_size(d.name, a.name)
     param_size = 'size_t ' + size if (size and size in (a.name for a in d.arguments)) else ''
     is_array = size or annotations.is_array(d.name, a.name)
-%>\
-    % if is_out:
-<% 
-    if not is_size:
+    if is_out and not is_size:
         return_values.append({
             't': a.type.remove_pointer(),
-            'val': '__out_' + a.name, 'size': 'result' if size == 'return' else size,
+            'val': a.name,
+            'size': 'result' if size == 'return' else size,
             'free': annotations.get_free_func(d.name, a.name)
         })
 %>\
-    ${typed_declaration(a.type.remove_pointer().spelling, '__out_' + a.name)};
-    ${typed_declaration(a.type.spelling, a.name)} = &__out_${a.name};
+    % if is_out and not is_in:
+<% arguments[-1] = '&' + a.name %>\
+    ${typed_declaration(a.type.remove_pointer().spelling, a.name)};
     % else:
     ${arg_from_variant(a.type, typed_declaration(a.type.spelling, a.name), "argv[{}]".format(i), size=param_size, is_array=is_array)}
+<% i += 1 %>\
     % endif
 % endfor
 % if d.return_type.kind == 'void':
-    ${d.name}(${', '.join(a.name for a in d.arguments)});
+    ${d.name}(${', '.join(arguments)});
 % else:
-    ${d.return_type.spelling} result = ${d.name}(${', '.join(a.name for a in d.arguments)});
+    ${d.return_type.spelling} result = ${d.name}(${', '.join(arguments)});
 % endif
 % if not return_values:
     return nil_variant();
@@ -585,6 +597,41 @@ const char **buffer_from_pool_string_array(godot_pool_string_array *string_array
     }
 }
 
+template<typename T> INCLUA_DECL T object_from_variant(const godot_variant *var);
+template<typename T> T *buffer_from_object_array(godot_array *array, size_t *out_size) {
+    size_t size = api->godot_array_size(array);
+    if (T *buffer = (T *) api->godot_alloc(size * sizeof(T))) {
+        for (size_t i = 0; i < size; i++) {
+            godot_variant var = api->godot_array_get(array, i);
+            buffer[i] = object_from_variant<T>(&var);
+        }
+        *out_size = size;
+        return buffer;
+    }
+    else {
+        LOG_ERROR("Failed allocating memory");
+        *out_size = 0;
+        return nullptr;
+    }
+}
+template<typename T> INCLUA_DECL T object_pointer_from_variant(const godot_variant *var);
+template<typename T> T *buffer_from_object_pointer_array(godot_array *array, size_t *out_size) {
+    size_t size = api->godot_array_size(array);
+    if (T *buffer = (T *) api->godot_alloc(size * sizeof(T))) {
+        for (size_t i = 0; i < size; i++) {
+            godot_variant var = api->godot_array_get(array, i);
+            buffer[i] = object_pointer_from_variant<T>(&var);
+        }
+        *out_size = size;
+        return buffer;
+    }
+    else {
+        LOG_ERROR("Failed allocating memory");
+        *out_size = 0;
+        return nullptr;
+    }
+}
+
 template<typename T> struct IntArrayHelper {
     IntArrayHelper(const godot_variant *var) {
         switch (api->godot_variant_get_type(var)) {
@@ -661,6 +708,36 @@ struct StringArrayHelper {
     }
     // fields
     const char **buffer;
+    size_t size;
+};
+
+template<typename T> struct ObjectArrayHelper {
+    ObjectArrayHelper(const godot_variant *var) {
+        if (api->godot_variant_get_type(var) == GODOT_VARIANT_TYPE_ARRAY) {
+            godot_array arr = api->godot_variant_as_array(var);
+            if (std::is_pointer<T>::value) {
+                buffer = buffer_from_object_pointer_array<T>(&arr, &size);
+            }
+            else {
+                buffer = buffer_from_object_array<T>(&arr, &size);
+            }
+            api->godot_array_destroy(&arr);
+        }
+        else {
+            buffer = nullptr;
+            size = 0;
+        }
+    }
+    ~ObjectArrayHelper() {
+        if (buffer) api->godot_free(buffer);
+    }
+    T *extract() {
+        T *ptr = buffer;
+        buffer = nullptr;
+        return ptr;
+    }
+    // fields
+    T *buffer;
     size_t size;
 };
 
@@ -801,19 +878,32 @@ template<typename T> INCLUA_DECL godot_variant object_variant(const T *value, co
     api->godot_variant_new_object(&var, go);
     return var;
 }
+template<typename T> INCLUA_DECL godot_variant object_array_variant(const T *values, size_t size, const godot_object *script) {
+    godot_array arr;
+    api->godot_array_new(&arr);
+    for (size_t i = 0; i < size; i++) {
+        godot_variant obj_var = object_variant(values[i], script);
+        api->godot_array_append(&arr, &obj_var);
+    }
+    godot_variant var;
+    api->godot_variant_new_array(&var, &arr);
+    return var;
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 // Variant -> Data
 ///////////////////////////////////////////////////////////////////////////////
 template<typename T> INCLUA_DECL T object_from_variant(const godot_variant *var) {
+    if (api->godot_variant_get_type(var) != GODOT_VARIANT_TYPE_OBJECT) return {};
     godot_object *go = api->godot_variant_as_object(var);
     RecordHelper *helper = RecordHelper::from_object(go);
     return *((T *) helper->ptr);
 }
-template<typename T> INCLUA_DECL T *object_pointer_from_variant(const godot_variant *var) {
+template<typename T> INCLUA_DECL T object_pointer_from_variant(const godot_variant *var) {
+    if (api->godot_variant_get_type(var) != GODOT_VARIANT_TYPE_OBJECT) return {};
     godot_object *go = api->godot_variant_as_object(var);
     RecordHelper *helper = RecordHelper::from_object(go);
-    return (T *) helper->ptr;
+    return (T) helper->ptr;
 }
 
 INCLUA_DECL int char_from_variant(const godot_variant *var) {
