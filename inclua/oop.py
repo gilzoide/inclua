@@ -12,7 +12,7 @@ from inclua.namespace import canonicalize
 DESTRUCTOR_RE = re.compile(r'release|destroy|unload|deinit|finalize|dispose|close', flags=re.I)
 
 class OOP:
-    def __init__(self, definitions, namespace_prefixes, annotations):
+    def __init__(self, definitions, namespace_prefixes, annotations, pod=False):
         self.types = {}
         self.unprefixed = {}
         self.methods = {}
@@ -39,6 +39,8 @@ class OOP:
                         self.native_methods[the_type.spelling].append((key, value))
                 except KeyError:
                     pass
+        if pod:
+            return
         for f in definitions:
             try:
                 if annotations.should_ignore(f.name):

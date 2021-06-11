@@ -25,6 +25,9 @@ Options:
   --pod                   Don't create metatypes for struct definitions. By default, inclua will create
                           metatypes for structs and unions and try to populate __index and __gc
                           based on functions name and arguments.
+  --skip-defines          By default, inclua will try compiling object-like macros looking for
+                          constants, which may take long if your header has lots of them. Use this flag
+                          to skip this step.
 """
 
 import importlib
@@ -69,6 +72,7 @@ def main():
         clang_args=opts['<clang_args>'],
         include_patterns=opts['--include'],
         type_objects=True,
+        skip_defines=opts['--skip-defines'],
     )
     module_name = opts.get('--module') or PurePath(opts['<input>']).stem
     namespace_prefixes = opts.get('--namespace')
@@ -76,7 +80,7 @@ def main():
     if opts.get('--extra-definitions'):
         with open(opts.get('--extra-definitions')) as f:
             annotations.update(yaml.safe_load(f) or {})
-    oop = OOP([] if opts.get('--pod') else definitions, namespace_prefixes, annotations)
+    oop = OOP(definitions, namespace_prefixes, annotations, pod=opts.get('--pod'))
 
     def canonicalize(s):
         return namespace.canonicalize(s, namespace_prefixes)
