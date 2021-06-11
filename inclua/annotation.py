@@ -34,6 +34,7 @@ OPAQUE_TAG = 'opaque'
 ARRAY_TAG = 'array'
 SIZE_TAG = 'size'
 SIZE_OF_TAG = 'sizeof'
+IN_TAG = 'in'
 OUT_TAG = 'out'
 FREE_TAG = 'free'
 
@@ -63,6 +64,13 @@ class Annotations(dict):
         except:
             pass
         return False
+
+    def is_argument_in(self, func: str, arg: Union[str, int]) -> bool:
+        try:
+            arg_annotation = self[func][arg]
+            return arg_annotation == IN_TAG or bool(arg_annotation[IN_TAG])
+        except:
+            return False
 
     def is_argument_out(self, func: str, arg: Union[str, int]) -> bool:
         try:
