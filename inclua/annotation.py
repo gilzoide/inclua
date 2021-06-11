@@ -71,7 +71,7 @@ class Annotations(dict):
         except:
             return False
 
-    def get_out_free(self, func: str, arg: str) -> str:
+    def get_free_func(self, func: str, arg: str) -> str:
         try:
             return self[func][arg][FREE_TAG]
         except:

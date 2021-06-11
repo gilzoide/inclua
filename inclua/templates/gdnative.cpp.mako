@@ -79,13 +79,16 @@
 % elif t.kind == 'pointer' and t.element_type.root().is_record():
     object_variant<${t.element_type.name}>(${val}, ${NATIVESCRIPT_NAME(t.element_type.name)})
 % elif t.kind in ('array', 'vector') or (t.kind == 'pointer' and (size or is_array)): 
-<% element_type = t.element_type.root() %>
+<% element_type = t.remove_array().root() %>
     % if element_type.kind in ('int', 'uint'):
         <% assert size, "Int array must have a known size" %>
     int_array_variant(${val}, ${size})
     % elif element_type.kind == 'float':
         <% assert size, "Float array must have a known size" %>
     float_array_variant(${val}, ${size})
+    % elif element_type.is_string():
+        <% assert size, "String array must have a known size" %>
+    string_array_variant(${val}, ${size})
     % else:
     % endif
 % else:
@@ -116,7 +119,7 @@
     ${size} = ${rhs | c_escape}_helper.length();
     % endif
 % elif t.kind in ('array', 'vector') or (t.kind == 'pointer' and (size or is_array)):
-<% element_type = t.element_type.root() %>
+<% element_type = t.remove_array().root() %>
     % if element_type.kind in ('int', 'uint'):
     IntArrayHelper<${element_type.spelling}> ${rhs | c_escape}_helper = ${var};
     % elif element_type.kind == 'float':
@@ -137,11 +140,13 @@
 % if t.is_string():
     set_string_from_variant(${rhs}${opt_argument(size)}, ${var});
 % elif t.kind in ('array', 'vector') or (t.kind == 'pointer' and (size or is_array)):
-<% element_type = t.element_type.root() %>
+<% element_type = t.remove_array().root() %>
     % if element_type.kind in ('int', 'uint'):
     set_int_array_from_variant(${rhs}${opt_argument(size)}, ${var});
     % elif element_type.kind == 'float':
     set_float_array_from_variant(${rhs}${opt_argument(size)}, ${var});
+    % elif element_type.is_string():
+    set_string_array_from_variant(${rhs}${opt_argument(size)}, ${var});
     % else:
         <% assert False, "Only int and float arrays are supported" %>
     % endif
@@ -198,8 +203,30 @@ INCLUA_DECL GDCALLINGCONV void ${DESTRUCTOR_NAME(d.name)}(godot_object *go, void
         ${destructor.name}(${"" if destructor.arguments[0].type.is_pointer() else "*"}obj);
 % endif
 % for f in d.fields:
-    % if f.type.is_string():
+<% free_func = annotations.get_free_func(d.name, f.name) %>\
+    % if free_func:
+        ${free_func}(obj->${f.name});
+    % elif f.type.is_string():
         if (obj->${f.name}) api->godot_free((void *) obj->${f.name});
+    % elif f.type.is_pointer() and annotations.is_array(d.name, f.name):
+        if (obj->${f.name}) {
+<% 
+    size = annotations.get_array_size(d.name, f.name)
+    obj_size = 'obj->' + size if (size and size in (f.name for f in d.fields)) else size
+    element_type = f.type.remove_array().root()
+%>\
+        % if element_type.is_string():
+            % if size:
+            size_t size = ${obj_size};
+            for (size_t i = 0; i < size; i++) {
+                if (obj->${f.name}[i]) api->godot_free((void *) obj->${f.name}[i]);
+            }
+            % else:
+            for (${f.type.spelling} it = obj->${f.name}; *it; it++) api->godot_free((void *) *it);
+            % endif
+        % endif
+            api->godot_free((void *) obj->${f.name});
+        }
     % endif
 % endfor
         helper->free_ptr();
@@ -253,7 +280,7 @@ INCLUA_DECL void ${REGISTER_NAME(d.name)}(void *p_handle) {
     return_values = []
     if d.return_type.kind != 'void':
         if not annotations.is_argument_size(d.name, 'return'):
-            return_values.append({ 't': d.return_type, 'val': 'result', 'free': annotations.get_out_free(d.name, 'return') })
+            return_values.append({ 't': d.return_type, 'val': 'result', 'free': annotations.get_free_func(d.name, 'return') })
 %>
 INCLUA_DECL GDCALLINGCONV godot_variant ${WRAPPER_NAME(d.name)}(godot_object *go, void *method_data, void *data, int argc, godot_variant **argv) {
 % for a in d.arguments:
@@ -267,7 +294,7 @@ INCLUA_DECL GDCALLINGCONV godot_variant ${WRAPPER_NAME(d.name)}(godot_object *go
     is_array = size or annotations.is_array(d.name, a.name)
 %>\
     % if is_out:
-<% return_values.append({ 't': a.type.remove_pointer(), 'val': '__out_' + a.name, 'size': 'result' if size == 'return' else size, 'free': annotations.get_out_free(d.name, a.name) }) %>\
+<% return_values.append({ 't': a.type.remove_pointer(), 'val': '__out_' + a.name, 'size': 'result' if size == 'return' else size, 'free': annotations.get_free_func(d.name, a.name) }) %>\
     ${typed_declaration(a.type.remove_pointer().spelling, '__out_' + a.name)};
     ${typed_declaration(a.type.spelling, a.name)} = &__out_${a.name};
     % else:
@@ -430,6 +457,7 @@ struct StringHelper {
     StringHelper(const godot_variant *var) : gcs_valid(false) {
         gs = api->godot_variant_as_string(var);
     }
+    StringHelper(godot_string gs) : gs(gs), gcs_valid(false) {}
     ~StringHelper() {
         if (gcs_valid) {
             api->godot_char_string_destroy(&gcs);
@@ -489,17 +517,17 @@ template<typename T> T *buffer_from_pool_byte_array(godot_pool_byte_array *byte_
 template<typename T> T *buffer_from_pool_int_array(godot_pool_int_array *int_array, size_t *out_size) {
     size_t size = api->godot_pool_int_array_size(int_array);
     if (T *buffer = (T *) api->godot_alloc(size * sizeof(T))) {
-        godot_pool_int_array_read_access *read = api->godot_pool_int_array_read(int_array);
-        const godot_int *int_ptr = api->godot_pool_int_array_read_access_ptr(read);
         if (std::is_same<T, godot_int>::value) {
+            godot_pool_int_array_read_access *read = api->godot_pool_int_array_read(int_array);
+            const godot_int *int_ptr = api->godot_pool_int_array_read_access_ptr(read);
             memcpy(buffer, int_ptr, size * sizeof(T));
+            api->godot_pool_int_array_read_access_destroy(read);
         }
         else {
             for (size_t i = 0; i < size; i++) {
-                buffer[i] = (T) int_ptr[i];
+            buffer[i] = (T) api->godot_pool_int_array_get(int_array, i);
             }
         }
-        api->godot_pool_int_array_read_access_destroy(read);
         *out_size = size;
         return buffer;
     }
@@ -513,17 +541,34 @@ template<typename T> T *buffer_from_pool_int_array(godot_pool_int_array *int_arr
 template<typename T> T *buffer_from_pool_real_array(godot_pool_real_array *real_array, size_t *out_size) {
     size_t size = (size_t) api->godot_pool_real_array_size(real_array);
     if (T *buffer = (T *) api->godot_alloc(size * sizeof(T))) {
-        godot_pool_real_array_read_access *read = api->godot_pool_real_array_read(real_array);
-        const godot_real *real_ptr = api->godot_pool_real_array_read_access_ptr(read);
         if (std::is_same<T, godot_real>::value) {
+            godot_pool_real_array_read_access *read = api->godot_pool_real_array_read(real_array);
+            const godot_real *real_ptr = api->godot_pool_real_array_read_access_ptr(read);
             memcpy(buffer, real_ptr, size * sizeof(T));
+            api->godot_pool_real_array_read_access_destroy(read);
         }
         else {
             for (size_t i = 0; i < size; i++) {
-                buffer[i] = (T) real_ptr[i];
+                buffer[i] = (T) api->godot_pool_real_array_get(real_array, i);
             }
         }
-        api->godot_pool_real_array_read_access_destroy(read);
+        *out_size = size;
+        return buffer;
+    }
+    else {
+        LOG_ERROR("Failed allocating memory");
+        *out_size = 0;
+        return nullptr;
+    }
+}
+
+const char **buffer_from_pool_string_array(godot_pool_string_array *string_array, size_t *out_size) {
+    size_t size = api->godot_pool_string_array_size(string_array);
+    if (const char **buffer = (const char **) api->godot_alloc(size * sizeof(char *))) {
+        for (size_t i = 0; i < size; i++) {
+            StringHelper helper = api->godot_pool_string_array_get(string_array, i);
+            buffer[i] = helper.strdup();
+        }
         *out_size = size;
         return buffer;
     }
@@ -591,6 +636,25 @@ template<typename T> struct FloatArrayHelper {
     }
     // fields
     T *buffer;
+    size_t size;
+};
+
+struct StringArrayHelper {
+    StringArrayHelper(const godot_variant *var) {
+        godot_pool_string_array arr = api->godot_variant_as_pool_string_array(var);
+        buffer = buffer_from_pool_string_array(&arr, &size);
+        api->godot_pool_string_array_destroy(&arr);
+    }
+    ~StringArrayHelper() {
+        if (buffer) api->godot_free(buffer);
+    }
+    const char **extract() {
+        const char **ptr = buffer;
+        buffer = nullptr;
+        return ptr;
+    }
+    // fields
+    const char **buffer;
     size_t size;
 };
 
@@ -691,6 +755,18 @@ INCLUA_DECL godot_variant string_variant(const char *s, size_t lenght) {
     StringHelper gs = { s, lenght };
     return gs.var();
 }
+INCLUA_DECL godot_variant string_array_variant(const char **arr, size_t size) {
+    godot_pool_string_array pool_array;
+    api->godot_pool_string_array_new(&pool_array);
+    api->godot_pool_string_array_resize(&pool_array, size);
+    for (size_t i = 0; i < size; i++) {
+        StringHelper helper = arr[i];
+        api->godot_pool_string_array_set(&pool_array, i, &helper.gs);
+    }
+    godot_variant var;
+    api->godot_variant_new_pool_string_array(&var, &pool_array);
+    return var;
+}
 INCLUA_DECL godot_variant dictionary_variant(const godot_dictionary *dict) {
     godot_variant var;
     api->godot_variant_new_dictionary(&var, dict);
@@ -780,6 +856,18 @@ template<typename T> INCLUA_DECL void set_float_array_from_variant(T& arr, const
 template<typename T, typename S> INCLUA_DECL void set_float_array_from_variant(T& arr, S& size, const godot_variant *var) {
     if (arr) api->godot_free(arr);
     FloatArrayHelper<typename std::remove_pointer<T>::type> helper = var;
+    arr = helper.extract();
+    size = helper.size;
+}
+
+template<typename T> INCLUA_DECL void set_string_array_from_variant(T& arr, const godot_variant *var) {
+    if (arr) api->godot_free(arr);
+    StringArrayHelper helper = var;
+    arr = helper.extract();
+}
+template<typename T, typename S> INCLUA_DECL void set_string_array_from_variant(T& arr, S& size, const godot_variant *var) {
+    if (arr) api->godot_free(arr);
+    StringArrayHelper helper = var;
     arr = helper.extract();
     size = helper.size;
 }
