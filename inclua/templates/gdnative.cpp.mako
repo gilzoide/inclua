@@ -47,7 +47,8 @@
     ${n}_nativescript
 </%def>
 
-<%def name="godot_variant_type(t)" filter="trim">
+<%def name="godot_variant_type(t, is_array=False)" filter="trim">
+    <% t = t.root() %>
     % if t.kind == 'bool':
         GODOT_VARIANT_TYPE_BOOL
     % elif t.is_integral():
@@ -56,6 +57,13 @@
         GODOT_VARIANT_TYPE_REAL
     % elif t.is_string():
         GODOT_VARIANT_TYPE_STRING
+    % elif t.kind in ('array', 'vector') or (t.kind == 'pointer' and is_array): 
+        <% element_type = t.remove_array().root() %>
+        % if element_type.is_string():
+            GODOT_VARIANT_TYPE_POOL_STRING_ARRAY
+        % else:
+            GODOT_VARIANT_TYPE_ARRAY
+        % endif
     % else:
         GODOT_VARIANT_TYPE_OBJECT
     %endif
@@ -255,9 +263,10 @@ INCLUA_DECL void ${REGISTER_NAME(d.name)}(void *p_handle) {
         create_func, destroy_func
     );
 % for f in d.fields:
+<% is_array = annotations.is_array(d.name, f.name) %>\
     {
         godot_property_attributes attr = {
-            GODOT_METHOD_RPC_MODE_DISABLED, ${godot_variant_type(f.type)},
+            GODOT_METHOD_RPC_MODE_DISABLED, ${godot_variant_type(f.type, is_array=is_array)},
             GODOT_PROPERTY_HINT_NONE, godot_string(), GODOT_PROPERTY_USAGE_DEFAULT,
         };
         godot_property_get_func getter = { &${GETTER_NAME(d.name, f.name)}, NULL, NULL };
