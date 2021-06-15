@@ -80,6 +80,8 @@ def main():
     if opts.get('--extra-definitions'):
         with open(opts.get('--extra-definitions')) as f:
             annotations.update(yaml.safe_load(f) or {})
+    # apply ignore annotations before doing any more processing
+    definitions = [d for d in definitions if not annotations.should_ignore(d.name)]
     oop = OOP(definitions, namespace_prefixes, annotations, pod=opts.get('--pod'))
 
     def canonicalize(s):
