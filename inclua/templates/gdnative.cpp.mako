@@ -40,6 +40,9 @@
 <%def name="WRAPPER_NAME(n)" filter="trim">
     _global_${n}
 </%def>
+<%def name="CALLBACK_WRAPPER_NAME(f, n)" filter="trim">
+    _callback_${f}_${n}
+</%def>
 <%def name="METHOD_NAME(t, n)" filter="trim">
     ${t}_${n}
 </%def>
@@ -99,12 +102,12 @@
         <% assert size, "Object array must have a known size" %>
     object_array_variant(${val}, ${size}, ${NATIVESCRIPT_NAME(element_type.name)})
     % else:
-        <% assert False, "Array of {!r} is not supported yet" %>
+        <% assert False, "Array of {!r} is not supported yet".format(element_type.spelling) %>
     % endif
 % elif t.kind == 'pointer' and t.remove_array().root().is_record():
     object_variant(${val}, ${NATIVESCRIPT_NAME(t.element_type.name)})
 % else:
-    <% assert False, "Invalid to_variant for {!r}".format(t.to_dict()) %>
+    <% assert False, "Invalid to_variant_for for {!r}".format(t.to_dict()) %>
 % endif
 </%def>
 
@@ -301,7 +304,48 @@ INCLUA_DECL void ${REGISTER_NAME(d.name)}(void *p_handle) {
             return_values.append({ 't': d.return_type, 'val': 'result', 'free': annotations.get_free_func(d.name, 'return') })
     arguments = []
 %>
-INCLUA_DECL GDCALLINGCONV godot_variant ${WRAPPER_NAME(d.name)}(godot_object *go, void *method_data, void *data, int argc, godot_variant **argv) {
+% for a in d.arguments:
+<%
+    if not a.type.root().is_function_pointer():
+        break
+    t = a.type.root().function
+    userdata_arg = annotations.get_argument_userdata(d.name, a.name)
+    userdata_idx = annotations.get_argument_userdata(d.name, userdata_arg)
+%>
+static GDCALLINGCONV ${t.return_type.spelling} ${CALLBACK_WRAPPER_NAME(d.name, a.name)}(${', '.join(typed_declaration(aa.spelling, 'arg'+str(i)) for i, aa in enumerate(t.arguments))}) {
+    godot_variant _result_var;
+    % if userdata_idx is None:
+        <% assert False, "Callbacks without userdata are not yet supported: {}.{}".format(d.name, a.name) %>
+    % else:
+    godot_object *funcref = (godot_object *) arg${userdata_idx};
+    if (is_funcref(funcref)) {
+        godot_array arr;
+        api->godot_array_new(&arr);
+        % for i, aa in enumerate(t.arguments):
+            % if i != userdata_idx:
+        {
+            godot_variant argvar = ${to_variant_for(aa, "arg" + str(i))};
+            api->godot_array_set(&arr, &argvar);
+        }
+            % endif
+        % endfor
+        const void *args[] = { &arr };
+        api->godot_method_bind_ptrcall(FuncRef_call_funcv, funcref, args, &_result_var);
+    }
+    else {
+        _result_var = nil_variant();
+    }
+    % endif
+    % if t.return_type.kind != 'void':
+    ${arg_from_variant(t.return_type, typed_declaration(t.return_type.spelling, '_result'), '&_result_var')}
+    api->godot_variant_destroy(&_result_var);
+    return _result;
+    % else:
+    api->godot_variant_destroy(&_result_var);
+    % endif 
+}
+% endfor
+INCLUA_DECL GDCALLINGCONV godot_variant ${WRAPPER_NAME(d.name)}(godot_object *go, void *method_data, void *_data, int argc, godot_variant **argv) {
 % for a in d.arguments:
 <%
     arguments.append(a.name)
@@ -324,6 +368,11 @@ INCLUA_DECL GDCALLINGCONV godot_variant ${WRAPPER_NAME(d.name)}(godot_object *go
     % if is_out and not is_in:
 <% arguments[-1] = '&' + a.name %>\
     ${typed_declaration(a.type.remove_pointer().spelling, a.name)};
+    % elif a.type.root().is_function_pointer():
+    ${typed_declaration(a.type.spelling, a.name)} = &${CALLBACK_WRAPPER_NAME(d.name, a.name)};
+    % elif annotations.is_argument_userdata(d.name, a.name):
+    ${typed_declaration(a.type.spelling, a.name)} = funcref_from_variant(argv[${i}]);
+<% i += 1 %>\
     % else:
     ${arg_from_variant(a.type, typed_declaration(a.type.spelling, a.name), "argv[{}]".format(i), size=param_size, is_array=is_array)}
 <% i += 1 %>\
@@ -409,7 +458,9 @@ godot_object *gd_native_library = nullptr;
 
 godot_class_constructor Reference_new = nullptr;
 godot_class_constructor NativeScript_new = nullptr;
+godot_method_bind *FuncRef_call_funcv = nullptr;
 godot_method_bind *Object_get_meta = nullptr;
+godot_method_bind *Object_is_class = nullptr;
 godot_method_bind *Object_set_meta = nullptr;
 godot_method_bind *Object_set_script = nullptr;
 godot_method_bind *Reference_reference = nullptr;
@@ -753,6 +804,15 @@ template<typename T> struct ObjectArrayHelper {
     size_t size;
 };
 
+static godot_bool is_funcref(godot_object *go) {
+    if (!go) return false;
+    godot_bool result;
+    StringHelper helper = { "FuncRef", sizeof("FuncRef") };
+    const void *args[] = { &helper.gs };
+    api->godot_method_bind_ptrcall(Object_is_class, go, args, &result);
+    return result;
+}
+
 INCLUA_DECL godot_variant get_meta(godot_object *go, const char *rawkey) {
     StringHelper key = rawkey;
     const void *args[] = { &key.gs };
@@ -918,6 +978,11 @@ template<typename T> INCLUA_DECL godot_variant object_array_variant(const T *val
 ///////////////////////////////////////////////////////////////////////////////
 // Variant -> Data
 ///////////////////////////////////////////////////////////////////////////////
+godot_object *funcref_from_variant(const godot_variant *var) {
+    if (api->godot_variant_get_type(var) != GODOT_VARIANT_TYPE_OBJECT) return nullptr;
+    godot_object *go = api->godot_variant_as_object(var);
+    return is_funcref(go) ? go : nullptr;
+}
 template<typename T> INCLUA_DECL T object_from_variant(const godot_variant *var) {
     if (api->godot_variant_get_type(var) != GODOT_VARIANT_TYPE_OBJECT) return {};
     godot_object *go = api->godot_variant_as_object(var);
@@ -996,9 +1061,9 @@ template<typename T, typename S> INCLUA_DECL void set_string_array_from_variant(
 ///////////////////////////////////////////////////////////////////////////////
 // Bound values getters
 ///////////////////////////////////////////////////////////////////////////////
-INCLUA_DECL godot_variant get_bound_uint(godot_object *go, void *method_data, void *data) {
-    uintptr_t u = (uintptr_t) method_data;
-    return uint_variant(u);
+INCLUA_DECL godot_variant get_bound_int(godot_object *go, void *method_data, void *data) {
+    intptr_t u = (intptr_t) method_data;
+    return int_variant(u);
 }
 INCLUA_DECL godot_variant get_bound_dictionary(godot_object *go, void *method_data, void *data) {
     const godot_dictionary *dict = (const godot_dictionary *) method_data;
@@ -1095,7 +1160,7 @@ void _global_register(void *p_handle) {
             GODOT_METHOD_RPC_MODE_DISABLED, GODOT_VARIANT_TYPE_INT,
             GODOT_PROPERTY_HINT_NONE, godot_string(), GODOT_PROPERTY_USAGE_DEFAULT,
         };
-        godot_property_get_func getter = { &get_bound_uint, NULL, NULL };
+        godot_property_get_func getter = { &get_bound_int, NULL, NULL };
         godot_property_set_func setter = { NULL, NULL, NULL };
         % if not d.is_anonymous():
         static godot_dictionary enum_dict;
@@ -1149,7 +1214,9 @@ GDN_EXPORT void godot_gdnative_init(godot_gdnative_init_options *options) {
     // cache some references
     LOG_ERROR_IF_FALSE(Reference_new = api->godot_get_class_constructor("Reference"));
     LOG_ERROR_IF_FALSE(NativeScript_new = api->godot_get_class_constructor("NativeScript"));
+    LOG_ERROR_IF_FALSE(FuncRef_call_funcv = api->godot_method_bind_get_method("FuncRef", "call_funcv"));
     LOG_ERROR_IF_FALSE(Object_get_meta = api->godot_method_bind_get_method("Object", "get_meta"));
+    LOG_ERROR_IF_FALSE(Object_is_class = api->godot_method_bind_get_method("Object", "is_class"));
     LOG_ERROR_IF_FALSE(Object_set_meta = api->godot_method_bind_get_method("Object", "set_meta"));
     LOG_ERROR_IF_FALSE(Object_set_script = api->godot_method_bind_get_method("Object", "set_script"));
     LOG_ERROR_IF_FALSE(Reference_reference = api->godot_method_bind_get_method("Reference", "reference"));
