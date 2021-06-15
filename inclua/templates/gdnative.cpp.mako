@@ -79,17 +79,23 @@
     string_variant(${val}${', ' + size if size else ''})
 % elif t.kind == 'void':
     nil_variant(${val})
+% elif t.kind == 'bool':
+    bool_variant(${val})
 % elif t.kind in ('uint', 'enum'):
     uint_variant(${val})
-% elif t.kind == 'int':
+% elif t.kind == 'int' or t.spelling == 'time_t':
     int_variant(${val})
 % elif t.kind == 'float':
     float_variant(${val})
 % elif t.is_record():
     object_variant(${val}, ${NATIVESCRIPT_NAME(t.name)})
 % elif t.kind in ('array', 'vector') or (t.kind == 'pointer' and (size or is_array)): 
-<% element_type = t.remove_array().root() %>
-    % if element_type.kind in ('int', 'uint'):
+<% 
+    element_type = t.remove_array().root()
+    if t.kind in ('array', 'vector'):
+        size = t.array[0]
+%>
+    % if element_type.kind in ('int', 'uint', 'enum'):
         <% assert size, "Int array must have a known size" %>
     int_array_variant(${val}, ${size})
     % elif element_type.kind == 'float':
@@ -119,7 +125,7 @@
     ${rhs} = (${t.spelling}) char_from_variant(${var});
 % elif t.kind in ('uint', 'enum'):
     ${rhs} = (${t.spelling}) api->godot_variant_as_uint(${var});
-% elif t.kind == 'int':
+% elif t.kind == 'int' or t.spelling == 'time_t':
     ${rhs} = (${t.spelling}) api->godot_variant_as_int(${var});
 % elif t.kind == 'float':
     ${rhs} = (${t.spelling}) api->godot_variant_as_real(${var});
@@ -162,7 +168,7 @@
     set_string_from_variant(${rhs}${opt_argument(size)}, ${var});
 % elif t.kind in ('array', 'vector') or (t.kind == 'pointer' and (size or is_array)):
 <% element_type = t.remove_array().root() %>
-    % if element_type.kind in ('int', 'uint'):
+    % if element_type.kind in ('int', 'uint', 'enum'):
     set_int_array_from_variant(${rhs}${opt_argument(size)}, ${var});
     % elif element_type.kind == 'float':
     set_float_array_from_variant(${rhs}${opt_argument(size)}, ${var});
@@ -417,7 +423,7 @@ INCLUA_DECL GDCALLINGCONV godot_variant ${GETTER_NAME("Global", d.name)}(godot_o
 
 <%def name="def_global_setter(d)" filter="trim">
 INCLUA_DECL GDCALLINGCONV void ${SETTER_NAME("Global", d.name)}(godot_object *go, void *method_data, void *data, godot_variant *var) {
-% if f.type.is_string():
+% if d.type.is_string():
     <% assert False, "Setting global strings is not support yet" %>
 % else:
     ${set_from_variant(d.type, d.name, "var")}
@@ -1148,7 +1154,11 @@ void _global_register(void *p_handle) {
             GODOT_PROPERTY_HINT_NONE, godot_string(), GODOT_PROPERTY_USAGE_DEFAULT,
         };
         godot_property_get_func getter = { &${GETTER_NAME("Global", d.name)}, NULL, NULL };
-        godot_property_set_func setter = { ${'&' + SETTER_NAME("Global", d.name) if d.kind == 'var' else 'NULL'}, NULL, NULL };
+        % if d.kind == 'var':
+        godot_property_set_func setter = { &${SETTER_NAME("Global", d.name)}, NULL, NULL };
+        % else:
+        godot_property_set_func setter = { NULL, NULL, NULL };
+        % endif
         nativescript_api->godot_nativescript_register_property(
             p_handle, "Global", "${d.name}",
             &attr, setter, getter
