@@ -111,7 +111,7 @@
         <% assert False, "Array of {!r} is not supported yet".format(element_type.spelling) %>
     % endif
 % elif t.kind == 'pointer' and t.remove_array().root().is_record():
-    object_variant(${val}, ${NATIVESCRIPT_NAME(t.element_type.name)})
+    object_variant(${val}, ${NATIVESCRIPT_NAME(t.element_type.name)}, nullptr)
 % else:
     <% assert False, "Invalid to_variant_for for {!r}".format(t.to_dict()) %>
 % endif
@@ -215,7 +215,7 @@ INCLUA_DECL GDCALLINGCONV void *${CONSTRUCTOR_NAME(d.name)}(godot_object *go, vo
     *helper = {};
 % if not d.opaque:
     ${d.spelling} zeroinit = {};
-    helper->set(&zeroinit, api->godot_free);
+    helper->set(&zeroinit, api->godot_free, sizeof(${d.spelling}));
 % endif
     return helper;
 }
@@ -310,15 +310,13 @@ INCLUA_DECL void ${REGISTER_NAME(d.name)}(void *p_handle) {
             return_values.append({ 't': d.return_type, 'val': 'result', 'free': annotations.get_free_func(d.name, 'return') })
     arguments = []
 %>
-% for a in d.arguments:
+% for a in filter(lambda a: a.type.root().is_function_pointer(), d.arguments):
 <%
-    if not a.type.root().is_function_pointer():
-        break
     t = a.type.root().function
     userdata_arg = annotations.get_argument_userdata(d.name, a.name)
     userdata_idx = annotations.get_argument_userdata(d.name, userdata_arg)
 %>
-static GDCALLINGCONV ${t.return_type.spelling} ${CALLBACK_WRAPPER_NAME(d.name, a.name)}(${', '.join(typed_declaration(aa.spelling, 'arg'+str(i)) for i, aa in enumerate(t.arguments))}) {
+static ${t.return_type.spelling} ${CALLBACK_WRAPPER_NAME(d.name, a.name)}(${', '.join(typed_declaration(aa.spelling, 'arg'+str(i)) for i, aa in enumerate(t.arguments))}) {
     godot_variant _result_var;
     % if userdata_idx is None:
         <% assert False, "Callbacks without userdata are not yet supported: {}.{}".format(d.name, a.name) %>
@@ -331,7 +329,7 @@ static GDCALLINGCONV ${t.return_type.spelling} ${CALLBACK_WRAPPER_NAME(d.name, a
             % if i != userdata_idx:
         {
             godot_variant argvar = ${to_variant_for(aa, "arg" + str(i))};
-            api->godot_array_set(&arr, &argvar);
+            api->godot_array_append(&arr, &argvar);
         }
             % endif
         % endfor
@@ -375,7 +373,7 @@ INCLUA_DECL GDCALLINGCONV godot_variant ${WRAPPER_NAME(d.name)}(godot_object *go
 <% arguments[-1] = '&' + a.name %>\
     ${typed_declaration(a.type.remove_pointer().spelling, a.name)};
     % elif a.type.root().is_function_pointer():
-    ${typed_declaration(a.type.spelling, a.name)} = &${CALLBACK_WRAPPER_NAME(d.name, a.name)};
+    ${typed_declaration(a.type.spelling, a.name)} = (${a.type.spelling}) &${CALLBACK_WRAPPER_NAME(d.name, a.name)};
     % elif annotations.is_argument_userdata(d.name, a.name):
     ${typed_declaration(a.type.spelling, a.name)} = funcref_from_variant(argv[${i}]);
 <% i += 1 %>\
@@ -500,11 +498,11 @@ struct RecordHelper {
         }
     }
     template<typename T>
-    void set(const T *value, FreeFunc new_free_func) {
+    void set(const T *value, FreeFunc new_free_func, size_t size = 0) {
         free_ptr();
         if (new_free_func == api->godot_free) {
-            ptr = api->godot_alloc(sizeof(T));
-            memcpy(ptr, value, sizeof(T));
+            ptr = api->godot_alloc(size);
+            memcpy(ptr, value, size);
         }
         else {
             ptr = (void *) value;
@@ -959,7 +957,7 @@ INCLUA_DECL godot_variant object_variant(const godot_object *go) {
 template<typename T> INCLUA_DECL godot_variant object_variant(const T& value, const godot_object *script) {
     godot_object *go = new_object_with_script(script);
     RecordHelper *helper = RecordHelper::from_object(go);
-    helper->set(&value, api->godot_free);
+    helper->set(&value, api->godot_free, sizeof(T));
     return object_variant(go);
 }
 template<typename T> INCLUA_DECL godot_variant object_variant(const T *value, const godot_object *script, FreeFunc free_func) {
