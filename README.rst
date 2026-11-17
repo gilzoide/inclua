@@ -1,54 +1,47 @@
 Inclua
 ======
-Wrapper generator for scripting languages, INitially for binding C to LUA.
-Implemented as a Python library for portability, dinamicity and flexibility, as
-new language binders can be easily added. Using libclang so that that we don't
-need to worry about C/C++ parsing/preprocessing.
+Wrapper generator from C to scripting languages, currently supporting LuaJIT_ FFI only.
+It uses clang_ via c_api_extract_ for parsing and understanding C header files.
+
+By deafult generates metatypes_ for struct and union definitions and deduces ``__gc``
+and other methods from C functions names and parameters, included in the ``__index`` table.
+**inclua** also supports adding native Lua definitions for any metamethods and other definitions
+for metatypes, reading them verbatim from a YAML or JSON file.
+
+.. _LuaJIT: https://luajit.org/
+.. _clang: https://pypi.org/project/clang/
+.. _c_api_extract: https://github.com/gilzoide/c_api_extract-py
+.. _metatypes: https://luajit.org/ext_ffi_api.html#ffi_metatype
 
 
-Using directly from python
---------------------------
-Import, setup, generate!
+Installing
+----------
+**inclua** is available on PyPI_ and may be installed using ``pip``::
 
-.. code:: python
+  $ pip install inclua
 
-    # File wrapper_generator.py
-    from inclua import *
-    import inclua.lua # register Lua generator
+.. _PyPI: https://pypi.org/project/inclua/
 
-    my_module = Generator ('module_name')
-    my_module.add_header ('module.h') # at least one. It can be a '.c' file as well
-    # anotate your arrays, output arguments, ignore symbols, rename stuff...
-    my_module.generate ('lua')
 
+Usage
+-----
 On your shell::
 
-    $ python wrapper_generator.py
+    $ inclua <input> [-i <pattern>...] [-n <namespace>...] [options] [-- <clang_args>...]
+
+Check out the help for more information on arguments::
+
+    $ inclua -h
 
 
-Using the standalone
---------------------
-Define, generate!
+Check out the ``examples`` folder and csfml-luajit_ for examples of usage.
 
-.. code:: yaml
-
-    # File wrapper_generator.yml
-    module : module_name
-    headers :
-      - module.h
-
-    --- # optional YAML document separation, to avoid name clashes with predefined fields
-    # anotate your arrays, output arguments, ignore symbols, rename stuff...
-
-On your shell::
-
-    $ inclua -o wrapper.cpp -l lua wrapper_generator.yml
+.. _csfml-luajit: https://github.com/gilzoide/csfml-luajit
 
 
-Tutorial
---------
-Tutorials on creating wrappers, either using the python lib or the standalone
-YAML version, and for creating **Generators** yourself, are available in the
-tutorial_.
-
-.. _tutorial: https://github.com/gilzoide/inclua/blob/master/tutorial/index.rst
+TODO
+----
+- Try matching both typedef and struct|union name when searching for methods
+- Add support for generating Lua C bindings
+- Add more examples and document additional definitions input format
+- Test on Windows

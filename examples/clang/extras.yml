@@ -1,0 +1,5 @@
+CXString:
+  __tostring: |
+    function(cxString)
+      return ffi.string(cxString:getC())
+    end

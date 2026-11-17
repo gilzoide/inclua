@@ -1,13 +1,12 @@
-from setuptools import setup, find_packages
 from codecs import open
+from setuptools import setup, find_packages
 
 with open('README.rst', encoding='utf-8') as readme:
     long_description = readme.read()
 
 setup(
     name='inclua',
-    version='0.1.3',
-    description='C/C++ to scripting languages wrapper generator, INitialy for binding C to LUA',
+    description='C to scripting languages wrapper generator, INitialy for binding C to LUA',
     long_description=long_description,
 
     url='https://github.com/gilzoide/inclua',
@@ -23,9 +22,12 @@ setup(
         'Programming Language :: Python :: 3',
     ],
     keywords='language bindings development',
-    install_requires=['c_api_extract >= 0.3', 'docopt'],
+    install_requires=['c_api_extract >= 0.7.0', 'docopt', 'Mako', 'pyyaml'],
 
     packages=find_packages(),
+    package_data={
+        'inclua': ["templates/*.mako"],
+    },
     entry_points={
         'console_scripts': [
             'inclua = inclua.__main__:main',
